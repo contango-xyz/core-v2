@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/math/SignedMath.sol";
 import "src/core/Maestro.sol";
 import "src/interfaces/IContango.sol";
 import "src/interfaces/IVault.sol";
-import "src/interfaces/IQuoter.sol";
+import "./Quoter.sol";
 
 import "script/constants.sol";
 

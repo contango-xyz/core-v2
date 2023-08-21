@@ -11,7 +11,6 @@ import "src/core/Contango.sol";
 import "src/core/OrderManager.sol";
 import "src/core/Maestro.sol";
 import "src/core/Vault.sol";
-import "src/core/Quoter.sol";
 import "src/dependencies/IWETH9.sol";
 import "src/interfaces/IOrderManager.sol";
 import "src/core/ReferralManager.sol";
@@ -39,6 +38,7 @@ import "./dependencies/chainlink/AggregatorV2V3Interface.sol";
 import "./dependencies/Uniswap.sol";
 import "./stub/NoFeeModel.sol";
 import { PositionActions } from "./PositionActions.sol";
+import "./Quoter.sol";
 import "./Encoder.sol";
 import "./SpotStub.sol";
 import "./TestHelper.sol";
@@ -176,7 +176,7 @@ contract Deployer {
             Maestro maestro,
             IVault vault,
             Contango contango,
-            IQuoter quoter,
+            Quoter quoter,
             IOrderManager orderManager,
             IOracle oracle,
             IFeeManager feeManager
@@ -274,7 +274,7 @@ abstract contract Env is StdAssertions, StdCheats {
     NoFeeModel public noFeeModel;
     // Contango
     Contango public contango;
-    IQuoter public quoter;
+    Quoter public quoter;
     IVault public vault;
     Maestro public maestro;
     IOrderManager public orderManager;
