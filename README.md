@@ -10,14 +10,13 @@ This code is provided as-is, with no guarantees of any kind.
 Before running any command, make sure to install dependencies:
 
 ```
-$ npm i
 $ forge install
 ```
 
 ### Lint
 
 ```
-$ npm run lint
+$ forge fmt
 ```
 
 ### Test
@@ -30,11 +29,11 @@ Be sure to have an `.env` file located at root (or to have the following ENV var
 Compile and test the smart contracts with [Foundry](https://getfoundry.sh/):
 
 ```
-$ npm run test
+$ forge test
 ```
 
 ## Bug Bounty
 Contango is not offering bounties for bugs disclosed whilst our audits are in place, but if you wish to report a bug, please do so at [security@contango.xyz](mailto:security@contango.xyz). Please include full details of the vulnerability and steps/code to reproduce. We ask that you permit us time to review and remediate any findings before public disclosure.
 
 ## License
-Unless the opposite is explicitly stated on the file header, all files in this repository are released under the [BSL 1.1](https://github.com/contango-xyz/core/blob/master/LICENSE.md) license. 
+Unless the opposite is explicitly stated on the file header, all files in this repository are released under the [BSL 1.1](https://github.com/contango-xyz/core-v2/blob/master/LICENSE.md) license. 
