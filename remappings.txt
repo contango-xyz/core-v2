@@ -1,0 +1,6 @@
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
+forge-std/=lib/forge-std/src/
+@aave/core-v3/=lib/aave-v3-core/
+erc7399/=lib/erc7399/src/
+erc7399-wrappers/=lib/erc7399-wrappers/src/

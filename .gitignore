@@ -1,0 +1,61 @@
+src/*.txt
+
+tests/.*
+
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+**/node_modules
+artifacts
+cache
+typechain
+typechain-types
+dist/
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+coverage
+
+# production
+build
+
+# misc
+.DS_Store
+.env
+.envrc
+.secret*
+proposal.txt
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+.idea
+
+.openzeppelin
+
+.vscode
+
+# Deployments transient files
+deployments/deployed/localhost/
+deployments/deployed/tenderly/
+deployments/deployed/hardhat/
+deployments/newSymbols.json
+deployments/tenderly_*
+
+# coverage
+lcov.info
+report/
+
+out/
+cache/
+cache_hardhat/
+cache_hh/
+cache_hardhat_docker/
+
+generated/
+broadcast/
+.schema.json
