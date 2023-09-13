@@ -373,14 +373,14 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             uint256 repaymentAmount = quoteBalance;
             // if applicable, discount quote cashflow to be transferred out from debt repayment
             if (!cb.fullyClosing && cb.cashflowCcy == Currency.Quote && cb.cashflow < 0) {
-                repaymentAmount -= Math.min(uint256(-cb.cashflow), quoteBalance);
+                repaymentAmount -= Math.min(cb.cashflow.abs(), quoteBalance);
             }
 
             if (repaymentAmount != 0) repaid = _repayFromMarket(cb.moneyMarket, cb.positionId, cb.instrument.quote, repaymentAmount);
         }
 
         if (cb.cashflowCcy == Currency.Quote && cb.cashflow < 0) {
-            uint256 uCashflow = uint256(-cb.cashflow);
+            uint256 uCashflow = cb.cashflow.abs();
             if (quoteBalance < uCashflow) {
                 _borrowFromMarket(cb.moneyMarket, cb.positionId, cb.instrument.quote, uCashflow - quoteBalance, address(this));
             }
@@ -450,7 +450,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             // adjust cashflow when it's quote, positive and not all of it was used
             trade_.cashflow -= _handleRemainingQuote(owner, _instrument, trade_);
         } else {
-            uint256 borrowAmount = cashflowInBase ? execParams.swapAmount : uint256(-tradeParams.cashflow);
+            uint256 borrowAmount = cashflowInBase ? execParams.swapAmount : tradeParams.cashflow.abs();
             _borrowFromMarket(moneyMarket, tradeParams.positionId, _instrument.quote, borrowAmount, address(this));
 
             trade_.swap = _executeSwap(cashflowInBase, execParams, _instrument, _instrument.quote);
@@ -530,8 +530,11 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     function _handleNegativeCashflow(bool shouldRun, FlashLoanCallback memory cb) private {
         if (shouldRun && cb.cashflow < 0) {
             IERC20 _cashflowToken = cb.cashflowToken();
-            uint256 uCashflow = ERC20Lib.transferOut(_cashflowToken, address(this), address(vault), uint256(-cb.cashflow));
-            _vaultDeposit(_cashflowToken, cb.owner, uCashflow);
+            _vaultDeposit({
+                token: _cashflowToken,
+                account: cb.owner,
+                amount: ERC20Lib.transferOut(_cashflowToken, address(this), address(vault), cb.cashflow.abs())
+            });
         }
     }
 
