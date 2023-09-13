@@ -125,6 +125,7 @@ contract AaveMoneyMarket is BaseMoneyMarket, FlashLoanReceiverBase, IFlashBorrow
         });
 
         result = tmpResult;
+        delete tmpResult;
     }
 
     function executeOperation(
