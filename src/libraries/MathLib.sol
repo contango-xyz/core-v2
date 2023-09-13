@@ -8,7 +8,9 @@ library MathLib {
     }
 
     function absIfNegative(int256 value) internal pure returns (uint256) {
-        return value < 0 ? uint256(-value) : 0;
+        unchecked {
+            return value < 0 ? uint256(-value) : 0;
+        }
     }
 
 }
