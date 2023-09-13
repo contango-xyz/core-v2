@@ -101,7 +101,7 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
         _accountBalances[account][token] -= amount;
         _totalBalances[token] -= amount;
 
-        if (address(token) == address(_nativeToken)) _nativeToken.transferOutNative({ to: to, amount: amount });
+        if (address(token) == address(_nativeToken)) _nativeToken.transferOutNative({ to: payable(to), amount: amount });
         else token.transferOut({ payer: address(this), to: to, amount: amount });
 
         return amount;
