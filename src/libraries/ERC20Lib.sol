@@ -13,28 +13,19 @@ library ERC20Lib {
     error ZeroPayer();
     error ZeroDestination();
 
+    function transferOutNative(IWETH9 token, address to, uint256 amount) internal returns (uint256) {
+        if (to == address(0)) revert ZeroDestination();
+        if (amount == 0) return amount;
+
+        token.withdraw(amount);
+        payable(to).transfer(amount);
+        return amount;
+    }
+
     function transferOut(IERC20 token, address payer, address to, uint256 amount) internal returns (uint256) {
         if (payer == address(0)) revert ZeroPayer();
         if (to == address(0)) revert ZeroDestination();
         if (payer == to || amount == 0) return amount;
-
-        return _transferOut(token, payer, to, amount);
-    }
-
-    function transferOut(IERC20 token, address payer, address to, uint256 amount, IWETH9 nativeToken) internal returns (uint256) {
-        if (payer == address(0)) revert ZeroPayer();
-        if (to == address(0)) revert ZeroDestination();
-        if (payer == to || amount == 0) return amount;
-
-        if (address(token) == address(nativeToken)) {
-            if (payer == address(this)) {
-                nativeToken.withdraw(amount);
-                payable(to).transfer(amount);
-            } else {
-                nativeToken.deposit{ value: amount }();
-            }
-            return amount;
-        }
 
         return _transferOut(token, payer, to, amount);
     }
@@ -44,13 +35,9 @@ library ERC20Lib {
         return amount;
     }
 
-    function transferBalance(IERC20 token, address to) internal returns (uint256) {
-        return transferBalance(token, to, IWETH9(address(0)));
-    }
-
-    function transferBalance(IERC20 token, address to, IWETH9 nativeToken) internal returns (uint256) {
-        uint256 balance = myBalance(token);
-        return balance > 0 ? transferOut(token, address(this), to, balance, nativeToken) : 0;
+    function transferBalance(IERC20 token, address to) internal returns (uint256 balance) {
+        balance = myBalance(token);
+        if (balance > 0) transferOut(token, address(this), to, balance);
     }
 
     function myBalance(IERC20 token) internal view returns (uint256) {

@@ -14,6 +14,7 @@ import { SenderIsNotNativeToken } from "../libraries/Errors.sol";
 contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, PausableUpgradeable, UUPSUpgradeable {
 
     using ERC20Lib for IERC20;
+    using ERC20Lib for IWETH9;
 
     IWETH9 public immutable nativeToken;
 
@@ -100,7 +101,8 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
         _accountBalances[account][token] -= amount;
         _totalBalances[token] -= amount;
 
-        token.transferOut({ payer: address(this), to: to, amount: amount, nativeToken: _nativeToken });
+        if (address(token) == address(_nativeToken)) _nativeToken.transferOutNative({ to: to, amount: amount });
+        else token.transferOut({ payer: address(this), to: to, amount: amount });
 
         return amount;
     }

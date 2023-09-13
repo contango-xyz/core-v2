@@ -519,7 +519,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     }
 
     function _depositBalance(IERC20 token, address owner) internal returns (uint256 deposited) {
-        deposited = ERC20Lib.transferBalance(token, address(vault), IWETH9(address(0)));
+        deposited = ERC20Lib.transferBalance(token, address(vault));
         if (deposited > 0) _vaultDeposit(token, owner, deposited);
     }
 
