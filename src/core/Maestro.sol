@@ -144,7 +144,7 @@ contract Maestro is IMaestro, UUPSUpgradeable {
         (positionId, trade_) = trade(tradeParams, execParams);
         // avoid reverting on vault if actual trade cashflow is not negative
         if (trade_.cashflow < 0) {
-            amount = uint256(-trade_.cashflow);
+            amount = trade_.cashflow.abs();
 
             Instrument memory instrument = contango.instrument(positionId.getSymbol());
             IERC20 cashflowToken = trade_.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
