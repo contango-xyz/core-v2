@@ -230,7 +230,7 @@ contract Deployer {
 
         orderManager = new OrderManager(contango, env.nativeToken());
         oracle = new AaveOracle(env.aaveAddressProvider());
-        OrderManager(payable(address(orderManager))).initialize({ timelock: TIMELOCK, _gasMultiplier: 2, _gasTip: 0, _oracle: oracle });
+        OrderManager(payable(address(orderManager))).initialize({ timelock: TIMELOCK, _gasMultiplier: 2e4, _gasTip: 0, _oracle: oracle });
 
         maestro = new Maestro(TIMELOCK, contango, orderManager, vault, env.permit2());
         VM.label(address(maestro), "Maestro");

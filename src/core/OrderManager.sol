@@ -16,6 +16,12 @@ import "../interfaces/IContango.sol";
 import "../interfaces/IVault.sol";
 import "../interfaces/IOracle.sol";
 
+uint256 constant MAX_GAS_MULTIPLIER = 10e4; // 10x
+uint256 constant MIN_GAS_MULTIPLIER = 1e4; // 1x
+
+error AboveMaxGasMultiplier(uint64 gasMultiplier);
+error BelowMinGasMultiplier(uint64 gasMultiplier);
+
 contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeable {
 
     using { toOrderId } for OrderParams;
@@ -55,7 +61,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     uint256[50_000 - 251] private __gap;
 
     uint128 public gasStart;
-    uint64 public gasMultiplier;
+    uint64 public gasMultiplier; // multiplier in 1e4, e.g. 2.5e4 -> 25000 -> 2.5x
     uint64 public gasTip;
     IOracle public oracle;
 
@@ -74,15 +80,22 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
         _grantRole(DEFAULT_ADMIN_ROLE, timelock);
+        _setGasMultiplier(_gasMultiplier);
         gasStart = 21_000;
-        gasMultiplier = _gasMultiplier;
         gasTip = _gasTip;
         oracle = _oracle;
     }
 
     // ====================================== Accessors ======================================
 
-    function setGasMultiplier(uint64 _gasMultiplier) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setGasMultiplier(uint64 _gasMultiplier) public override onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setGasMultiplier(_gasMultiplier);
+    }
+
+    function _setGasMultiplier(uint64 _gasMultiplier) private {
+        if (_gasMultiplier > MAX_GAS_MULTIPLIER) revert AboveMaxGasMultiplier(_gasMultiplier);
+        if (_gasMultiplier < MIN_GAS_MULTIPLIER) revert BelowMinGasMultiplier(_gasMultiplier);
+
         gasMultiplier = _gasMultiplier;
         emit GasMultiplierSet(_gasMultiplier);
     }
@@ -259,7 +272,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         uint256 rate = cashflowToken != nativeToken ? oracle.rate(nativeToken, cashflowToken) : 0;
 
         // Keeper receives a multiplier of the gas cost
-        keeperReward = _gasCost() * gasMultiplier;
+        keeperReward = _gasCost() * gasMultiplier / 1e4;
 
         keeperReward = rate > 0 ? keeperReward.mulDiv(rate, nativeTokenUnit) : keeperReward;
     }

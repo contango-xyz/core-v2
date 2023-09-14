@@ -70,13 +70,13 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         StorageUtils su = new StorageUtils(address(om));
 
         vm.startPrank(TIMELOCK);
-        om.setGasMultiplier(3);
+        om.setGasMultiplier(3e4);
         om.setGasTip(3e9);
         vm.stopPrank();
 
         uint256 slot0 = su.read_uint(bytes32(uint256(GAP)));
         assertEq(uint128(uint128(slot0)), 21_000, "gasStart");
-        assertEq(uint64(slot0 >> 128), 3, "gasMultiplier");
+        assertEq(uint64(slot0 >> 128), 3e4, "gasMultiplier");
         assertEq(uint64(slot0 >> 192), 3e9, "gasTip");
 
         assertEq(su.read_address(bytes32(uint256(GAP + 1))), address(env.oracle()), "oracle");
@@ -1195,12 +1195,20 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
 
     function testSetGasMultiplier() public {
         expectAccessControl(address(this), "");
-        om.setGasMultiplier(1);
+        om.setGasMultiplier(1e4);
+
+        vm.expectRevert(abi.encodeWithSelector(AboveMaxGasMultiplier.selector, 11e4));
+        vm.prank(TIMELOCK);
+        om.setGasMultiplier(11e4);
+
+        vm.expectRevert(abi.encodeWithSelector(BelowMinGasMultiplier.selector, 0.9e4));
+        vm.prank(TIMELOCK);
+        om.setGasMultiplier(0.9e4);
 
         vm.expectEmit(true, true, true, true);
-        emit GasMultiplierSet(5);
+        emit GasMultiplierSet(5e4);
         vm.prank(TIMELOCK);
-        om.setGasMultiplier(5);
+        om.setGasMultiplier(5e4);
     }
 
     function testSetGasTip() public {
