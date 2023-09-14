@@ -16,10 +16,12 @@ contract SpotExecutor {
         external
         returns (int256 input, int256 output, uint256 price)
     {
+        input = ERC20Lib.myBalanceI(tokenToSell);
+
         SafeERC20.forceApprove(tokenToSell, execParams.spender, execParams.swapAmount);
         Address.functionCall(execParams.router, execParams.swapBytes);
 
-        input = ERC20Lib.myBalanceI(tokenToSell) - int256(execParams.swapAmount);
+        input = ERC20Lib.myBalanceI(tokenToSell) - input;
         output = int256(ERC20Lib.transferBalance(tokenToBuy, msg.sender));
 
         price = inputCcy == Currency.Base ? output.abs().mulDiv(unit, input.abs()) : input.abs().mulDiv(unit, output.abs());
