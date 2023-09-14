@@ -607,12 +607,12 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             } else {
                 // Scenarios 01, 04, 28
                 // distributes swap cost to the cashflow + borrow cost to cover required swap input
-                cost = uint256(_trade.cashflow).mulDiv((-_trade.swap.input).toUint256(), _trade.swap.output.toUint256()) + borrowed;
+                cost = _trade.cashflow.toUint256().mulDiv((-_trade.swap.input).toUint256(), _trade.swap.output.toUint256()) + borrowed;
             }
         } else {
             // Scenarios 02, 08, 09, 10, 29
             // whatever cashflow brought adjusting for debt delta
-            cost = uint256(_trade.cashflow) + borrowed - repaid;
+            cost = _trade.cashflow.toUint256() + borrowed - repaid;
         }
     }
 
