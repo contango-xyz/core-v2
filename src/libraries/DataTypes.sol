@@ -15,8 +15,6 @@ enum Currency {
 
 type Symbol is bytes16;
 
-//  16B   -      1B      -   4B   -  1B   -  4B   -  6B
-// symbol - money market - expiry - flags - empty - number
 type PositionId is bytes32;
 
 using { decode, getSymbol, getNumber, getMoneyMarket, getExpiry, isPerp, isExpired, withNumber, getFlags } for PositionId global;

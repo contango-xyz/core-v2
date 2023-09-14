@@ -8,11 +8,14 @@ error InvalidUInt32(uint256 n);
 error InvalidExpiry();
 error InvalidPositionId();
 
+//  16B   -      1B      -   4B   -  1B   -  4B   -  6B
+// symbol - money market - expiry - flags - empty - number
+
 function decode(PositionId positionId) pure returns (Symbol symbol, MoneyMarket mm, uint32 expiry, uint256 number) {
     bytes32 raw = PositionId.unwrap(positionId);
     symbol = Symbol.wrap(bytes16(raw));
-    mm = MoneyMarket.wrap(uint8(bytes1(raw << 128)));
-    expiry = (uint32(bytes4(raw << 136)));
+    mm = MoneyMarket.wrap(uint8(uint256(raw >> 120)));
+    expiry = (uint32(uint256(raw >> 88)));
     number = uint48(uint256(raw));
 }
 
@@ -25,11 +28,11 @@ function getNumber(PositionId positionId) pure returns (uint256) {
 }
 
 function getMoneyMarket(PositionId positionId) pure returns (MoneyMarket) {
-    return MoneyMarket.wrap(uint8(bytes1(PositionId.unwrap(positionId) << 128)));
+    return MoneyMarket.wrap(uint8(uint256(PositionId.unwrap(positionId) >> 120)));
 }
 
 function getExpiry(PositionId positionId) pure returns (uint32) {
-    return (uint32(bytes4(PositionId.unwrap(positionId) << 136)));
+    return (uint32(uint256(PositionId.unwrap(positionId) >> 88)));
 }
 
 function isPerp(PositionId positionId) pure returns (bool) {
