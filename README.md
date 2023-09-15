@@ -32,6 +32,9 @@ Compile and test the smart contracts with [Foundry](https://getfoundry.sh/):
 $ forge test
 ```
 
+### Supported scenarios
+All supported scenarios when creating/modifying/closing a position are linked in [this sheet](https://docs.google.com/spreadsheets/d/1uLRNJOn3uy2PR5H2QJ-X8unBRVCu1Ra51ojMjylPH90/edit#gid=0) along with its corresponding [tests](./test/core/functional/AbstractPositionLifeCycle.ft.t.sol)
+
 ## Bug Bounty
 Contango is not offering bounties for bugs disclosed whilst our audits are in place, but if you wish to report a bug, please do so at [security@contango.xyz](mailto:security@contango.xyz). Please include full details of the vulnerability and steps/code to reproduce. We ask that you permit us time to review and remediate any findings before public disclosure.
 
