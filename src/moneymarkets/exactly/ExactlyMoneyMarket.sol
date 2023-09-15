@@ -37,32 +37,32 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
 
     function _initialise(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal override {
         if (!positionId.isPerp()) revert InvalidExpiry();
-        auditor.enterMarket(reverseLookup.markets(collateralAsset));
-        collateralAsset.forceApprove(address(reverseLookup.markets(collateralAsset)), type(uint256).max);
-        debtAsset.forceApprove(address(reverseLookup.markets(debtAsset)), type(uint256).max);
+        auditor.enterMarket(reverseLookup.market(collateralAsset));
+        collateralAsset.forceApprove(address(reverseLookup.market(collateralAsset)), type(uint256).max);
+        debtAsset.forceApprove(address(reverseLookup.market(debtAsset)), type(uint256).max);
     }
 
     function _lend(PositionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
         if (amount == 0) return 0;
         asset.transferOut(payer, address(this), amount);
-        reverseLookup.markets(asset).deposit(amount, address(this));
+        reverseLookup.market(asset).deposit(amount, address(this));
         actualAmount = amount;
     }
 
     function _withdraw(PositionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
         if (amount == 0) return 0;
-        reverseLookup.markets(asset).withdraw(amount, to, address(this));
+        reverseLookup.market(asset).withdraw(amount, to, address(this));
         actualAmount = amount;
     }
 
     function _borrow(PositionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
         if (amount == 0) return 0;
-        reverseLookup.markets(asset).borrow(amount, to, address(this));
+        reverseLookup.market(asset).borrow(amount, to, address(this));
         actualAmount = amount;
     }
 
     function _repay(PositionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
-        IMarket market = reverseLookup.markets(asset);
+        IMarket market = reverseLookup.market(asset);
         uint256 debt = market.previewDebt(address(this));
         if (debt == 0 || market.previewRepay(amount) == 0) return 0;
         asset.transferOut(payer, address(this), Math.min(amount, debt));
@@ -75,7 +75,7 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
     }
 
     function _collateralBalance(PositionId, IERC20 asset) internal view override returns (uint256 balance) {
-        IMarket collateralMarket = reverseLookup.markets(asset);
+        IMarket collateralMarket = reverseLookup.market(asset);
         return collateralMarket.convertToAssets(collateralMarket.balanceOf(address(this)));
     }
 

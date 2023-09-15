@@ -55,7 +55,7 @@ contract ExactlyMoneyMarketTest is Test {
         IERC20 borrowToken = env.token(USDC);
 
         ExactlyMoneyMarket emm = env.deployer().deployExactlyMoneyMarket(env, IContango(contango));
-        IMarket lendMarket = reverseLookup.markets(lendToken);
+        IMarket lendMarket = reverseLookup.market(lendToken);
 
         vm.expectEmit(true, true, true, true);
         emit MarketEntered(lendMarket, address(emm));
@@ -64,7 +64,7 @@ contract ExactlyMoneyMarketTest is Test {
 
         assertEq(lendToken.allowance(address(emm), address(lendMarket)), type(uint256).max, "lendToken allowance");
         assertEq(
-            borrowToken.allowance(address(emm), address(reverseLookup.markets(borrowToken))), type(uint256).max, "borrowToken allowance"
+            borrowToken.allowance(address(emm), address(reverseLookup.market(borrowToken))), type(uint256).max, "borrowToken allowance"
         );
     }
 
@@ -72,7 +72,7 @@ contract ExactlyMoneyMarketTest is Test {
         // setup
         IERC20 lendToken = env.token(WETH);
         IERC20 borrowToken = env.token(USDC);
-        IMarket borrowMarket = reverseLookup.markets(borrowToken);
+        IMarket borrowMarket = reverseLookup.market(borrowToken);
 
         uint256 lendAmount = 10 ether;
         uint256 borrowAmount = 1000e6;
@@ -133,7 +133,7 @@ contract ExactlyMoneyMarketTest is Test {
         // setup
         IERC20 lendToken = env.token(WETH);
         IERC20 borrowToken = env.token(USDC);
-        IMarket borrowMarket = reverseLookup.markets(borrowToken);
+        IMarket borrowMarket = reverseLookup.market(borrowToken);
 
         uint256 lendAmount = 10 ether;
         uint256 borrowAmount = 1000e6;
@@ -180,7 +180,7 @@ contract ExactlyMoneyMarketTest is Test {
         // setup
         IERC20 lendToken = env.token(WETH);
         IERC20 borrowToken = env.token(USDC);
-        IMarket borrowMarket = reverseLookup.markets(borrowToken);
+        IMarket borrowMarket = reverseLookup.market(borrowToken);
 
         uint256 lendAmount = 10 ether;
         uint256 borrowAmount = 1000e6;

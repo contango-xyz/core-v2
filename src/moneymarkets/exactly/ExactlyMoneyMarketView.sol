@@ -34,9 +34,9 @@ contract ExactlyMoneyMarketView is IMoneyMarketView {
     }
 
     function balances(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) public view returns (Balances memory balances_) {
-        IMarket collateralMarket = reverseLookup.markets(collateralAsset);
+        IMarket collateralMarket = reverseLookup.market(collateralAsset);
         balances_.collateral = collateralMarket.convertToAssets(collateralMarket.balanceOf(_account(positionId)));
-        balances_.debt = reverseLookup.markets(debtAsset).previewDebt(_account(positionId));
+        balances_.debt = reverseLookup.market(debtAsset).previewDebt(_account(positionId));
     }
 
     function normalisedBalances(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
@@ -53,15 +53,15 @@ contract ExactlyMoneyMarketView is IMoneyMarketView {
     }
 
     function prices(Symbol, IERC20 collateralAsset, IERC20 debtAsset) public view returns (Prices memory prices_) {
-        (,,,, address collateralPriceFeed) = auditor.markets(reverseLookup.markets(collateralAsset));
-        (,,,, address debtPriceFeed) = auditor.markets(reverseLookup.markets(debtAsset));
+        (,,,, address collateralPriceFeed) = auditor.markets(reverseLookup.market(collateralAsset));
+        (,,,, address debtPriceFeed) = auditor.markets(reverseLookup.market(debtAsset));
         prices_.collateral = auditor.assetPrice(collateralPriceFeed);
         prices_.debt = auditor.assetPrice(debtPriceFeed);
         prices_.unit = WAD;
     }
 
     function borrowingLiquidity(IERC20 asset) external view returns (uint256 liquidity) {
-        IMarket market = reverseLookup.markets(asset);
+        IMarket market = reverseLookup.market(asset);
         uint256 adjusted = market.floatingAssets().mulDiv(WAD - market.reserveFactor(), WAD, Math.Rounding.Down);
         uint256 borrowed = market.floatingBackupBorrowed() + market.totalFloatingBorrowAssets();
         liquidity = adjusted > borrowed ? adjusted - borrowed : 0;
@@ -81,8 +81,8 @@ contract ExactlyMoneyMarketView is IMoneyMarketView {
         view
         returns (uint256 ltv, uint256 liquidationThreshold)
     {
-        (uint256 collateralAdjustFactor,,,,) = auditor.markets(reverseLookup.markets(collateralAsset));
-        (uint256 debtAdjustFactor,,,,) = auditor.markets(reverseLookup.markets(debtAsset));
+        (uint256 collateralAdjustFactor,,,,) = auditor.markets(reverseLookup.market(collateralAsset));
+        (uint256 debtAdjustFactor,,,,) = auditor.markets(reverseLookup.market(debtAsset));
 
         liquidationThreshold = collateralAdjustFactor.mulDiv(debtAdjustFactor, WAD, Math.Rounding.Down);
         ltv = liquidationThreshold;
