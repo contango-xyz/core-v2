@@ -64,7 +64,7 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
     function _repay(PositionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
         IMarket market = reverseLookup.markets(asset);
         uint256 debt = market.previewDebt(address(this));
-        if (market.previewRepay(amount) == 0 || debt == 0) return 0;
+        if (debt == 0 || market.previewRepay(amount) == 0) return 0;
         asset.transferOut(payer, address(this), Math.min(amount, debt));
 
         (actualAmount,) = market.repay(amount, address(this));
