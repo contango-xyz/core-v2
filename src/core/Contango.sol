@@ -235,7 +235,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         trade_.swap = _executeSwap(cb.ep, cb.instrument, asset);
 
         // if applicable, transfer any required base out before increasing quantity
-        _handleNegativeCashflow(cb.cashflowCcy == Currency.Base, cb);
+        if (cb.cashflowCcy == Currency.Base) _handleNegativeCashflow(cb);
 
         uint256 quantity = ERC20Lib.myBalance(cb.instrument.base);
 
@@ -256,7 +256,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         if (repayTo != address(0)) borrowed = _borrowFromMarket(cb.moneyMarket, cb.positionId, cb.instrument.quote, amountOwed, repayTo);
 
         // if applicable, transfer out required quote
-        _handleNegativeCashflow(cb.cashflowCcy == Currency.Quote, cb);
+        if (cb.cashflowCcy == Currency.Quote) _handleNegativeCashflow(cb);
 
         // adjust cashflow when it's quote, positive and not all of it was used
         int256 unusedQuoteCashflow = _handleRemainingQuote(cb.owner, cb.instrument, trade_);
@@ -527,8 +527,8 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         if (cb.cashflow > 0) _withdrawFromVault(cb.cashflowToken(), cb.owner, uint256(cb.cashflow), address(this));
     }
 
-    function _handleNegativeCashflow(bool shouldRun, FlashLoanCallback memory cb) private {
-        if (shouldRun && cb.cashflow < 0) {
+    function _handleNegativeCashflow(FlashLoanCallback memory cb) private {
+        if (cb.cashflow < 0) {
             IERC20 _cashflowToken = cb.cashflowToken();
             _vaultDeposit({
                 token: _cashflowToken,
