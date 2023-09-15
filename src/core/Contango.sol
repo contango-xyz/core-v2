@@ -126,11 +126,16 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         returns (PositionId positionId, Trade memory trade_)
     {
         _requireNotPaused();
-        address owner = onBehalfOf;
+        address owner;
         positionId = tradeParams.positionId;
-        if (tradeParams.quantity > 0) (positionId, trade_) = _open(tradeParams, execParams, onBehalfOf);
-        else if (tradeParams.quantity < 0) (trade_, owner) = _close(tradeParams, execParams);
-        else (trade_, owner) = _modify(tradeParams, execParams);
+        if (tradeParams.quantity > 0) {
+            owner = onBehalfOf;
+            (positionId, trade_) = _open(tradeParams, execParams, onBehalfOf);
+        } else if (tradeParams.quantity < 0) {
+            (trade_, owner) = _close(tradeParams, execParams);
+        } else {
+            (trade_, owner) = _modify(tradeParams, execParams);
+        }
 
         _emitPositionUpserted(positionId, trade_, owner);
     }
