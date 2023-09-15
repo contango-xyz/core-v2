@@ -5,6 +5,7 @@ import "./dependencies/IAuditor.sol";
 
 contract ExactlyReverseLookup {
 
+    event MarketSet(IERC20 indexed asset, IMarket indexed market);
     error MarketNotFound(IERC20 asset);
 
     IAuditor public immutable auditor;
@@ -26,6 +27,7 @@ contract ExactlyReverseLookup {
             for (uint256 i = 0; i < allMarkets.length; i++) {
                 IMarket market = allMarkets[i];
                 _markets[market.asset()] = market;
+                emit MarketSet(market.asset(), market);
             }
         }
     }
