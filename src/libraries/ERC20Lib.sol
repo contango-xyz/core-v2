@@ -15,7 +15,7 @@ library ERC20Lib {
     error ZeroPayer();
     error ZeroDestination();
 
-    function transferOutNative(IWETH9 token, address payable to, uint256 amount) internal returns (uint256) {
+    function transferOutNative(IWETH9 token, address payable to, uint256 amount) internal returns (uint256 amountTransferred) {
         if (to == address(0)) revert ZeroDestination();
         if (amount == 0) return amount;
 
@@ -25,7 +25,7 @@ library ERC20Lib {
         return amount;
     }
 
-    function transferOut(IERC20 token, address payer, address to, uint256 amount) internal returns (uint256) {
+    function transferOut(IERC20 token, address payer, address to, uint256 amount) internal returns (uint256 amountTransferred) {
         if (payer == address(0)) revert ZeroPayer();
         if (to == address(0)) revert ZeroDestination();
         if (payer == to || amount == 0) return amount;
@@ -33,7 +33,7 @@ library ERC20Lib {
         return _transferOut(token, payer, to, amount);
     }
 
-    function _transferOut(IERC20 token, address payer, address to, uint256 amount) internal returns (uint256) {
+    function _transferOut(IERC20 token, address payer, address to, uint256 amount) internal returns (uint256 amountTransferred) {
         payer == address(this) ? token.safeTransfer(to, amount) : token.safeTransferFrom(payer, to, amount);
         return amount;
     }
