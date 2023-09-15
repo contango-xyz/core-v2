@@ -25,16 +25,16 @@ contract ExactlyReverseLookup {
         if (address(_auditor) != address(0)) {
             IMarket[] memory allMarkets = _auditor.allMarkets();
             for (uint256 i = 0; i < allMarkets.length; i++) {
-                IMarket market = allMarkets[i];
-                _markets[market.asset()] = market;
-                emit MarketSet(market.asset(), market);
+                IMarket _market = allMarkets[i];
+                _markets[_market.asset()] = _market;
+                emit MarketSet(_market.asset(), _market);
             }
         }
     }
 
-    function markets(IERC20 asset) external view returns (IMarket market) {
-        market = _markets[asset];
-        if (market == IMarket(address(0))) revert MarketNotFound(asset);
+    function market(IERC20 asset) external view returns (IMarket _market) {
+        _market = _markets[asset];
+        if (_market == IMarket(address(0))) revert MarketNotFound(asset);
     }
 
 }
