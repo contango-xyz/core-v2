@@ -232,7 +232,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         // if applicable, transfer any required cashflow in before executing swaps
         _handlePositiveCashflow(cb);
 
-        trade_.swap = _executeSwap(true, cb.ep, cb.instrument, asset);
+        trade_.swap = _executeSwap(cb.ep, cb.instrument, asset);
 
         // if applicable, transfer any required base out before increasing quantity
         _handleNegativeCashflow(cb.cashflowCcy == Currency.Base, cb);
@@ -370,7 +370,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         // if applicable, transfer any required cashflow in before executing swaps
         _handlePositiveCashflow(cb);
 
-        trade_.swap = _executeSwap(asset == cb.instrument.base, cb.ep, cb.instrument, cb.instrument.base);
+        if (asset == cb.instrument.base) trade_.swap = _executeSwap(cb.ep, cb.instrument, cb.instrument.base);
 
         uint256 quoteBalance = ERC20Lib.myBalance(cb.instrument.quote);
         uint256 repaid;
@@ -393,10 +393,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
 
         uint256 withdrawn = cb.moneyMarket.withdraw(cb.positionId, cb.instrument.base, cb.quantity, address(this));
 
-        // checks if a previous swap already happened
-        if (trade_.swap.inputCcy == Currency.None) {
-            trade_.swap = _executeSwap(asset == cb.instrument.quote, cb.ep, cb.instrument, cb.instrument.quote);
-        }
+        if (asset == cb.instrument.quote) trade_.swap = _executeSwap(cb.ep, cb.instrument, cb.instrument.quote);
 
         if (repayTo != address(0)) ERC20Lib.transferOut(asset, address(this), repayTo, amountOwed);
 
@@ -448,7 +445,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             _withdrawFromVault({ token: _cashflowToken, account: owner, amount: uint256(tradeParams.cashflow), to: address(this) });
             trade_.cashflow = tradeParams.cashflow;
 
-            trade_.swap = _executeSwap(cashflowInBase, execParams, _instrument, _instrument.base);
+            if (cashflowInBase) trade_.swap = _executeSwap(execParams, _instrument, _instrument.base);
 
             _repayFromMarket(moneyMarket, tradeParams.positionId, _instrument.quote, ERC20Lib.myBalance(_instrument.quote));
 
@@ -458,7 +455,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             uint256 borrowAmount = cashflowInBase ? execParams.swapAmount : tradeParams.cashflow.abs();
             _borrowFromMarket(moneyMarket, tradeParams.positionId, _instrument.quote, borrowAmount, address(this));
 
-            trade_.swap = _executeSwap(cashflowInBase, execParams, _instrument, _instrument.quote);
+            if (cashflowInBase) trade_.swap = _executeSwap(execParams, _instrument, _instrument.quote);
             trade_.cashflow = -_depositBalance(_cashflowToken, owner).toInt256();
         }
 
@@ -473,13 +470,11 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         }
     }
 
-    function _executeSwap(
-        bool shouldRun, // externalised condition
-        ExecutionParams memory execParams,
-        InstrumentStorage memory _instrument,
-        IERC20 tokenToSell
-    ) internal returns (SwapInfo memory swap) {
-        if (shouldRun && execParams.swapAmount != 0) {
+    function _executeSwap(ExecutionParams memory execParams, InstrumentStorage memory _instrument, IERC20 tokenToSell)
+        internal
+        returns (SwapInfo memory swap)
+    {
+        if (execParams.swapAmount != 0) {
             IERC20 tokenToBuy;
             (swap.inputCcy, tokenToBuy) =
                 tokenToSell == _instrument.base ? (Currency.Base, _instrument.quote) : (Currency.Quote, _instrument.base);
