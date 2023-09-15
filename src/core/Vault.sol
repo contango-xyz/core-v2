@@ -16,6 +16,12 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
     using ERC20Lib for IERC20;
     using ERC20Lib for IWETH9;
 
+    struct TokenData {
+        bool isSupported;
+        uint256 totalBalance;
+        mapping(address owner => uint256 balance) accountBalances;
+    }
+
     IWETH9 public immutable nativeToken;
 
     /**
@@ -27,9 +33,7 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
      */
     uint256[50_000 - 301] private __gap;
 
-    mapping(IERC20 token => bool supported) public override isTokenSupported;
-    mapping(address owner => mapping(IERC20 token => uint256 balance)) private _accountBalances;
-    mapping(IERC20 token => uint256 balance) private _totalBalances;
+    mapping(IERC20 => TokenData) private tokens;
 
     constructor(IWETH9 _nativeToken) {
         nativeToken = _nativeToken;
@@ -41,28 +45,33 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
         __Pausable_init_unchained();
         __UUPSUpgradeable_init_unchained();
         _grantRole(DEFAULT_ADMIN_ROLE, timelock);
-        isTokenSupported[nativeToken] = true;
+        tokens[nativeToken].isSupported = true;
     }
 
     function setTokenSupport(IERC20 token, bool isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        isTokenSupported[token] = isSupported;
+        tokens[token].isSupported = isSupported;
+    }
+
+    function isTokenSupported(IERC20 token) external view override returns (bool) {
+        return tokens[token].isSupported;
     }
 
     function balanceOf(IERC20 token, address owner) public view returns (uint256) {
-        return _accountBalances[owner][token];
+        return tokens[token].accountBalances[owner];
     }
 
     function totalBalanceOf(IERC20 token) public view returns (uint256) {
-        return _totalBalances[token];
+        return tokens[token].totalBalance;
     }
 
     function _deposit(IERC20 token, address payer, address account, uint256 amount) private returns (uint256) {
         _validAmount(amount);
-        if (!isTokenSupported[token]) revert UnsupportedToken(token);
+        TokenData storage tokenData = tokens[token];
+        if (!tokenData.isSupported) revert UnsupportedToken(token);
 
-        uint256 available = token.balanceOf(address(this)) - _totalBalances[token];
-        _totalBalances[token] += amount;
-        _accountBalances[account][token] += amount;
+        uint256 available = token.balanceOf(address(this)) - tokenData.totalBalance;
+        tokenData.totalBalance += amount;
+        tokenData.accountBalances[account] += amount;
 
         if (available < amount) token.transferOut({ payer: payer, to: address(this), amount: amount - available });
 
@@ -95,11 +104,12 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
 
     function _withdraw(IERC20 token, address account, uint256 amount, address to, IWETH9 _nativeToken) internal returns (uint256) {
         _validAmount(amount);
-        uint256 balance = _accountBalances[account][token];
+        TokenData storage tokenData = tokens[token];
+        uint256 balance = tokenData.accountBalances[account];
         if (balance < amount) revert NotEnoughBalance(token, balance, amount);
 
-        _accountBalances[account][token] -= amount;
-        _totalBalances[token] -= amount;
+        tokenData.accountBalances[account] -= amount;
+        tokenData.totalBalance -= amount;
 
         if (address(token) == address(_nativeToken)) _nativeToken.transferOutNative({ to: payable(to), amount: amount });
         else token.transferOut({ payer: address(this), to: to, amount: amount });
