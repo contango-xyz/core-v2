@@ -146,7 +146,7 @@ contract AaveMoneyMarket is BaseMoneyMarket, FlashLoanReceiverBase, IFlashBorrow
         return true;
     }
 
-    function supportsInterface(bytes4 interfaceId) public pure override(BaseMoneyMarket, IERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
         return interfaceId == type(IMoneyMarket).interfaceId || interfaceId == type(IFlashBorrowProvider).interfaceId;
     }
 

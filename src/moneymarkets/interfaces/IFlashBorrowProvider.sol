@@ -2,9 +2,8 @@
 pragma solidity ^0.8.4;
 
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-interface IFlashBorrowProvider is IERC165 {
+interface IFlashBorrowProvider {
 
     error InvalidSenderOrInitiator();
 
