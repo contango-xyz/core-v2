@@ -189,7 +189,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
                     callback: this.completeOpenFromFlashLoan
                 });
             }
-            trade_ = decodeTrade(result);
+            trade_ = validateHashAndDecodeTrade(result);
         }
 
         _openSlippageCheck(tradeParams, trade_, _instrument);
@@ -208,7 +208,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     {
         FlashLoanCallback memory cb = params.decodeFlashLoanCallback();
         if (address(_moneyMarket(cb.positionId)) != msg.sender) revert NotFlashBorrowProvider(msg.sender);
-        return encodeTrade(_completeOpen(asset, amountOwed, cb, address(0)));
+        return encodeTradeAndHash(_completeOpen(asset, amountOwed, cb, address(0)));
     }
 
     function completeOpenFromFlashLoan(
@@ -219,7 +219,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         uint256 fee,
         bytes calldata params
     ) external override returns (bytes memory result) {
-        return encodeTrade(_completeOpen(IERC20(asset), amount + fee, _flashLoanCallback(params), repayTo));
+        return encodeTradeAndHash(_completeOpen(IERC20(asset), amount + fee, _flashLoanCallback(params), repayTo));
     }
 
     function _completeOpen(IERC20 asset, uint256 amountOwed, FlashLoanCallback memory cb, address repayTo)
@@ -317,7 +317,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             }
             trade_ = _completeClose({ asset: asset, amountOwed: execParams.swapAmount, cb: cb, repayTo: address(0) });
         } else {
-            trade_ = decodeTrade(
+            trade_ = validateHashAndDecodeTrade(
                 _flash({
                     provider: execParams.flashLoanProvider,
                     loanReceiver: address(this),
@@ -357,7 +357,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         override
         returns (bytes memory result)
     {
-        return encodeTrade(_completeClose(IERC20(asset), amount + fee, _flashLoanCallback(params), repayTo));
+        return encodeTradeAndHash(_completeClose(IERC20(asset), amount + fee, _flashLoanCallback(params), repayTo));
     }
 
     function _completeClose(IERC20 asset, uint256 amountOwed, FlashLoanCallback memory cb, address repayTo)
@@ -688,12 +688,12 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         if (fullyClosing && cashflowCcy == Currency.None) revert CashflowCcyRequired();
     }
 
-    function encodeTrade(Trade memory _trade) internal returns (bytes memory data) {
+    function encodeTradeAndHash(Trade memory _trade) internal returns (bytes memory data) {
         data = abi.encode(_trade);
         tradeHash = keccak256(data);
     }
 
-    function decodeTrade(bytes memory data) internal returns (Trade memory) {
+    function validateHashAndDecodeTrade(bytes memory data) internal returns (Trade memory) {
         if (keccak256(data) != tradeHash) revert UnexpectedTrade();
         delete tradeHash;
         return abi.decode(data, (Trade));
