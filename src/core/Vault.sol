@@ -16,6 +16,8 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
     using ERC20Lib for IERC20;
     using ERC20Lib for IWETH9;
 
+    event TokenSupportSet(IERC20 indexed token, bool indexed isSupported);
+
     struct TokenData {
         bool isSupported;
         uint256 totalBalance;
@@ -50,6 +52,7 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
 
     function setTokenSupport(IERC20 token, bool isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
         tokens[token].isSupported = isSupported;
+        emit TokenSupportSet(token, isSupported);
     }
 
     function isTokenSupported(IERC20 token) external view override returns (bool) {
