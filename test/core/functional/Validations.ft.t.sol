@@ -58,7 +58,11 @@ contract Validations is BaseTest, IContangoEvents {
     }
 
     function testCreatePositionPermission() public {
+        vm.prank(TIMELOCK);
+        contango.createInstrument(WETHUSDC, weth, usdc);
+
         TradeParams memory tradeParams;
+        tradeParams.positionId = encode(Symbol.wrap("WETHUSDC"), MM_EXACTLY, PERP, 0, 0);
         tradeParams.quantity = 1 ether;
         ExecutionParams memory execParams;
 

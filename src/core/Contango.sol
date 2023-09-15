@@ -96,8 +96,8 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         instrument_ = instruments[symbol];
 
         if (id == 0) {
-            positionNFT.validateCreatePositionPermissions(owner);
             if (address(instrument_.base) == address(0)) revert InvalidInstrument(symbol);
+            positionNFT.validateCreatePositionPermissions(owner);
             positionId_ = positionNFT.mint(positionId, owner);
             moneyMarket = positionFactory.createUnderlyingPosition(positionId_);
             SafeERC20.forceApprove(instrument_.base, address(moneyMarket), type(uint256).max);
