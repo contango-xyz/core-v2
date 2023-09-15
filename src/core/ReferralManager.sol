@@ -8,8 +8,8 @@ import "../libraries/Roles.sol";
 
 contract ReferralManager is IReferralManager, AccessControl {
 
-    uint256 public referrerRewardPercentage;
-    uint256 public traderRebatePercentage;
+    uint256 public referrerRewardPercentage; // percentage in 1e4. e.g. 0.5e4 -> 5000 -> 50%
+    uint256 public traderRebatePercentage; // percentage in 1e4. e.g. 0.5e4 -> 5000 -> 50%
 
     mapping(bytes32 code => address referrer) public referralCodes;
     mapping(address trader => address referrer) public referrals;
