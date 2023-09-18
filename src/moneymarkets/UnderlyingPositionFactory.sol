@@ -10,6 +10,7 @@ import { CONTANGO_ROLE } from "../libraries/Roles.sol";
 contract UnderlyingPositionFactory is IUnderlyingPositionFactory, AccessControl {
 
     error InvalidMoneyMarket(MoneyMarket mm);
+    error MoneyMarketAlreadyRegistered(MoneyMarket mm, IMoneyMarket imm);
 
     mapping(MoneyMarket moneyMarketId => IMoneyMarket moneyMarket) public moneyMarkets;
 
@@ -18,8 +19,11 @@ contract UnderlyingPositionFactory is IUnderlyingPositionFactory, AccessControl 
     }
 
     function registerMoneyMarket(IMoneyMarket imm) external override onlyRole(DEFAULT_ADMIN_ROLE) {
-        moneyMarkets[imm.moneyMarketId()] = imm;
-        emit MoneyMarketRegistered(imm.moneyMarketId(), imm);
+        MoneyMarket mm = imm.moneyMarketId();
+        if (moneyMarkets[mm] != IMoneyMarket(address(0))) revert MoneyMarketAlreadyRegistered(mm, imm);
+
+        moneyMarkets[mm] = imm;
+        emit MoneyMarketRegistered(mm, imm);
     }
 
     function createUnderlyingPosition(PositionId positionId) external override onlyRole(CONTANGO_ROLE) returns (IMoneyMarket imm) {
