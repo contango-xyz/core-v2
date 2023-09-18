@@ -24,7 +24,7 @@ struct Prices {
 
 interface IMoneyMarketView {
 
-    function moneyMarketId() external view returns (MoneyMarket);
+    function moneyMarketId() external view returns (MoneyMarketId);
 
     function balances(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) external returns (Balances memory balances_);
 

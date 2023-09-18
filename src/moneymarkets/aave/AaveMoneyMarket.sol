@@ -24,11 +24,11 @@ contract AaveMoneyMarket is BaseMoneyMarket, FlashLoanReceiverBase, IFlashBorrow
 
     bool public constant override NEEDS_ACCOUNT = true;
 
-    MoneyMarket public immutable override moneyMarketId;
+    MoneyMarketId public immutable override moneyMarketId;
     IAaveRewardsController public immutable rewardsController;
 
     constructor(
-        MoneyMarket _moneyMarketId,
+        MoneyMarketId _moneyMarketId,
         IContango _contango,
         IPoolAddressesProvider _provider,
         IAaveRewardsController _rewardsController

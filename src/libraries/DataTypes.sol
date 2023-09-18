@@ -21,6 +21,6 @@ using { decode, getSymbol, getNumber, getMoneyMarket, getExpiry, isPerp, isExpir
 
 type OrderId is bytes32;
 
-type MoneyMarket is uint8;
+type MoneyMarketId is uint8;
 
 type Timelock is address payable;

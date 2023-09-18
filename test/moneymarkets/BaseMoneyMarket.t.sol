@@ -65,8 +65,8 @@ contract FooMoneyMarket is BaseMoneyMarket {
         return true;
     }
 
-    function moneyMarketId() external pure returns (MoneyMarket) {
-        return MoneyMarket.wrap(0);
+    function moneyMarketId() external pure returns (MoneyMarketId) {
+        return MoneyMarketId.wrap(0);
     }
 
     function _initialise(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal override { }

@@ -22,12 +22,12 @@ contract AaveMoneyMarketView is IMoneyMarketView {
     using ReserveLogic for DataTypes.ReserveData;
     using ReserveLogic for DataTypes.ReserveCache;
 
-    MoneyMarket public immutable override moneyMarketId;
+    MoneyMarketId public immutable override moneyMarketId;
     IUnderlyingPositionFactory public immutable positionFactory;
     IPoolAddressesProvider public immutable provider;
     IPool public immutable pool;
 
-    constructor(MoneyMarket _moneyMarketId, IPoolAddressesProvider _provider, IUnderlyingPositionFactory _positionFactory) {
+    constructor(MoneyMarketId _moneyMarketId, IPoolAddressesProvider _provider, IUnderlyingPositionFactory _positionFactory) {
         moneyMarketId = _moneyMarketId;
         provider = _provider;
         pool = IPool(_provider.getPool());

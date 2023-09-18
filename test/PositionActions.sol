@@ -99,7 +99,7 @@ contract PositionActions {
     //     Prices memory prices;
     //     IMoneyMarket moneyMarket;
     //     {
-    //         (Symbol symbol, MoneyMarket mm,, uint256 positionN) = positionId.decode();
+    //         (Symbol symbol, MoneyMarketId mm,, uint256 positionN) = positionId.decode();
     //         instrument = env.contango().instrument(symbol);
     //         moneyMarket = env.contango().positionFactory().moneyMarket(mm);
 
@@ -154,7 +154,7 @@ contract PositionActions {
     //     quote.price = json.readUint("$.price");
     // }
 
-    function openPosition(Symbol symbol, MoneyMarket mm, uint256 quantity, uint256 leverage, Currency cashflowCcy)
+    function openPosition(Symbol symbol, MoneyMarketId mm, uint256 quantity, uint256 leverage, Currency cashflowCcy)
         public
         returns (Quote memory quote, PositionId positionId_, Trade memory trade)
     {
@@ -170,7 +170,7 @@ contract PositionActions {
         });
     }
 
-    function openPosition(Symbol symbol, MoneyMarket mm, uint256 quantity, int256 cashflow, Currency cashflowCcy)
+    function openPosition(Symbol symbol, MoneyMarketId mm, uint256 quantity, int256 cashflow, Currency cashflowCcy)
         public
         returns (Quote memory quote, PositionId positionId_, Trade memory trade)
     {
@@ -186,10 +186,14 @@ contract PositionActions {
         });
     }
 
-    function openPosition(Symbol symbol, MoneyMarket mm, uint256 quantity, int256 cashflow, Currency cashflowCcy, uint256 slippageTolerance)
-        public
-        returns (Quote memory quote, PositionId positionId_, Trade memory trade)
-    {
+    function openPosition(
+        Symbol symbol,
+        MoneyMarketId mm,
+        uint256 quantity,
+        int256 cashflow,
+        Currency cashflowCcy,
+        uint256 slippageTolerance
+    ) public returns (Quote memory quote, PositionId positionId_, Trade memory trade) {
         PositionId newPositionId = env.encoder().encodePositionId(symbol, mm, expiry, 0);
         quote =
             quoteOpenPosition({ positionId: newPositionId, quantity: quantity, leverage: 0, cashflow: cashflow, cashflowCcy: cashflowCcy });
@@ -202,7 +206,7 @@ contract PositionActions {
         });
     }
 
-    function openPosition(Symbol symbol, MoneyMarket mm, int256 cashflow, uint256 leverage, Currency cashflowCcy)
+    function openPosition(Symbol symbol, MoneyMarketId mm, int256 cashflow, uint256 leverage, Currency cashflowCcy)
         public
         returns (Quote memory quote, PositionId positionId_, Trade memory trade)
     {

@@ -10,17 +10,17 @@ import { CONTANGO_ROLE } from "../libraries/Roles.sol";
 
 contract UnderlyingPositionFactory is IUnderlyingPositionFactory, AccessControl {
 
-    error InvalidMoneyMarket(MoneyMarket mm);
-    error MoneyMarketAlreadyRegistered(MoneyMarket mm, IMoneyMarket imm);
+    error InvalidMoneyMarket(MoneyMarketId mm);
+    error MoneyMarketAlreadyRegistered(MoneyMarketId mm, IMoneyMarket imm);
 
-    mapping(MoneyMarket moneyMarketId => IMoneyMarket moneyMarket) public moneyMarkets;
+    mapping(MoneyMarketId moneyMarketId => IMoneyMarket moneyMarket) public moneyMarkets;
 
     constructor(Timelock timelock) {
         _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
     }
 
     function registerMoneyMarket(IMoneyMarket imm) external override onlyRole(DEFAULT_ADMIN_ROLE) {
-        MoneyMarket mm = imm.moneyMarketId();
+        MoneyMarketId mm = imm.moneyMarketId();
         if (moneyMarkets[mm] != IMoneyMarket(address(0))) revert MoneyMarketAlreadyRegistered(mm, imm);
 
         moneyMarkets[mm] = imm;
@@ -28,7 +28,7 @@ contract UnderlyingPositionFactory is IUnderlyingPositionFactory, AccessControl 
     }
 
     function createUnderlyingPosition(PositionId positionId) external override onlyRole(CONTANGO_ROLE) returns (IMoneyMarket imm) {
-        MoneyMarket mm = positionId.getMoneyMarket();
+        MoneyMarketId mm = positionId.getMoneyMarket();
         imm = moneyMarket(mm);
 
         if (imm.NEEDS_ACCOUNT()) {
@@ -38,13 +38,13 @@ contract UnderlyingPositionFactory is IUnderlyingPositionFactory, AccessControl 
     }
 
     function moneyMarket(PositionId positionId) external view override returns (IMoneyMarket imm) {
-        MoneyMarket mm = positionId.getMoneyMarket();
+        MoneyMarketId mm = positionId.getMoneyMarket();
         imm = moneyMarket(mm);
 
         if (imm.NEEDS_ACCOUNT()) imm = IMoneyMarket(Clones.predictDeterministicAddress(address(imm), PositionId.unwrap(positionId)));
     }
 
-    function moneyMarket(MoneyMarket mm) public view override returns (IMoneyMarket imm) {
+    function moneyMarket(MoneyMarketId mm) public view override returns (IMoneyMarket imm) {
         imm = moneyMarkets[mm];
         if (address(imm) == address(0)) revert InvalidMoneyMarket(mm);
     }

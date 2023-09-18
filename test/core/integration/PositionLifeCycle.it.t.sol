@@ -11,7 +11,7 @@ contract PositionLifeCycleIntegration is BaseTest {
     Env internal env;
     TestInstrument internal instrument;
 
-    MoneyMarket mm;
+    MoneyMarketId mm;
 
     ERC20Data baseCcy;
     ERC20Data quoteCcy;
@@ -307,12 +307,12 @@ contract PositionLifeCycleIntegration is BaseTest {
 
     function _boundParams(uint8 networkId, uint8 mmId, uint8 baseId, uint8 quoteId)
         private
-        returns (Env env_, MoneyMarket mm_, ERC20Data memory base_, ERC20Data memory quote_)
+        returns (Env env_, MoneyMarketId mm_, ERC20Data memory base_, ERC20Data memory quote_)
     {
         Network network = Network(bound(networkId, uint8(Network.Arbitrum), uint8(Network.Optimism)));
         env_ = provider(network);
 
-        MoneyMarket[] memory mms = env_.moneyMarkets();
+        MoneyMarketId[] memory mms = env_.moneyMarkets();
         mm_ = mms[bound(mmId, 0, env_.moneyMarkets().length - 1)];
 
         ERC20Data[] memory tokens = env_.erc20s(mm_);
@@ -321,7 +321,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         quote_ = tokens[bound(quoteId, 0, tokens.length - 1)];
         vm.assume(base_.token != quote_.token);
 
-        console.log("Network %s, MoneyMarket %s", toString(network), MoneyMarket.unwrap(mm_));
+        console.log("Network %s, MoneyMarketId %s", toString(network), MoneyMarketId.unwrap(mm_));
         console.log("Base %s, Quote %s", string(abi.encodePacked((base_.symbol))), string(abi.encodePacked((quote_.symbol))));
     }
 

@@ -67,7 +67,7 @@ interface IContangoEvents {
 
     event ClosingOnlySet(Symbol indexed symbol, bool closingOnly);
     event InstrumentCreated(Symbol indexed symbol, IERC20 base, IERC20 quote);
-    event MoneyMarketRegistered(MoneyMarket indexed id, IMoneyMarket moneyMarket);
+    event MoneyMarketRegistered(MoneyMarketId indexed id, IMoneyMarket moneyMarket);
 
 }
 

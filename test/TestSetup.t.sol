@@ -292,7 +292,7 @@ abstract contract Env is StdAssertions, StdCheats {
     IERC7399 public aaveFLP;
 
     Deployer public deployer;
-    MoneyMarket[] internal _moneyMarkets;
+    MoneyMarketId[] internal _moneyMarkets;
     IERC7399[] internal _flashLoanProviders;
     mapping(bytes32 => ERC20Data) internal _erc20s;
     mapping(bytes32 => ERC20Bounds) internal _bounds;
@@ -340,13 +340,13 @@ abstract contract Env is StdAssertions, StdCheats {
         return true;
     }
 
-    function moneyMarkets() external view returns (MoneyMarket[] memory) {
+    function moneyMarkets() external view returns (MoneyMarketId[] memory) {
         return _moneyMarkets;
     }
 
-    function marketAvailable(MoneyMarket mm) public view returns (bool) {
+    function marketAvailable(MoneyMarketId mm) public view returns (bool) {
         for (uint256 i = 0; i < _moneyMarkets.length; i++) {
-            if (MoneyMarket.unwrap(_moneyMarkets[i]) == MoneyMarket.unwrap(mm)) return true;
+            if (MoneyMarketId.unwrap(_moneyMarkets[i]) == MoneyMarketId.unwrap(mm)) return true;
         }
         return false;
     }
@@ -382,19 +382,19 @@ abstract contract Env is StdAssertions, StdCheats {
     ERC20Data[] tmp;
     bytes32[] public allTokens = [LINK, DAI, USDC, WETH];
 
-    function erc20s(MoneyMarket mm) public returns (ERC20Data[] memory) {
+    function erc20s(MoneyMarketId mm) public returns (ERC20Data[] memory) {
         delete tmp;
 
-        if (MoneyMarket.unwrap(mm) == MoneyMarket.unwrap(MM_AAVE)) {
+        if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_AAVE)) {
             tmp.push(erc20(LINK));
             tmp.push(erc20(DAI));
             tmp.push(erc20(USDC));
             tmp.push(erc20(WETH));
-        } else if (MoneyMarket.unwrap(mm) == MoneyMarket.unwrap(MM_COMPOUND)) {
+        } else if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_COMPOUND)) {
             tmp.push(erc20(DAI));
             tmp.push(erc20(USDC));
             tmp.push(erc20(WETH));
-        } else if (MoneyMarket.unwrap(mm) == MoneyMarket.unwrap(MM_EXACTLY)) {
+        } else if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_EXACTLY)) {
             tmp.push(erc20(USDC));
             tmp.push(erc20(WETH));
         } else {

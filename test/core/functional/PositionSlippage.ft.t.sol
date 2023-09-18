@@ -11,7 +11,7 @@ contract PositionSlippageFunctional is BaseTest {
 
     Env internal env;
     TestInstrument internal instrument;
-    MoneyMarket internal mm;
+    MoneyMarketId internal mm;
     PositionActions internal positionActions;
 
     function setUp() public {

@@ -4,7 +4,7 @@ pragma solidity 0.8.20;
 import { IPool, DataTypes, ReserveConfiguration } from "@aave/core-v3/contracts/protocol/pool/Pool.sol";
 
 import { IContango, Instrument } from "src/interfaces/IContango.sol";
-import { PositionId, Symbol, MoneyMarket, InvalidExpiry, InvalidUInt32, InvalidUInt48 } from "src/libraries/DataTypes.sol";
+import { PositionId, Symbol, MoneyMarketId, InvalidExpiry, InvalidUInt32, InvalidUInt48 } from "src/libraries/DataTypes.sol";
 import { MM_AAVE } from "script/constants.sol";
 import { E_MODE, ISOLATION_MODE } from "src/moneymarkets/aave/AaveMoneyMarket.sol";
 import { InvalidUInt8 } from "src/libraries/BitFlags.sol";
@@ -21,9 +21,13 @@ contract Encoder {
         pool = _pool;
     }
 
-    function encodePositionId(Symbol symbol, MoneyMarket mm, uint256 expiry, uint256 number) public view returns (PositionId positionId) {
+    function encodePositionId(Symbol symbol, MoneyMarketId mm, uint256 expiry, uint256 number)
+        public
+        view
+        returns (PositionId positionId)
+    {
         bytes1 flags;
-        if (MoneyMarket.unwrap(mm) == MoneyMarket.unwrap(MM_AAVE)) {
+        if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_AAVE)) {
             Instrument memory instrument = contango.instrument(symbol);
 
             DataTypes.ReserveData memory baseData = pool.getReserveData(address(instrument.base));
@@ -38,13 +42,13 @@ contract Encoder {
 
 }
 
-function encode(Symbol symbol, MoneyMarket mm, uint256 expiry, uint256 number, bytes1 flags) pure returns (PositionId positionId) {
+function encode(Symbol symbol, MoneyMarketId mm, uint256 expiry, uint256 number, bytes1 flags) pure returns (PositionId positionId) {
     if (uint48(number) != number) revert InvalidUInt48(number);
     if (uint32(expiry) != expiry) revert InvalidUInt32(expiry);
     if (expiry == 0) revert InvalidExpiry();
 
     positionId = PositionId.wrap(
-        bytes32(Symbol.unwrap(symbol)) | bytes32(uint256(MoneyMarket.unwrap(mm))) << 120 | bytes32(uint256(expiry)) << 88
+        bytes32(Symbol.unwrap(symbol)) | bytes32(uint256(MoneyMarketId.unwrap(mm))) << 120 | bytes32(uint256(expiry)) << 88
             | bytes32(flags) >> 168 | bytes32(number)
     );
 }

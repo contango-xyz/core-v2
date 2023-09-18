@@ -11,7 +11,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
     Env internal env;
     TestInstrument internal instrument;
-    MoneyMarket internal mm;
+    MoneyMarketId internal mm;
     UniswapPoolStub internal poolStub;
     Contango internal contango;
     IVault internal vault;
@@ -20,7 +20,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
     uint256 internal expectedCollateral;
     uint256 internal expectedDebt;
 
-    function setUp(Network network, MoneyMarket _mm) internal virtual {
+    function setUp(Network network, MoneyMarketId _mm) internal virtual {
         env = provider(network);
         env.init();
         contango = env.contango();

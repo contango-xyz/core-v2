@@ -11,10 +11,10 @@ error InvalidPositionId();
 //  16B   -      1B      -   4B   -  1B   -  4B   -  6B
 // symbol - money market - expiry - flags - empty - number
 
-function decode(PositionId positionId) pure returns (Symbol symbol, MoneyMarket mm, uint32 expiry, uint256 number) {
+function decode(PositionId positionId) pure returns (Symbol symbol, MoneyMarketId mm, uint32 expiry, uint256 number) {
     bytes32 raw = PositionId.unwrap(positionId);
     symbol = Symbol.wrap(bytes16(raw));
-    mm = MoneyMarket.wrap(uint8(uint256(raw >> 120)));
+    mm = MoneyMarketId.wrap(uint8(uint256(raw >> 120)));
     expiry = (uint32(uint256(raw >> 88)));
     number = uint48(uint256(raw));
 }
@@ -27,8 +27,8 @@ function getNumber(PositionId positionId) pure returns (uint256) {
     return uint48(uint256(PositionId.unwrap(positionId)));
 }
 
-function getMoneyMarket(PositionId positionId) pure returns (MoneyMarket) {
-    return MoneyMarket.wrap(uint8(uint256(PositionId.unwrap(positionId) >> 120)));
+function getMoneyMarket(PositionId positionId) pure returns (MoneyMarketId) {
+    return MoneyMarketId.wrap(uint8(uint256(PositionId.unwrap(positionId) >> 120)));
 }
 
 function getExpiry(PositionId positionId) pure returns (uint32) {
