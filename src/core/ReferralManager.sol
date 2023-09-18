@@ -14,8 +14,8 @@ contract ReferralManager is IReferralManager, AccessControl {
     mapping(bytes32 code => address referrer) public referralCodes;
     mapping(address trader => address referrer) public referrals;
 
-    constructor(address timelock) {
-        _grantRole(DEFAULT_ADMIN_ROLE, timelock);
+    constructor(Timelock timelock) {
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
     }
 
     function setRewardsAndRebates(uint256 referrerReward, uint256 traderRebate) external onlyRole(DEFAULT_ADMIN_ROLE) {

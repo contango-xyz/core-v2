@@ -76,10 +76,10 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         nativeTokenUnit = 10 ** _nativeToken.decimals();
     }
 
-    function initialize(address timelock, uint64 _gasMultiplier, uint64 _gasTip, IOracle _oracle) public initializer {
+    function initialize(Timelock timelock, uint64 _gasMultiplier, uint64 _gasTip, IOracle _oracle) public initializer {
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, timelock);
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
         _setGasMultiplier(_gasMultiplier);
         gasStart = 21_000;
         gasTip = _gasTip;

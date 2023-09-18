@@ -57,7 +57,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         maestro = env.maestro();
         uniswap = env.uniswap();
 
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         OrderManager(address(om)).grantRole(BOT_ROLE, keeper);
     }
 
@@ -69,7 +69,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
     function testStorage() public {
         StorageUtils su = new StorageUtils(address(om));
 
-        vm.startPrank(TIMELOCK);
+        vm.startPrank(TIMELOCK_ADDRESS);
         om.setGasMultiplier(3e4);
         om.setGasTip(3e9);
         vm.stopPrank();
@@ -1198,16 +1198,16 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         om.setGasMultiplier(1e4);
 
         vm.expectRevert(abi.encodeWithSelector(AboveMaxGasMultiplier.selector, 11e4));
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         om.setGasMultiplier(11e4);
 
         vm.expectRevert(abi.encodeWithSelector(BelowMinGasMultiplier.selector, 0.9e4));
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         om.setGasMultiplier(0.9e4);
 
         vm.expectEmit(true, true, true, true);
         emit GasMultiplierSet(5e4);
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         om.setGasMultiplier(5e4);
     }
 
@@ -1217,7 +1217,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
 
         vm.expectEmit(true, true, true, true);
         emit GasTipSet(3e9);
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         om.setGasTip(3e9);
     }
 

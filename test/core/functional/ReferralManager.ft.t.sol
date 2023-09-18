@@ -14,7 +14,7 @@ contract ReferralManagerTest is BaseTest, IReferralManagerEvents {
     address trader = address(0xb0b);
 
     function setUp() public {
-        sut = new ReferralManager(timelock);
+        sut = new ReferralManager(Timelock.wrap(payable(timelock)));
         vm.prank(timelock);
         sut.grantRole(MODIFIER_ROLE, mod);
     }
