@@ -15,8 +15,8 @@ contract PositionNFTTest is BaseTest {
     Symbol symbol1 = Symbol.wrap("ETH/USD");
     Symbol symbol2 = Symbol.wrap("BTC/USD");
 
-    MoneyMarket mm1 = MM_AAVE;
-    MoneyMarket mm2 = MM_COMPOUND;
+    MoneyMarketId mm1 = MM_AAVE;
+    MoneyMarketId mm2 = MM_COMPOUND;
 
     function setUp() public {
         trader1 = address(0xb0b);
@@ -62,10 +62,10 @@ contract PositionNFTTest is BaseTest {
         assertEq(sut.balanceOf(trader2), 1);
     }
 
-    function assertPositionId(PositionId positionId, Symbol symbol, MoneyMarket mm, uint32 expiry, uint256 number) private {
-        (Symbol s, MoneyMarket m, uint32 e, uint256 n) = positionId.decode();
+    function assertPositionId(PositionId positionId, Symbol symbol, MoneyMarketId mm, uint32 expiry, uint256 number) private {
+        (Symbol s, MoneyMarketId m, uint32 e, uint256 n) = positionId.decode();
         assertEq(Symbol.unwrap(s), Symbol.unwrap(symbol), "symbol");
-        assertEq(MoneyMarket.unwrap(m), MoneyMarket.unwrap(mm), "mm");
+        assertEq(MoneyMarketId.unwrap(m), MoneyMarketId.unwrap(mm), "mm");
         assertEq(n, number, "number");
         assertEq(e, expiry, "expiry");
     }

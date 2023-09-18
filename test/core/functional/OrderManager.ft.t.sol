@@ -16,7 +16,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
 
     Env internal env;
     TestInstrument internal instrument;
-    MoneyMarket internal mm;
+    MoneyMarketId internal mm;
     UniswapPoolStub internal poolStub;
     Contango internal contango;
     PositionNFT internal positionNFT;

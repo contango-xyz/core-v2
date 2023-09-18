@@ -18,13 +18,13 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
 
     bool public constant override NEEDS_ACCOUNT = true;
 
-    MoneyMarket public immutable moneyMarketId;
+    MoneyMarketId public immutable moneyMarketId;
     ExactlyReverseLookup public immutable reverseLookup;
     IAuditor public immutable auditor;
     IExactlyRewardsController public immutable rewardsController;
 
     constructor(
-        MoneyMarket _moneyMarketId,
+        MoneyMarketId _moneyMarketId,
         IContango _contango,
         ExactlyReverseLookup _reverseLookup,
         IExactlyRewardsController _rewardsController

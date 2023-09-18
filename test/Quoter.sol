@@ -86,7 +86,7 @@ contract Quoter {
         address positionOwner;
         uint256 positionN;
         uint256 flashLoanQuantity;
-        MoneyMarket mm;
+        MoneyMarketId mm;
         IMoneyMarketView moneyMarket;
         Prices prices;
         uint256 slippageTolerance;
@@ -96,7 +96,7 @@ contract Quoter {
     IContango public immutable contango;
     PositionNFT public immutable positionNFT;
 
-    mapping(MoneyMarket => IMoneyMarketView) public moneyMarkets;
+    mapping(MoneyMarketId => IMoneyMarketView) public moneyMarkets;
     IERC7399[] public flashLoanProviders;
 
     constructor(IContango _contango) {

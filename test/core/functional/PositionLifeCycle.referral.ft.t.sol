@@ -5,7 +5,7 @@ import "./AbstractPositionLifeCycle.ft.t.sol";
 
 abstract contract ReferralAbstractPositionLifeCycleFunctional is AbstractPositionLifeCycleFunctional {
 
-    function setUp(Network network, MoneyMarket _mm) internal virtual override {
+    function setUp(Network network, MoneyMarketId _mm) internal virtual override {
         super.setUp(network, _mm);
 
         IReferralManager referralManager = env.feeManager().referralManager();

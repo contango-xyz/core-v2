@@ -230,7 +230,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         orderId = params.toOrderId();
 
         // permission
-        (Symbol symbol, MoneyMarket mm,, uint256 number) = params.positionId.decode();
+        (Symbol symbol, MoneyMarketId mm,, uint256 number) = params.positionId.decode();
         Instrument memory instrument = contango.instrument(symbol);
         if (number > 0) {
             positionNFT.validateModifyPositionPermissions(params.positionId);

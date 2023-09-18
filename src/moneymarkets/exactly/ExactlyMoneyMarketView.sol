@@ -16,13 +16,13 @@ contract ExactlyMoneyMarketView is IMoneyMarketView {
     using ERC20Lib for IERC20;
     using Math for uint256;
 
-    MoneyMarket public immutable moneyMarketId;
+    MoneyMarketId public immutable moneyMarketId;
     ExactlyReverseLookup public immutable reverseLookup;
     IAuditor public immutable auditor;
     IUnderlyingPositionFactory public immutable positionFactory;
 
     constructor(
-        MoneyMarket _moneyMarketId,
+        MoneyMarketId _moneyMarketId,
         ExactlyReverseLookup _reverseLookup,
         IAuditor _auditor,
         IUnderlyingPositionFactory _positionFactory

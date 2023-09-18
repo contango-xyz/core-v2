@@ -6,7 +6,7 @@ import "./AbstractPositionLifeCycle.ft.t.sol";
 
 abstract contract LoanFeesAbstractPositionLifeCycleFunctional is AbstractPositionLifeCycleFunctional {
 
-    function setUp(Network network, MoneyMarket _mm) internal virtual override {
+    function setUp(Network network, MoneyMarketId _mm) internal virtual override {
         super.setUp(network, _mm);
 
         // set only the test flash loaner

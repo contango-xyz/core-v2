@@ -25,9 +25,9 @@ function proxyAddress(string memory name) pure returns (address payable) {
     revert(string.concat("Unknown proxy: ", name));
 }
 
-MoneyMarket constant MM_AAVE = MoneyMarket.wrap(1);
-MoneyMarket constant MM_COMPOUND = MoneyMarket.wrap(2);
-MoneyMarket constant MM_EXACTLY = MoneyMarket.wrap(4);
+MoneyMarketId constant MM_AAVE = MoneyMarketId.wrap(1);
+MoneyMarketId constant MM_COMPOUND = MoneyMarketId.wrap(2);
+MoneyMarketId constant MM_EXACTLY = MoneyMarketId.wrap(4);
 
 uint32 constant PERP = type(uint32).max;
 uint256 constant DEFAULT_SLIPPAGE_TOLERANCE = 0.001e4;
