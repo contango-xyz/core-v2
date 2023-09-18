@@ -14,7 +14,7 @@ contract OrderManagerArbitrum is OrderManager {
         (uint256 l2StartCost, uint256 l1CalldataByte,,,, uint256 totalGasPrice) = GAS_INFO.getPricesInWei();
 
         // 21000 min tx gas (starting gasStart value) + gas used so far + 60k for the 2 ERC20 transfers
-        uint256 gasSpent = gasStart - gasleft() + 60_000;
+        uint256 gasSpent = gasStart - gasleft() + TWO_ERC20_TRANSFERS_GAS_ESTIMATE;
 
         uint256 l1GasCost = l1CalldataByte * msg.data.length;
         uint256 l2GasCost = gasSpent * totalGasPrice;
