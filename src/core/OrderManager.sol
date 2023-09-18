@@ -17,6 +17,7 @@ import "../interfaces/IVault.sol";
 import "../interfaces/IOracle.sol";
 
 uint128 constant INITIAL_GAS_START = 21_000;
+uint256 constant TOLERANCE_PRECISION = 1e4;
 uint256 constant MAX_GAS_MULTIPLIER = 10e4; // 10x
 uint256 constant MIN_GAS_MULTIPLIER = 1e4; // 1x
 
@@ -36,8 +37,8 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     struct OrderStorage {
         PositionId positionId;
         int128 quantity;
-        uint128 limitPrice;
-        uint128 tolerance;
+        uint128 limitPrice; // in quote currency
+        uint128 tolerance; // in 1e4, e.g. 0.001e4 -> 0.1%
         int128 cashflow;
         Currency cashflowCcy;
         uint32 deadline;
@@ -220,7 +221,9 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         returns (PositionId positionId, Trade memory trade_)
     {
         uint256 limitPrice = order.limitPrice;
-        if (order.orderType == OrderType.StopLoss) order.limitPrice = uint128(order.limitPrice.mulDiv(1e4 - order.tolerance, 1e4));
+        if (order.orderType == OrderType.StopLoss) {
+            order.limitPrice = uint128(order.limitPrice.mulDiv(TOLERANCE_PRECISION - order.tolerance, TOLERANCE_PRECISION));
+        }
 
         (positionId, trade_) = contango.trade(order.toTradeParams(), execParams);
 
@@ -251,7 +254,10 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         if (block.timestamp > params.deadline) revert InvalidDeadline(params.deadline, block.timestamp);
         if (params.quantity == 0) revert InvalidQuantity();
         if (params.quantity > 0 && params.orderType != OrderType.Limit) revert InvalidOrderType(params.orderType);
-        if (params.quantity < 0 && params.orderType == OrderType.Limit) revert InvalidOrderType(params.orderType);
+        if (params.quantity < 0) {
+            if (params.orderType == OrderType.Limit) revert InvalidOrderType(params.orderType);
+            if (params.orderType == OrderType.StopLoss && params.tolerance > TOLERANCE_PRECISION) revert InvalidTolerance(params.tolerance);
+        }
     }
 
     modifier orderExists(OrderId orderId) {

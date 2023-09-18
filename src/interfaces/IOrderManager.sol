@@ -63,6 +63,7 @@ interface IOrderManager is IOrderManagerEvents {
     error InvalidOrderType(OrderType orderType); // 0xf2bc1bb6
     error InvalidPrice(uint256 forwardPrice, uint256 limitPrice); // 0xaf608abb
     error InvalidQuantity(); // 0x524f409b
+    error InvalidTolerance(uint256 tolerance); // 0x7ca28bcf
     error OrderDoesNotExist(OrderId orderId); // 0xbd8da02b
     error OrderAlreadyExists(OrderId orderId); // 0x086371d3
     error OrderExpired(OrderId orderId, uint256 deadline, uint256 blockTimestamp); // 0xc8105aba

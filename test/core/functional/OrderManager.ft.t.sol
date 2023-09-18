@@ -968,7 +968,34 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             orderType: OrderType.StopLoss
         });
 
-        vm.expectRevert(abi.encodeWithSelector(IContango.CashflowCcyRequired.selector));
+        vm.expectRevert(IContango.CashflowCcyRequired.selector);
+
+        vm.prank(TRADER);
+        om.place(params);
+    }
+
+    // Can't place an order to fully close a position with tolerance higher than 1e4
+    function testPlace_Validation12() public {
+        (, PositionId positionId,) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: mm,
+            quantity: 10 ether,
+            cashflow: 4000e6,
+            cashflowCcy: Currency.Quote
+        });
+
+        OrderParams memory params = OrderParams({
+            positionId: positionId,
+            quantity: type(int128).min,
+            cashflow: 0,
+            cashflowCcy: Currency.Quote,
+            limitPrice: 0,
+            tolerance: 1.0001e4,
+            deadline: uint32(block.timestamp),
+            orderType: OrderType.StopLoss
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(IOrderManager.InvalidTolerance.selector, 1.0001e4));
 
         vm.prank(TRADER);
         om.place(params);
