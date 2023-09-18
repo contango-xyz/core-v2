@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import "../interfaces/IVault.sol";
+import "../libraries/DataTypes.sol";
 import "../libraries/ERC20Lib.sol";
 import { CONTANGO_ROLE } from "../libraries/Roles.sol";
 import { SenderIsNotNativeToken } from "../libraries/Errors.sol";
@@ -41,12 +42,12 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
         nativeToken = _nativeToken;
     }
 
-    function initialize(address timelock) public initializer {
+    function initialize(Timelock timelock) public initializer {
         __ReentrancyGuard_init_unchained();
         __AccessControl_init_unchained();
         __Pausable_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, timelock);
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
         tokens[nativeToken].isSupported = true;
     }
 

@@ -331,7 +331,7 @@ contract AaveMoneyMarketArbitrumTest is Test {
         uint256 borrowAmount = 5000e6;
 
         sut = env.deployer().deployAaveMoneyMarket(env, IContango(contango));
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         IContango(contango).createInstrument(Symbol.wrap("ARBUSDC"), lendToken, borrowToken);
         positionId = env.encoder().encodePositionId(Symbol.wrap("ARBUSDC"), MM_AAVE, PERP, 1);
         vm.startPrank(contango);
@@ -384,7 +384,7 @@ contract AaveMoneyMarketArbitrumTest is Test {
         uint256 borrowAmount = 1.02e6;
 
         sut = env.deployer().deployAaveMoneyMarket(env, IContango(contango));
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         IContango(contango).createInstrument(Symbol.wrap("EURSUSDC"), lendToken, borrowToken);
         positionId = env.encoder().encodePositionId(Symbol.wrap("EURSUSDC"), MM_AAVE, PERP, 1);
         vm.startPrank(contango);

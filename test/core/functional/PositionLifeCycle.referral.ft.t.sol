@@ -9,7 +9,7 @@ abstract contract ReferralAbstractPositionLifeCycleFunctional is AbstractPositio
         super.setUp(network, _mm);
 
         IReferralManager referralManager = env.feeManager().referralManager();
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         referralManager.setRewardsAndRebates({ referrerReward: 0.2e4, traderRebate: 0.1e4 });
 
         address referrer = address(0xbadbeef);

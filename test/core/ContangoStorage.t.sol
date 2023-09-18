@@ -37,7 +37,7 @@ contract ContangoStorageTest is BaseTest {
         contango = env.contango();
         su = new StorageUtils(address(contango));
 
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         contango.grantRole(OPERATOR_ROLE, address(this));
     }
 

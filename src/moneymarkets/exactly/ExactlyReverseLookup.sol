@@ -3,6 +3,7 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
+import "../../libraries/DataTypes.sol";
 import "./dependencies/IAuditor.sol";
 
 interface ExactlyReverseLookupEvents {
@@ -19,9 +20,9 @@ contract ExactlyReverseLookup is ExactlyReverseLookupEvents, AccessControl {
 
     mapping(IERC20 token => IMarket market) private _markets;
 
-    constructor(address timelock, IAuditor _auditor) {
+    constructor(Timelock timelock, IAuditor _auditor) {
         auditor = _auditor;
-        _grantRole(DEFAULT_ADMIN_ROLE, timelock);
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
         _update(_auditor);
     }
 

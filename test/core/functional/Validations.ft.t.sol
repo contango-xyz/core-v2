@@ -40,8 +40,8 @@ contract Validations is BaseTest, IContangoEvents {
     }
 
     function testSetters() public {
-        vm.startPrank(TIMELOCK);
-        AccessControlUpgradeable(address(contango)).grantRole(OPERATOR_ROLE, TIMELOCK);
+        vm.startPrank(TIMELOCK_ADDRESS);
+        AccessControlUpgradeable(address(contango)).grantRole(OPERATOR_ROLE, TIMELOCK_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
         emit InstrumentCreated(WETHUSDC, weth, usdc);
@@ -58,7 +58,7 @@ contract Validations is BaseTest, IContangoEvents {
     }
 
     function testCreatePositionPermission() public {
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         contango.createInstrument(WETHUSDC, weth, usdc);
 
         TradeParams memory tradeParams;
@@ -197,7 +197,7 @@ contract Validations is BaseTest, IContangoEvents {
         TradeParams memory tradeParams;
         ExecutionParams memory execParams;
 
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         AccessControlUpgradeable(address(contango)).grantRole(EMERGENCY_BREAK_ROLE, address(this));
 
         contango.pause();

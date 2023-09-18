@@ -27,7 +27,7 @@ contract ExactlyReverseLookupTest is ExactlyReverseLookupEvents, BaseTest {
 
         vm.expectEmit(true, true, true, true);
         emit MarketSet(weth, market);
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setMarket(weth, market);
     }
 

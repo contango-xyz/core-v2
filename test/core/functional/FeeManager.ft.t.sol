@@ -61,7 +61,7 @@ contract FeeManagerTest is IFeeManagerEvents, BaseTest {
 
     function testApplyFeeWithReferral() public {
         // given
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         referralManager.setRewardsAndRebates({ referrerReward: 0.3e4, traderRebate: 0.2e4 });
 
         bytes32 code = keccak256("code");

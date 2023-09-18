@@ -25,7 +25,7 @@ contract VaultFunctional is BaseTest {
         vm.assume(depositAmount > 0 && withdrawAmount > 0);
 
         IERC20 token = env.token(env.allTokens(bound(tokenIdx, 0, 3)));
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setTokenSupport(token, true);
 
         preTransferAmount = preTransferAmount > depositAmount ? depositAmount : preTransferAmount;
@@ -54,7 +54,7 @@ contract VaultFunctional is BaseTest {
         vm.assume(depositAmount > 0 && withdrawAmount > 0);
 
         IERC20 token = env.token(env.allTokens(bound(tokenIdx, 0, 3)));
-        vm.prank(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setTokenSupport(token, true);
 
         preTransferAmount = preTransferAmount > depositAmount ? depositAmount : preTransferAmount;

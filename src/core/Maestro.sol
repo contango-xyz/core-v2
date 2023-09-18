@@ -24,7 +24,7 @@ contract Maestro is IMaestro, UUPSUpgradeable {
 
     bytes32 public constant UPPER_BIT_MASK = (0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
 
-    address public immutable timelock;
+    Timelock public immutable timelock;
     IContango public immutable contango;
     IOrderManager public immutable orderManager;
     IVault public immutable vault;
@@ -32,7 +32,7 @@ contract Maestro is IMaestro, UUPSUpgradeable {
     IWETH9 public immutable nativeToken;
     IPermit2 public immutable permit2;
 
-    constructor(address _timelock, IContango _contango, IOrderManager _orderManager, IVault _vault, IPermit2 _permit2) {
+    constructor(Timelock _timelock, IContango _contango, IOrderManager _orderManager, IVault _vault, IPermit2 _permit2) {
         timelock = _timelock;
         contango = _contango;
         orderManager = _orderManager;
@@ -279,7 +279,7 @@ contract Maestro is IMaestro, UUPSUpgradeable {
     }
 
     function _authorizeUpgrade(address) internal virtual override {
-        if (msg.sender != timelock) revert Unauthorised(msg.sender);
+        if (msg.sender != Timelock.unwrap(timelock)) revert Unauthorised(msg.sender);
     }
 
 }

@@ -79,11 +79,11 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         spotExecutor = spot;
     }
 
-    function initialize(address timelock) public initializer {
+    function initialize(Timelock timelock) public initializer {
         __AccessControl_init_unchained();
         __Pausable_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, timelock);
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
     }
 
     // ============================= IContango =========================

@@ -28,10 +28,10 @@ contract FeeManager is IFeeManager, AccessControlUpgradeable, UUPSUpgradeable {
         referralManager = _referralManager;
     }
 
-    function initialize(address timelock) public initializer {
+    function initialize(Timelock timelock) public initializer {
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, timelock);
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
     }
 
     function applyFee(address trader, PositionId positionId, uint256 quantity)
