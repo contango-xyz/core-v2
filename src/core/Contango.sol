@@ -506,11 +506,11 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     ) private returns (bytes memory result) {
         callbackHash = keccak256(data);
         result = provider.flash(loanReceiver, asset, amount, data, callback);
-        delete callbackHash;
     }
 
-    function _flashLoanCallback(bytes memory data) internal view returns (FlashLoanCallback memory) {
+    function _flashLoanCallback(bytes memory data) internal returns (FlashLoanCallback memory) {
         if (keccak256(data) != callbackHash) revert UnexpectedCallback();
+        delete callbackHash;
         return data.decodeFlashLoanCallback();
     }
 
