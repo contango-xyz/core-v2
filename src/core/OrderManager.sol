@@ -16,6 +16,7 @@ import "../interfaces/IContango.sol";
 import "../interfaces/IVault.sol";
 import "../interfaces/IOracle.sol";
 
+uint128 constant INITIAL_GAS_START = 21_000;
 uint256 constant MAX_GAS_MULTIPLIER = 10e4; // 10x
 uint256 constant MIN_GAS_MULTIPLIER = 1e4; // 1x
 
@@ -81,7 +82,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         __UUPSUpgradeable_init_unchained();
         _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
         _setGasMultiplier(_gasMultiplier);
-        gasStart = 21_000;
+        gasStart = INITIAL_GAS_START;
         gasTip = _gasTip;
         oracle = _oracle;
     }
@@ -265,7 +266,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     modifier gasMeasured() {
         gasStart += gasleft().toUint128();
         _;
-        gasStart = 21_000;
+        gasStart = INITIAL_GAS_START;
     }
 
     function _keeperReward(IERC20 cashflowToken) internal view returns (uint256 keeperReward) {
