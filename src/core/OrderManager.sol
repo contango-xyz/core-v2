@@ -16,8 +16,13 @@ import "../interfaces/IContango.sol";
 import "../interfaces/IVault.sol";
 import "../interfaces/IOracle.sol";
 
-uint128 constant INITIAL_GAS_START = 21_000;
 uint256 constant TOLERANCE_PRECISION = 1e4;
+
+uint128 constant INITIAL_GAS_START = 21_000;
+uint256 constant GAS_PER_BYTE = 16;
+uint256 constant ERC20_TRANSFERS_GAS_ESTIMATE = 30_000;
+uint256 constant TWO_ERC20_TRANSFERS_GAS_ESTIMATE = ERC20_TRANSFERS_GAS_ESTIMATE * 2;
+
 uint256 constant MAX_GAS_MULTIPLIER = 10e4; // 10x
 uint256 constant MIN_GAS_MULTIPLIER = 1e4; // 1x
 
@@ -287,7 +292,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     // Gas cost for L1 EVMs, this should be overridden for L2 EVMs
     function _gasCost() internal view virtual returns (uint256 gasCost) {
         // 21000 min tx gas (starting gasStart value) + gas used so far + 16 gas per byte of data + 60k for the 2 ERC20 transfers
-        uint256 gasSpent = gasStart - gasleft() + 16 * msg.data.length + 60_000;
+        uint256 gasSpent = gasStart - gasleft() + GAS_PER_BYTE * msg.data.length + TWO_ERC20_TRANSFERS_GAS_ESTIMATE;
         // gas spent @ (current baseFee + tip)
         gasCost = gasSpent * (block.basefee + gasTip);
     }
