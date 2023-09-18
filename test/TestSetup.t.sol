@@ -157,7 +157,7 @@ contract Deployer {
         moneyMarket = new ExactlyMoneyMarket({
             _moneyMarketId: MM_EXACTLY,
             _contango: contango,
-            _reverseLookup: new ExactlyReverseLookup(env.auditor()),
+            _reverseLookup: new ExactlyReverseLookup(TIMELOCK, env.auditor()),
             _rewardsController: IExactlyRewardsController(0xBd1ba78A3976cAB420A9203E6ef14D18C2B2E031)}
         );
         UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));

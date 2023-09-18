@@ -1,19 +1,27 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
+import "@openzeppelin/contracts/access/AccessControl.sol";
+
 import "./dependencies/IAuditor.sol";
 
-contract ExactlyReverseLookup {
+interface ExactlyReverseLookupEvents {
 
     event MarketSet(IERC20 indexed asset, IMarket indexed market);
+
+}
+
+contract ExactlyReverseLookup is ExactlyReverseLookupEvents, AccessControl {
+
     error MarketNotFound(IERC20 asset);
 
     IAuditor public immutable auditor;
 
     mapping(IERC20 token => IMarket market) private _markets;
 
-    constructor(IAuditor _auditor) {
+    constructor(address timelock, IAuditor _auditor) {
         auditor = _auditor;
+        _grantRole(DEFAULT_ADMIN_ROLE, timelock);
         _update(_auditor);
     }
 
@@ -30,6 +38,11 @@ contract ExactlyReverseLookup {
                 emit MarketSet(_market.asset(), _market);
             }
         }
+    }
+
+    function setMarket(IERC20 asset, IMarket _market) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _markets[asset] = _market;
+        emit MarketSet(asset, _market);
     }
 
     function market(IERC20 asset) external view returns (IMarket _market) {
