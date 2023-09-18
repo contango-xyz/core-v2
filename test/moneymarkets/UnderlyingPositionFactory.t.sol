@@ -80,4 +80,19 @@ contract UnderlyingPositionFactoryTest is BaseTest, IUnderlyingPositionFactoryEv
         sut.registerMoneyMarket(IMoneyMarket(compound));
     }
 
+    function testValidations() public {
+        address compound = address(0xc0);
+        vm.mockCall(compound, abi.encodeWithSelector(IMoneyMarket.moneyMarketId.selector), abi.encode(MM_COMPOUND));
+
+        // can't register money market twice
+        vm.startPrank(TIMELOCK);
+        sut.registerMoneyMarket(IMoneyMarket(compound));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(UnderlyingPositionFactory.MoneyMarketAlreadyRegistered.selector, MM_COMPOUND, IMoneyMarket(compound))
+        );
+        sut.registerMoneyMarket(IMoneyMarket(compound));
+        vm.stopPrank();
+    }
+
 }
