@@ -12,6 +12,8 @@ import "../libraries/Roles.sol";
 /// @dev Instances can only be minted by other contango contracts
 contract PositionNFT is ERC721, AccessControl {
 
+    event ContangoContractSet(address indexed contractAddr, bool indexed enabled);
+
     uint256 public counter = 1;
     mapping(address contractAddr => bool enabled) public contangoContracts;
 
@@ -45,6 +47,7 @@ contract PositionNFT is ERC721, AccessControl {
 
     function setContangoContract(address contractAddr, bool enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {
         contangoContracts[contractAddr] = enabled;
+        emit ContangoContractSet(contractAddr, enabled);
     }
 
     function isApprovedForAll(address owner, address operator) public view override returns (bool) {
