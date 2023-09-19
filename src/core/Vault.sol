@@ -36,7 +36,7 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
      */
     uint256[50_000 - 301] private __gap;
 
-    mapping(IERC20 => TokenData) private tokens;
+    mapping(IERC20 token => TokenData tokenData) private tokens;
 
     constructor(IWETH9 _nativeToken) {
         nativeToken = _nativeToken;

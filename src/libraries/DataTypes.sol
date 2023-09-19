@@ -23,4 +23,4 @@ type OrderId is bytes32;
 
 type MoneyMarketId is uint8;
 
-type Timelock is address payable;
+type Timelock is address;
