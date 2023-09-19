@@ -54,7 +54,6 @@ uint256 constant TRADER2_PK = 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a84
 address payable constant TRADER2 = payable(address(0x70997970C51812dc3A010C7d01b50e0d17dc79C8));
 address payable constant TREASURY = payable(0x643178CF8AEc063962654CAc256FD1f7fe06ac28);
 address payable constant LIQUIDATOR = payable(address(0xfec));
-address payable constant TIMELOCK_ADDRESS = Timelock.unwrap(TIMELOCK);
 
 uint256 constant ARBITRUM_BASE_BLOCK_NUMBER = 98_674_994;
 uint256 constant OPTIMISM_BASE_BLOCK_NUMBER = 107_312_284;
