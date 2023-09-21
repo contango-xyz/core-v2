@@ -18,7 +18,6 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
 
     bool public constant override NEEDS_ACCOUNT = true;
 
-    MoneyMarketId public immutable moneyMarketId;
     ExactlyReverseLookup public immutable reverseLookup;
     IAuditor public immutable auditor;
     IExactlyRewardsController public immutable rewardsController;
@@ -28,8 +27,7 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
         IContango _contango,
         ExactlyReverseLookup _reverseLookup,
         IExactlyRewardsController _rewardsController
-    ) BaseMoneyMarket(_contango) {
-        moneyMarketId = _moneyMarketId;
+    ) BaseMoneyMarket(_moneyMarketId, _contango) {
         reverseLookup = _reverseLookup;
         auditor = _reverseLookup.auditor();
         rewardsController = _rewardsController;
@@ -43,20 +41,17 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
     }
 
     function _lend(PositionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
-        if (amount == 0) return 0;
         asset.transferOut(payer, address(this), amount);
         reverseLookup.market(asset).deposit(amount, address(this));
         actualAmount = amount;
     }
 
     function _withdraw(PositionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
-        if (amount == 0) return 0;
         reverseLookup.market(asset).withdraw(amount, to, address(this));
         actualAmount = amount;
     }
 
     function _borrow(PositionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
-        if (amount == 0) return 0;
         reverseLookup.market(asset).borrow(amount, to, address(this));
         actualAmount = amount;
     }

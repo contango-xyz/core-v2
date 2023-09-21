@@ -8,29 +8,36 @@ import "./interfaces/IMoneyMarket.sol";
 
 abstract contract BaseMoneyMarket is IMoneyMarket {
 
+    MoneyMarketId public immutable moneyMarketId;
     IContango public immutable contango;
 
-    constructor(IContango _contango) {
+    constructor(MoneyMarketId _moneyMarketId, IContango _contango) {
+        moneyMarketId = _moneyMarketId;
         contango = _contango;
     }
 
     function initialise(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) external override onlyContango {
+        if (MoneyMarketId.unwrap(positionId.getMoneyMarket()) != MoneyMarketId.unwrap(moneyMarketId)) revert InvalidMoneyMarketId();
         _initialise(positionId, collateralAsset, debtAsset);
     }
 
     function lend(PositionId positionId, IERC20 asset, uint256 amount) external override onlyContango returns (uint256) {
+        if (amount == 0) return 0;
         return _lend(positionId, asset, amount, msg.sender);
     }
 
     function withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to) external override onlyContango returns (uint256) {
+        if (amount == 0) return 0;
         return _withdraw(positionId, asset, amount, to);
     }
 
     function borrow(PositionId positionId, IERC20 asset, uint256 amount, address to) external override onlyContango returns (uint256) {
+        if (amount == 0) return 0;
         return _borrow(positionId, asset, amount, to);
     }
 
     function repay(PositionId positionId, IERC20 asset, uint256 amount) external override onlyContango returns (uint256) {
+        if (amount == 0) return 0;
         return _repay(positionId, asset, amount, msg.sender);
     }
 

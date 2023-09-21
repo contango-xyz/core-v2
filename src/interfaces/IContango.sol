@@ -98,6 +98,8 @@ interface IContango is IContangoEvents {
         payable
         returns (PositionId positionId, Trade memory trade);
 
+    function claimRewards(PositionId positionId, address to) external;
+
     // ======== View ========
 
     function positionFactory() external view returns (IUnderlyingPositionFactory);
