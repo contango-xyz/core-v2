@@ -19,7 +19,7 @@ contract PositionValidationsFunctional is BaseTest {
     address uniswap;
 
     function setUp() public {
-        env = provider(Network.Arbitrum);
+        env = provider(Network.Polygon);
         env.init();
         mm = MM_AAVE;
         instrument = env.createInstrument({ baseData: env.erc20(WETH), quoteData: env.erc20(USDC) });
@@ -789,6 +789,41 @@ contract PositionValidationsFunctional is BaseTest {
 
         require(!success, "should have failed");
         require(bytes4(data) == IContango.CashflowCcyRequired.selector, "error selector not expected");
+    }
+
+    // Calls claimRewards on the underlying money market
+    function testValidation15() public {
+        (, PositionId positionId,) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: mm,
+            quantity: 10 ether,
+            leverage: 2e18,
+            cashflowCcy: Currency.Base
+        });
+
+        skip(10 days);
+
+        IMoneyMarket moneyMarket = env.positionFactory().moneyMarket(positionId);
+        vm.expectCall(
+            address(moneyMarket),
+            abi.encodeWithSelector(IMoneyMarket.claimRewards.selector, positionId, instrument.base, instrument.quote, TRADER)
+        );
+
+        vm.prank(TRADER);
+        contango.claimRewards(positionId, TRADER);
+
+        skip(10 days);
+
+        // after closing
+        env.positionActions().closePosition({ positionId: positionId, quantity: type(uint128).max, cashflow: 0, cashflowCcy: Currency.Base });
+
+        vm.expectCall(
+            address(moneyMarket),
+            abi.encodeWithSelector(IMoneyMarket.claimRewards.selector, positionId, instrument.base, instrument.quote, TRADER)
+        );
+
+        vm.prank(TRADER);
+        contango.claimRewards(positionId, TRADER);
     }
 
 }
