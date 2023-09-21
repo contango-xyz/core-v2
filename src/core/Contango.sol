@@ -70,6 +70,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     uint256[3] private __dead; // TODO kill if we re-deploy
     bytes32 private callbackHash;
     bytes32 private tradeHash;
+    mapping(PositionId positionId => address owner) private lastOwner;
 
     constructor(PositionNFT nft, IVault v, IUnderlyingPositionFactory pf, IFeeManager fm, SpotExecutor spot) {
         positionNFT = nft;
@@ -331,7 +332,10 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
 
         _closeSlippageCheck(tradeParams, trade_, cb.quantity, cb.fullyClosing);
 
-        if (cb.fullyClosing) positionNFT.burn(tradeParams.positionId);
+        if (cb.fullyClosing) {
+            lastOwner[tradeParams.positionId] = owner;
+            positionNFT.burn(tradeParams.positionId);
+        }
     }
 
     function _emitPositionUpserted(PositionId positionId, Trade memory _trade, address owner) private {
@@ -697,6 +701,16 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         if (keccak256(data) != tradeHash) revert UnexpectedTrade();
         delete tradeHash;
         return abi.decode(data, (Trade));
+    }
+
+    function claimRewards(PositionId positionId, address to) external override {
+        if (positionNFT.exists(positionId)) positionNFT.validateModifyPositionPermissions(positionId);
+        else if (lastOwner[positionId] != msg.sender) revert Unauthorised(msg.sender);
+
+        (Symbol symbol,,,) = positionId.decode();
+        InstrumentStorage storage _instrument = instruments[symbol];
+        IMoneyMarket moneyMarket = _moneyMarket(positionId);
+        moneyMarket.claimRewards(positionId, _instrument.base, _instrument.quote, to);
     }
 
     // ============================= Admin =========================

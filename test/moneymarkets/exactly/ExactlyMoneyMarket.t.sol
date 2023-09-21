@@ -43,7 +43,7 @@ contract ExactlyMoneyMarketTest is Test {
         IERC20 borrowToken = env.token(USDC);
 
         sut = env.deployer().deployExactlyMoneyMarket(env, env.contango());
-        positionId = env.encoder().encodePositionId(Symbol.wrap("WETHUSDC"), MM_AAVE, PERP - 1, 1);
+        positionId = env.encoder().encodePositionId(Symbol.wrap("WETHUSDC"), MM_EXACTLY, PERP - 1, 1);
 
         vm.expectRevert(InvalidExpiry.selector);
         vm.prank(contango);

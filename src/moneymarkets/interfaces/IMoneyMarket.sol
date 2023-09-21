@@ -8,6 +8,8 @@ import { PositionId, MoneyMarketId } from "../../libraries/DataTypes.sol";
 
 interface IMoneyMarket is IERC165 {
 
+    error InvalidMoneyMarketId();
+
     /// @dev indicates whether the money market requires an underlying account to be created
     /// if true, the money market must be cloned to create an underlying position
     /// otherwise the money market can be used directly as it know how to isolate positions

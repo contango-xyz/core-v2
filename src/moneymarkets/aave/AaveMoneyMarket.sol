@@ -24,7 +24,6 @@ contract AaveMoneyMarket is BaseMoneyMarket, FlashLoanReceiverBase, IFlashBorrow
 
     bool public constant override NEEDS_ACCOUNT = true;
 
-    MoneyMarketId public immutable override moneyMarketId;
     IAaveRewardsController public immutable rewardsController;
 
     constructor(
@@ -32,8 +31,7 @@ contract AaveMoneyMarket is BaseMoneyMarket, FlashLoanReceiverBase, IFlashBorrow
         IContango _contango,
         IPoolAddressesProvider _provider,
         IAaveRewardsController _rewardsController
-    ) BaseMoneyMarket(_contango) FlashLoanReceiverBase(_provider) {
-        moneyMarketId = _moneyMarketId;
+    ) BaseMoneyMarket(_moneyMarketId, _contango) FlashLoanReceiverBase(_provider) {
         rewardsController = _rewardsController;
     }
 

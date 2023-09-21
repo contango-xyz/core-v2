@@ -86,8 +86,9 @@ contract AaveMoneyMarketView is IMoneyMarketView {
         uint256 totalDebt = ValidationLogic.totalDebt(reserveCache);
         uint256 borrowCap = reserve.configuration.getBorrowCap() * 10 ** reserve.configuration.getDecimals();
         uint256 maxBorrowable = borrowCap > totalDebt ? borrowCap - totalDebt : 0;
+        uint256 assetBalance = asset.balanceOf(reserve.aTokenAddress);
 
-        borrowingLiquidity_ = Math.min(maxBorrowable, asset.balanceOf(reserve.aTokenAddress));
+        borrowingLiquidity_ = borrowCap == 0 ? assetBalance : Math.min(maxBorrowable, assetBalance);
     }
 
     function lendingLiquidity(IERC20 asset) external view override returns (uint256 lendingLiquidity_) {
@@ -96,7 +97,7 @@ contract AaveMoneyMarketView is IMoneyMarketView {
         uint256 supplyCap = reserve.configuration.getSupplyCap() * 10 ** reserve.configuration.getDecimals();
         uint256 currentSupply = ValidationLogic.currentSupply(reserveCache, reserve);
 
-        lendingLiquidity_ = supplyCap > currentSupply ? supplyCap - currentSupply : 0;
+        lendingLiquidity_ = supplyCap == 0 ? type(uint256).max : supplyCap > currentSupply ? supplyCap - currentSupply : 0;
     }
 
     function minCR(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) external view override returns (uint256) {

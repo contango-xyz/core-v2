@@ -59,14 +59,10 @@ contract BaseMoneyMarketTest is Test {
 
 contract FooMoneyMarket is BaseMoneyMarket {
 
-    constructor(IContango _contango) BaseMoneyMarket(_contango) { }
+    constructor(IContango _contango) BaseMoneyMarket(MoneyMarketId.wrap(0), _contango) { }
 
     function NEEDS_ACCOUNT() external pure returns (bool) {
         return true;
-    }
-
-    function moneyMarketId() external pure returns (MoneyMarketId) {
-        return MoneyMarketId.wrap(0);
     }
 
     function _initialise(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal override { }
