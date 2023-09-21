@@ -115,6 +115,16 @@ contract Validations is BaseTest, IContangoEvents {
         tradeParams.quantity = 0;
         vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
         maestro.trade(tradeParams, execParams);
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        contango.claimRewards(positionId, address(this));
+
+        // after full close
+        skip(1 seconds);
+        env.positionActions().closePosition({ positionId: positionId, quantity: type(uint128).max, cashflow: 0, cashflowCcy: Currency.Quote });
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        contango.claimRewards(positionId, address(this));
     }
 
     function testCallbackPermissions() public {
