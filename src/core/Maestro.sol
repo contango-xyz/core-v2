@@ -3,6 +3,7 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/utils/math/SignedMath.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts/utils/Multicall.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
@@ -15,7 +16,7 @@ import "../interfaces/IVault.sol";
 import "../libraries/Errors.sol";
 import "../libraries/Validations.sol";
 
-contract Maestro is IMaestro, UUPSUpgradeable {
+contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
 
     using SignedMath for int256;
     using SafeCast for *;
