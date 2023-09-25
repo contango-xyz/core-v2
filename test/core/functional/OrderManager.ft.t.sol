@@ -2,12 +2,14 @@
 pragma solidity 0.8.20;
 
 import "../../BaseTest.sol";
+import "../../utils.t.sol";
 import "../../StorageUtils.t.sol";
 import "src/core/OrderManager.sol";
 
 contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
 
     using { toOrderId } for OrderParams;
+    using { first } for Vm.Log[];
     using SignedMath for *;
     using SafeCast for *;
     using Math for *;
@@ -176,6 +178,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
 
         Trade memory trade;
         uint256 keeperReward;
+        vm.recordLogs();
         vm.prank(keeper);
         (positionId, trade, keeperReward) = om.execute(
             orderId,
@@ -188,6 +191,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             })
         );
 
+        _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
 
         assertEq(positionNFT.positionOwner(positionId), TRADER, "positionOwner");
@@ -249,6 +253,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
 
         Trade memory trade;
         uint256 keeperReward;
+        vm.recordLogs();
         vm.prank(keeper);
         (positionId, trade, keeperReward) = om.execute(
             orderId,
@@ -261,6 +266,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             })
         );
 
+        _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
 
         assertApproxEqRelDecimal(
@@ -319,6 +325,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         assertTrue(om.hasOrder(orderId), "order placed");
         assertEq(om.orders(orderId).owner, TRADER, "order owner");
 
+        vm.recordLogs();
         vm.prank(keeper);
         (, Trade memory trade, uint256 keeperReward) = om.execute(
             orderId,
@@ -331,6 +338,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             })
         );
 
+        _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
 
         assertApproxEqRelDecimal(trade.quantity, -4 ether, DEFAULT_SLIPPAGE_TOLERANCE * 1e14, instrument.baseDecimals, "trade.quantity");
@@ -389,6 +397,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         OrderId orderId = maestro.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
+        vm.recordLogs();
         vm.prank(keeper);
         (, Trade memory trade, uint256 keeperReward) = om.execute(
             orderId,
@@ -401,6 +410,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             })
         );
 
+        _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
 
         assertFalse(env.contango().positionNFT().exists(positionId), "position exists");
@@ -519,6 +529,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             uniswapFee: 3000
         });
 
+        vm.recordLogs();
         vm.prank(keeper);
         (, Trade memory trade, uint256 keeperReward) = om.execute(
             orderId,
@@ -531,6 +542,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             })
         );
 
+        _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
 
         assertFalse(env.contango().positionNFT().exists(positionId), "position exists");
@@ -610,6 +622,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             uniswapFee: 3000
         });
 
+        vm.recordLogs();
         vm.prank(keeper);
         (, Trade memory trade, uint256 keeperReward) = om.execute(
             orderId,
@@ -622,6 +635,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             })
         );
 
+        _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
 
         assertFalse(env.contango().positionNFT().exists(positionId), "position exists");
@@ -722,6 +736,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
              })
         );
 
+        vm.recordLogs();
         vm.prank(keeper);
         (, Trade memory trade, uint256 keeperReward) = om.execute(
             orderId,
@@ -734,6 +749,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             })
         );
 
+        _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
 
         assertFalse(env.contango().positionNFT().exists(positionId), "position exists");
@@ -1260,6 +1276,14 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
                 flashLoanProvider: IERC7399(address(0))
             })
         );
+    }
+
+    function _assertOrderExecutedEvent(OrderId orderId, PositionId positionId, uint256 keeperReward) private {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        Vm.Log memory log = logs.first("OrderExecuted(bytes32,bytes32,uint256)");
+        assertEq(log.topics[1], OrderId.unwrap(orderId), "OrderExecuted.orderId");
+        assertEq(log.topics[2], PositionId.unwrap(positionId), "OrderExecuted.positionId");
+        assertEq(log.data, abi.encode(keeperReward), "OrderExecuted.keeperReward");
     }
 
 }

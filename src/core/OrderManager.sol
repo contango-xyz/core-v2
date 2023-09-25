@@ -201,9 +201,9 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         (positionId, trade_) = order.quantity > 0 ? _open(order, execParams) : _close(order, execParams);
 
         delete _orders[orderId];
-        emit OrderExecuted(orderId, positionId, keeperReward);
-
         keeperReward = _keeperReward(cashflowToken);
+
+        emit OrderExecuted(orderId, positionId, keeperReward);
 
         if (keeperReward > 0) _withdraw(cashflowToken, order.owner, keeperReward, msg.sender);
 
