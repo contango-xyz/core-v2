@@ -455,9 +455,40 @@ contract MaestroTest is BaseTest {
             orderType: OrderType.TakeProfit
         });
 
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        maestro.placeLinkedOrder(positionId, linkedOrderParams);
+
         vm.prank(TRADER);
         OrderId orderId = maestro.placeLinkedOrder(positionId, linkedOrderParams);
         assertEq(orderManager.orders(orderId).owner, TRADER, "order owner");
+    }
+
+    function testPlaceLinkedOrders() public {
+        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+
+        LinkedOrderParams memory linkedOrderParams1 = LinkedOrderParams({
+            limitPrice: 1100e6,
+            tolerance: 0.01e4,
+            cashflowCcy: Currency.Quote,
+            deadline: uint32(block.timestamp + 1 days),
+            orderType: OrderType.TakeProfit
+        });
+
+        LinkedOrderParams memory linkedOrderParams2 = LinkedOrderParams({
+            limitPrice: 900e6,
+            tolerance: 0.01e4,
+            cashflowCcy: Currency.Quote,
+            deadline: uint32(block.timestamp + 1 days),
+            orderType: OrderType.StopLoss
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        maestro.placeLinkedOrders(positionId, linkedOrderParams1, linkedOrderParams2);
+
+        vm.prank(TRADER);
+        (OrderId linkedOrderId1, OrderId linkedOrderId2) = maestro.placeLinkedOrders(positionId, linkedOrderParams1, linkedOrderParams2);
+        assertEq(orderManager.orders(linkedOrderId1).owner, TRADER, "linkedOrder1 owner");
+        assertEq(orderManager.orders(linkedOrderId2).owner, TRADER, "linkedOrder2 owner");
     }
 
     function testDepositAndPlace() public {
@@ -560,10 +591,168 @@ contract MaestroTest is BaseTest {
         assertEq(orderManager.orders(orderId).owner, TRADER, "order owner");
         assertEq(vault.balanceOf(usdc, TRADER), 4000e6, "trader vault balance");
 
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        maestro.cancel(orderId);
+
         vm.prank(TRADER);
         maestro.cancel(orderId);
         assertEq(orderManager.orders(orderId).owner, address(0), "order owner");
         assertEq(vault.balanceOf(usdc, TRADER), 4000e6, "trader vault balance");
+    }
+
+    function testCancelMultipleOrders() public {
+        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+
+        LinkedOrderParams memory linkedOrderParams1 = LinkedOrderParams({
+            limitPrice: 1100e6,
+            tolerance: 0.01e4,
+            cashflowCcy: Currency.Quote,
+            deadline: uint32(block.timestamp + 1 days),
+            orderType: OrderType.TakeProfit
+        });
+
+        LinkedOrderParams memory linkedOrderParams2 = LinkedOrderParams({
+            limitPrice: 900e6,
+            tolerance: 0.01e4,
+            cashflowCcy: Currency.Quote,
+            deadline: uint32(block.timestamp + 1 days),
+            orderType: OrderType.StopLoss
+        });
+
+        vm.prank(TRADER);
+        (OrderId linkedOrderId1, OrderId linkedOrderId2) = maestro.placeLinkedOrders(positionId, linkedOrderParams1, linkedOrderParams2);
+        assertEq(orderManager.orders(linkedOrderId1).owner, TRADER, "linkedOrder1 owner");
+        assertEq(orderManager.orders(linkedOrderId2).owner, TRADER, "linkedOrder2 owner");
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        maestro.cancel(linkedOrderId1, linkedOrderId2);
+
+        vm.prank(TRADER);
+        maestro.cancel(linkedOrderId1, linkedOrderId2);
+        assertEq(orderManager.orders(linkedOrderId1).owner, address(0), "linkedOrder1 owner");
+        assertEq(orderManager.orders(linkedOrderId2).owner, address(0), "linkedOrder2 owner");
+    }
+
+    function testCancelReplaceLinkedOrder() public {
+        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+
+        LinkedOrderParams memory linkedOrderParams = LinkedOrderParams({
+            limitPrice: 1100e6,
+            tolerance: 0.01e4,
+            cashflowCcy: Currency.Quote,
+            deadline: uint32(block.timestamp + 1 days),
+            orderType: OrderType.TakeProfit
+        });
+
+        vm.prank(TRADER);
+        OrderId linkedOrderId = maestro.placeLinkedOrder(positionId, linkedOrderParams);
+        assertEq(orderManager.orders(linkedOrderId).owner, TRADER, "linkedOrder owner");
+
+        LinkedOrderParams memory newLinkedOrderParams = LinkedOrderParams({
+            limitPrice: 900e6,
+            tolerance: 0.01e4,
+            cashflowCcy: Currency.Quote,
+            deadline: uint32(block.timestamp + 1 days),
+            orderType: OrderType.StopLoss
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        maestro.cancelReplaceLinkedOrder(linkedOrderId, newLinkedOrderParams);
+
+        vm.prank(TRADER);
+        OrderId newLinkedOrderId = maestro.cancelReplaceLinkedOrder(linkedOrderId, newLinkedOrderParams);
+        assertEq(orderManager.orders(linkedOrderId).owner, address(0), "linkedOrder owner");
+        assertEq(orderManager.orders(newLinkedOrderId).owner, TRADER, "newLinkedOrder owner");
+    }
+
+    function testCancelReplaceLinkedOrders() public {
+        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+
+        LinkedOrderParams memory linkedOrderParams1 = LinkedOrderParams({
+            limitPrice: 1100e6,
+            tolerance: 0.01e4,
+            cashflowCcy: Currency.Quote,
+            deadline: uint32(block.timestamp + 1 days),
+            orderType: OrderType.TakeProfit
+        });
+
+        LinkedOrderParams memory linkedOrderParams2 = LinkedOrderParams({
+            limitPrice: 900e6,
+            tolerance: 0.01e4,
+            cashflowCcy: Currency.Quote,
+            deadline: uint32(block.timestamp + 1 days),
+            orderType: OrderType.StopLoss
+        });
+
+        vm.prank(TRADER);
+        (OrderId linkedOrderId1, OrderId linkedOrderId2) = maestro.placeLinkedOrders(positionId, linkedOrderParams1, linkedOrderParams2);
+        assertEq(orderManager.orders(linkedOrderId1).owner, TRADER, "linkedOrder1 owner");
+        assertEq(orderManager.orders(linkedOrderId2).owner, TRADER, "linkedOrder2 owner");
+
+        LinkedOrderParams memory newLinkedOrderParams1 = LinkedOrderParams({
+            limitPrice: 1200e6,
+            tolerance: 0.01e4,
+            cashflowCcy: Currency.Quote,
+            deadline: uint32(block.timestamp + 1 days),
+            orderType: OrderType.TakeProfit
+        });
+
+        LinkedOrderParams memory newLinkedOrderParams2 = LinkedOrderParams({
+            limitPrice: 800e6,
+            tolerance: 0.01e4,
+            cashflowCcy: Currency.Quote,
+            deadline: uint32(block.timestamp + 1 days),
+            orderType: OrderType.StopLoss
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        maestro.cancelReplaceLinkedOrders(linkedOrderId1, linkedOrderId2, newLinkedOrderParams1, newLinkedOrderParams2);
+
+        vm.prank(TRADER);
+        (OrderId newLinkedOrderId1, OrderId newLinkedOrderId2) =
+            maestro.cancelReplaceLinkedOrders(linkedOrderId1, linkedOrderId2, newLinkedOrderParams1, newLinkedOrderParams2);
+        assertEq(orderManager.orders(linkedOrderId1).owner, address(0), "cancelledLinkedOrder1 owner");
+        assertEq(orderManager.orders(linkedOrderId2).owner, address(0), "cancelledLinkedOrder2 owner");
+        assertEq(orderManager.orders(newLinkedOrderId1).owner, TRADER, "newLinkedOrder1 owner");
+        assertEq(orderManager.orders(newLinkedOrderId2).owner, TRADER, "newLinkedOrder2 owner");
+    }
+
+    function testCancelReplaceLinkedOrders_FailOnDifferentPositionIds() public {
+        (, PositionId positionId1,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+        (, PositionId positionId2,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 9 ether, 3 ether, Currency.Base, 0);
+
+        vm.prank(TRADER);
+        OrderId linkedOrderId1 = maestro.placeLinkedOrder(
+            positionId1,
+            LinkedOrderParams({
+                limitPrice: 1100e6,
+                tolerance: 0.01e4,
+                cashflowCcy: Currency.Quote,
+                deadline: uint32(block.timestamp + 1 days),
+                orderType: OrderType.TakeProfit
+            })
+        );
+
+        vm.prank(TRADER);
+        OrderId linkedOrderId2 = maestro.placeLinkedOrder(
+            positionId2,
+            LinkedOrderParams({
+                limitPrice: 1100e6,
+                tolerance: 0.01e4,
+                cashflowCcy: Currency.Quote,
+                deadline: uint32(block.timestamp + 1 days),
+                orderType: OrderType.TakeProfit
+            })
+        );
+
+        assertEq(orderManager.orders(linkedOrderId1).owner, TRADER, "linkedOrder1 owner");
+        assertEq(orderManager.orders(linkedOrderId2).owner, TRADER, "linkedOrder2 owner");
+
+        LinkedOrderParams memory emptyLinkedOrderParams;
+
+        vm.expectRevert(abi.encodeWithSelector(IMaestro.MismatchingPositionId.selector, linkedOrderId1, linkedOrderId2));
+        vm.prank(TRADER);
+        maestro.cancelReplaceLinkedOrders(linkedOrderId1, linkedOrderId2, emptyLinkedOrderParams, emptyLinkedOrderParams);
     }
 
     function testCancelAndWithdraw() public {

@@ -26,6 +26,7 @@ interface IMaestro is IContangoErrors, IOrderManagerErrors, IVaultErrors {
 
     error InvalidCashflow();
     error InsufficientPermitAmount(uint256 required, uint256 actual);
+    error MismatchingPositionId(OrderId orderId1, OrderId orderId2);
     error NotNativeToken(IERC20 token);
 
     function contango() external view returns (IContango);
@@ -101,11 +102,30 @@ interface IMaestro is IContangoErrors, IOrderManagerErrors, IVaultErrors {
 
     function placeLinkedOrder(PositionId positionId, LinkedOrderParams memory params) external returns (OrderId orderId);
 
+    function placeLinkedOrders(
+        PositionId positionId,
+        LinkedOrderParams memory linkedOrderParams1,
+        LinkedOrderParams memory linkedOrderParams2
+    ) external returns (OrderId linkedOrderId1, OrderId linkedOrderId2);
+
     function depositAndPlace(OrderParams memory params) external payable returns (OrderId orderId);
 
     function depositAndPlaceWithPermit(OrderParams memory params, EIP2098Permit calldata permit) external returns (OrderId orderId);
 
     function cancel(OrderId orderId) external;
+
+    function cancel(OrderId orderId1, OrderId orderId2) external;
+
+    function cancelReplaceLinkedOrder(OrderId cancelOrderId, LinkedOrderParams memory newLinkedOrderParams)
+        external
+        returns (OrderId newLinkedOrderId);
+
+    function cancelReplaceLinkedOrders(
+        OrderId cancelOrderId1,
+        OrderId cancelOrderId2,
+        LinkedOrderParams memory newLinkedOrderParams1,
+        LinkedOrderParams memory newLinkedOrderParams2
+    ) external returns (OrderId newLinkedOrderId1, OrderId newLinkedOrderId2);
 
     function cancelAndWithdraw(OrderId orderId, address to) external returns (uint256);
 
