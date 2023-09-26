@@ -57,7 +57,7 @@ interface IOrderManagerEvents {
 
 }
 
-interface IOrderManager is IOrderManagerEvents {
+interface IOrderManagerErrors {
 
     error InvalidDeadline(uint256 deadline, uint256 blockTimestamp); // 0x8848019e
     error InvalidOrderType(OrderType orderType); // 0xf2bc1bb6
@@ -69,6 +69,10 @@ interface IOrderManager is IOrderManagerEvents {
     error OrderExpired(OrderId orderId, uint256 deadline, uint256 blockTimestamp); // 0xc8105aba
     error OrderInvalidated(OrderId orderId); // 0xd10aebae
     error PositionDoesNotExist(PositionId positionId); // 0x80cc2277
+
+}
+
+interface IOrderManager is IOrderManagerEvents, IOrderManagerErrors, IContangoErrors {
 
     function placeOnBehalfOf(OrderParams calldata params, address onBehalfOf) external returns (OrderId orderId);
 

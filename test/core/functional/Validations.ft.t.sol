@@ -47,7 +47,7 @@ contract Validations is BaseTest, IContangoEvents {
         emit InstrumentCreated(WETHUSDC, weth, usdc);
         contango.createInstrument(WETHUSDC, weth, usdc);
 
-        vm.expectRevert(abi.encodeWithSelector(IContango.InstrumentAlreadyExists.selector, WETHUSDC));
+        vm.expectRevert(abi.encodeWithSelector(IContangoErrors.InstrumentAlreadyExists.selector, WETHUSDC));
         contango.createInstrument(WETHUSDC, weth, usdc);
 
         vm.expectEmit(true, true, true, true);
@@ -132,7 +132,7 @@ contract Validations is BaseTest, IContangoEvents {
         cb.ep.flashLoanProvider = env.balancerFLP();
         cb.positionId = env.encoder().encodePositionId(WETHUSDC, MM_AAVE, PERP, 1);
 
-        vm.expectRevert(abi.encodeWithSelector(IContango.UnexpectedCallback.selector));
+        vm.expectRevert(abi.encodeWithSelector(IContangoErrors.UnexpectedCallback.selector));
         contango.completeOpenFromFlashLoan({
             initiator: address(contango),
             repayTo: address(0),
@@ -142,10 +142,10 @@ contract Validations is BaseTest, IContangoEvents {
             params: abi.encode(cb)
         });
 
-        vm.expectRevert(abi.encodeWithSelector(IContango.NotFlashBorrowProvider.selector, address(this)));
+        vm.expectRevert(abi.encodeWithSelector(IContangoErrors.NotFlashBorrowProvider.selector, address(this)));
         contango.completeOpenFromFlashBorrow({ asset: IERC20(address(0)), amountOwed: 0, params: abi.encode(cb) });
 
-        vm.expectRevert(abi.encodeWithSelector(IContango.UnexpectedCallback.selector));
+        vm.expectRevert(abi.encodeWithSelector(IContangoErrors.UnexpectedCallback.selector));
         contango.completeClose({
             initiator: address(contango),
             repayTo: address(0),
@@ -182,7 +182,7 @@ contract Validations is BaseTest, IContangoEvents {
         IERC7399 flp = new BadFLP(env.balancerFLP());
 
         vm.prank(TRADER);
-        vm.expectRevert(IContango.UnexpectedTrade.selector);
+        vm.expectRevert(IContangoErrors.UnexpectedTrade.selector);
         maestro.depositAndTrade(
             TradeParams({
                 positionId: positionId,

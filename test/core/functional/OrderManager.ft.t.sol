@@ -518,7 +518,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         );
 
         require(!success, "should have failed");
-        require(bytes4(data) == IContango.PriceBelowLimit.selector, "error selector not expected");
+        require(bytes4(data) == IContangoErrors.PriceBelowLimit.selector, "error selector not expected");
         assertTrue(om.hasOrder(orderId), "order not removed");
 
         env.spotStub().stubPrice({
@@ -600,7 +600,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         OrderId orderId = maestro.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
-        vm.expectRevert(abi.encodePacked(IOrderManager.InvalidPrice.selector, uint256(1000e6), uint256(899e6)));
+        vm.expectRevert(abi.encodePacked(IOrderManagerErrors.InvalidPrice.selector, uint256(1000e6), uint256(899e6)));
         vm.prank(keeper);
         om.execute(
             orderId,
@@ -693,7 +693,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         OrderId orderId = maestro.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
-        vm.expectRevert(abi.encodePacked(IOrderManager.InvalidPrice.selector, uint256(1000e6), uint256(899e6)));
+        vm.expectRevert(abi.encodePacked(IOrderManagerErrors.InvalidPrice.selector, uint256(1000e6), uint256(899e6)));
         vm.prank(keeper);
         om.execute(
             orderId,
@@ -776,7 +776,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             orderType: OrderType.Limit
         });
 
-        vm.expectRevert(abi.encodeWithSelector(IContango.InvalidInstrument.selector, invalidSymbol));
+        vm.expectRevert(abi.encodeWithSelector(IContangoErrors.InvalidInstrument.selector, invalidSymbol));
 
         om.place(params);
     }
@@ -818,7 +818,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             orderType: OrderType.Limit
         });
 
-        vm.expectRevert(IOrderManager.InvalidQuantity.selector);
+        vm.expectRevert(IOrderManagerErrors.InvalidQuantity.selector);
 
         om.place(params);
     }
@@ -836,11 +836,11 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             orderType: OrderType.TakeProfit
         });
 
-        vm.expectRevert(abi.encodeWithSelector(IOrderManager.InvalidOrderType.selector, OrderType.TakeProfit));
+        vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.InvalidOrderType.selector, OrderType.TakeProfit));
         om.place(params);
 
         params.orderType = OrderType.StopLoss;
-        vm.expectRevert(abi.encodeWithSelector(IOrderManager.InvalidOrderType.selector, OrderType.StopLoss));
+        vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.InvalidOrderType.selector, OrderType.StopLoss));
         om.place(params);
     }
 
@@ -865,12 +865,12 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             orderType: OrderType.TakeProfit
         });
 
-        vm.expectRevert(abi.encodeWithSelector(IOrderManager.InvalidOrderType.selector, OrderType.TakeProfit));
+        vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.InvalidOrderType.selector, OrderType.TakeProfit));
         vm.prank(TRADER);
         maestro.place(params);
 
         params.orderType = OrderType.StopLoss;
-        vm.expectRevert(abi.encodeWithSelector(IOrderManager.InvalidOrderType.selector, OrderType.StopLoss));
+        vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.InvalidOrderType.selector, OrderType.StopLoss));
         vm.prank(TRADER);
         maestro.place(params);
     }
@@ -896,7 +896,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             orderType: OrderType.Limit
         });
 
-        vm.expectRevert(abi.encodeWithSelector(IOrderManager.InvalidOrderType.selector, params.orderType));
+        vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.InvalidOrderType.selector, params.orderType));
 
         vm.prank(TRADER);
         maestro.place(params);
@@ -946,7 +946,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         vm.prank(TRADER);
         OrderId orderId = om.place(params);
 
-        vm.expectRevert(abi.encodeWithSelector(IOrderManager.OrderAlreadyExists.selector, orderId));
+        vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.OrderAlreadyExists.selector, orderId));
         om.place(params);
     }
 
@@ -984,7 +984,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             orderType: OrderType.StopLoss
         });
 
-        vm.expectRevert(IContango.CashflowCcyRequired.selector);
+        vm.expectRevert(IContangoErrors.CashflowCcyRequired.selector);
 
         vm.prank(TRADER);
         om.place(params);
@@ -1011,7 +1011,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             orderType: OrderType.StopLoss
         });
 
-        vm.expectRevert(abi.encodeWithSelector(IOrderManager.InvalidTolerance.selector, 1.0001e4));
+        vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.InvalidTolerance.selector, 1.0001e4));
 
         vm.prank(TRADER);
         om.place(params);
@@ -1044,7 +1044,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         });
 
         OrderId orderId = params.toOrderId();
-        vm.expectRevert(abi.encodeWithSelector(IOrderManager.OrderDoesNotExist.selector, orderId));
+        vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.OrderDoesNotExist.selector, orderId));
 
         vm.prank(TRADER);
         om.cancel(orderId);
@@ -1108,7 +1108,9 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
 
         skip(1 seconds);
 
-        vm.expectRevert(abi.encodeWithSelector(IOrderManager.OrderExpired.selector, orderId, params.deadline, uint32(block.timestamp)));
+        vm.expectRevert(
+            abi.encodeWithSelector(IOrderManagerErrors.OrderExpired.selector, orderId, params.deadline, uint32(block.timestamp))
+        );
         vm.prank(keeper);
         om.execute(
             orderId,
@@ -1157,7 +1159,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
 
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSelector(IOrderManager.OrderInvalidated.selector, orderId));
+        vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.OrderInvalidated.selector, orderId));
         vm.prank(keeper);
         om.execute(orderId, execParams);
     }

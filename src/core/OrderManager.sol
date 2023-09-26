@@ -246,10 +246,10 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
 
             IMoneyMarket moneyMarket = positionFactory.moneyMarket(params.positionId);
             bool fullyClosing = params.quantity.absIfNegative() >= moneyMarket.collateralBalance(params.positionId, instrument.base);
-            if (fullyClosing && params.cashflowCcy == Currency.None) revert IContango.CashflowCcyRequired();
+            if (fullyClosing && params.cashflowCcy == Currency.None) revert IContangoErrors.CashflowCcyRequired();
         } else {
             positionNFT.validateCreatePositionPermissions(owner);
-            if (address(instrument.base) == address(0)) revert IContango.InvalidInstrument(symbol);
+            if (address(instrument.base) == address(0)) revert IContangoErrors.InvalidInstrument(symbol);
             // PositionFactory will blow on an invalid MM
             positionFactory.moneyMarket(mm);
         }

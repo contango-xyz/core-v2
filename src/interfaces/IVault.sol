@@ -4,11 +4,15 @@ pragma solidity ^0.8.4;
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../dependencies/IWETH9.sol";
 
-interface IVault {
+interface IVaultErrors {
 
     error ZeroAmount();
     error UnsupportedToken(IERC20 token);
     error NotEnoughBalance(IERC20 token, uint256 balance, uint256 requested);
+
+}
+
+interface IVault is IVaultErrors {
 
     function nativeToken() external view returns (IWETH9);
 

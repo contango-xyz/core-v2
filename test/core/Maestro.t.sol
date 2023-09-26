@@ -94,17 +94,17 @@ contract MaestroTest is BaseTest {
         // token not registered
         IERC20 arb = IERC20(0x912CE59144191C1204E64559FE8253a0e49E6548); // ARB on arbitrum
 
-        vm.expectRevert(abi.encodeWithSelector(IVault.UnsupportedToken.selector, arb));
+        vm.expectRevert(abi.encodeWithSelector(IVaultErrors.UnsupportedToken.selector, arb));
         vm.prank(TRADER);
         maestro.deposit(arb, 10_000e18);
 
         EIP2098Permit memory signedPermit = env.dealAndPermit(arb, TRADER, TRADER_PK, 10_000e18, address(vault));
-        vm.expectRevert(abi.encodeWithSelector(IVault.UnsupportedToken.selector, arb));
+        vm.expectRevert(abi.encodeWithSelector(IVaultErrors.UnsupportedToken.selector, arb));
         vm.prank(TRADER);
         maestro.depositWithPermit(IERC20Permit(address(arb)), signedPermit);
 
         signedPermit = env.dealAndPermit2(arb, TRADER, TRADER_PK, 10_000e18, address(maestro));
-        vm.expectRevert(abi.encodeWithSelector(IVault.UnsupportedToken.selector, arb));
+        vm.expectRevert(abi.encodeWithSelector(IVaultErrors.UnsupportedToken.selector, arb));
         vm.prank(TRADER);
         maestro.depositWithPermit2(arb, signedPermit);
     }
