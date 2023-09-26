@@ -111,23 +111,23 @@ contract VaultFunctional is BaseTest {
         expectAccessControl(address(this), CONTANGO_ROLE);
         sut.withdrawNative(address(0), 0, address(0));
 
-        vm.expectRevert(IVault.ZeroAmount.selector);
+        vm.expectRevert(IVaultErrors.ZeroAmount.selector);
         vm.prank(depositor);
         sut.deposit(IERC20(address(0)), depositor, 0);
 
-        vm.expectRevert(IVault.ZeroAmount.selector);
+        vm.expectRevert(IVaultErrors.ZeroAmount.selector);
         vm.prank(depositor);
         sut.depositNative(depositor);
 
-        vm.expectRevert(IVault.ZeroAmount.selector);
+        vm.expectRevert(IVaultErrors.ZeroAmount.selector);
         vm.prank(depositor);
         sut.withdraw(IERC20(address(0)), depositor, 0, address(0));
 
-        vm.expectRevert(IVault.ZeroAmount.selector);
+        vm.expectRevert(IVaultErrors.ZeroAmount.selector);
         vm.prank(depositor);
         sut.withdrawNative(depositor, 0, address(0));
 
-        vm.expectRevert(abi.encodeWithSelector(IVault.UnsupportedToken.selector, address(1)));
+        vm.expectRevert(abi.encodeWithSelector(IVaultErrors.UnsupportedToken.selector, address(1)));
         vm.prank(depositor);
         sut.deposit(IERC20(address(1)), depositor, 1);
     }

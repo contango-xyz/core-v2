@@ -22,7 +22,7 @@ struct EIP2098Permit {
     bytes32 vs;
 }
 
-interface IMaestro {
+interface IMaestro is IContangoErrors, IOrderManagerErrors, IVaultErrors {
 
     error InvalidCashflow();
     error InsufficientPermitAmount(uint256 required, uint256 actual);

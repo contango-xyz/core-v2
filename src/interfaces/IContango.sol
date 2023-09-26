@@ -71,7 +71,7 @@ interface IContangoEvents {
 
 }
 
-interface IContango is IContangoEvents {
+interface IContangoErrors {
 
     error CashflowCcyRequired(); // 0x2bed762a
     error ClosingOnly(); // 0x1dacbd6f
@@ -87,6 +87,10 @@ interface IContango is IContangoEvents {
     error UnexpectedCallback(); // 0xdab1e993
     error InvalidCashflowCcy(); // 0x2c6ff311
     error UnexpectedTrade(); // 0xf1a9b64c
+
+}
+
+interface IContango is IContangoEvents, IContangoErrors {
 
     function trade(TradeParams calldata tradeParams, ExecutionParams calldata execParams)
         external
