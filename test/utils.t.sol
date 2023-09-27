@@ -4,12 +4,12 @@ pragma solidity 0.8.20;
 import "forge-std/Test.sol";
 
 function bytes32ToString(bytes32 _bytes32) pure returns (string memory) {
-    bytes memory bytesArray = new bytes(32);
-
-    for (uint256 i = 0; i < 32; i++) {
+    uint8 i = 0;
+    while (i < 32 && _bytes32[i] != 0) i++;
+    bytes memory bytesArray = new bytes(i);
+    for (i = 0; i < 32 && _bytes32[i] != 0; i++) {
         bytesArray[i] = _bytes32[i];
     }
-
     return string(bytesArray);
 }
 

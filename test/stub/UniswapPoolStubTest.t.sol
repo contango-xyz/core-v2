@@ -42,9 +42,9 @@ contract UniswapPoolStubETHUSDCTest is UniswapPoolStubTest {
     function setUp() public override {
         super.setUp();
 
-        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock(8)
+        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
             .set(1000e8);
-        ChainlinkAggregatorV2V3Mock usdcOracle = new ChainlinkAggregatorV2V3Mock(8)
+        ChainlinkAggregatorV2V3Mock usdcOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
             .set(1e8);
 
         sut = new UniswapPoolStub({
@@ -90,9 +90,9 @@ contract UniswapPoolStubETHDAITest is UniswapPoolStubTest {
     function setUp() public override {
         super.setUp();
 
-        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock(8)
+        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
             .set(1000e8);
-        ChainlinkAggregatorV2V3Mock daiOracle = new ChainlinkAggregatorV2V3Mock(8)
+        ChainlinkAggregatorV2V3Mock daiOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
             .set(1e8);
 
         sut = new UniswapPoolStub({
@@ -138,9 +138,9 @@ contract UniswapPoolStubETHLINKTest is UniswapPoolStubTest {
     function setUp() public override {
         super.setUp();
 
-        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock(8)
+        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
             .set(1000e8);
-        ChainlinkAggregatorV2V3Mock linkOracle = new ChainlinkAggregatorV2V3Mock(8)
+        ChainlinkAggregatorV2V3Mock linkOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
             .set(5e8);
 
         sut = new UniswapPoolStub({

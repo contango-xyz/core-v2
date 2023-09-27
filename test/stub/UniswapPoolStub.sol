@@ -16,7 +16,7 @@ contract UniswapPoolStub {
     using SignedMath for *;
 
     event UniswapPoolStubCreated(
-        IERC20 token0, IERC20 token1, AggregatorV3Interface token0Oracle, AggregatorV3Interface token1Oracle, bool token0Quoted
+        IERC20 token0, IERC20 token1, AggregatorV2V3Interface token0Oracle, AggregatorV2V3Interface token1Oracle, bool token0Quoted
     );
 
     event SpreadSet(int256 spread);
@@ -28,8 +28,8 @@ contract UniswapPoolStub {
 
     IERC20 public immutable token0;
     IERC20 public immutable token1;
-    AggregatorV3Interface public immutable token0Oracle;
-    AggregatorV3Interface public immutable token1Oracle;
+    AggregatorV2V3Interface public immutable token0Oracle;
+    AggregatorV2V3Interface public immutable token1Oracle;
     bool public immutable token0Quoted;
 
     int256 public absoluteSpread;
@@ -37,8 +37,8 @@ contract UniswapPoolStub {
     constructor(
         IERC20 _token0,
         IERC20 _token1,
-        AggregatorV3Interface _token0Oracle,
-        AggregatorV3Interface _token1Oracle,
+        AggregatorV2V3Interface _token0Oracle,
+        AggregatorV2V3Interface _token1Oracle,
         bool _token0Quoted
     ) {
         token0 = _token0;
@@ -104,16 +104,16 @@ contract UniswapPoolStub {
             amount0 = amountSpecified;
 
             if (token0Quoted) {
-                // amountSpecified: token0 precision
+                // amount0: token0 precision
                 // price: token0 precision
                 // amount1: token1 precision
-                amount1 = -amountSpecified * token1Precision / price;
+                amount1 = -amount0 * token1Precision / price;
             } else {
-                // amountSpecified: token0 precision
+                // amount0: token0 precision
                 // price: token1 precision
                 // amount1: token1 precision
-                amount1 = int256(amountSpecified.abs().mulDiv(uint256(price), uint256(token0Precision), Math.Rounding.Up));
-                if (amountSpecified > 0) amount1 = -amount1;
+                amount1 = int256(amount0.abs().mulDiv(uint256(price), uint256(token0Precision), Math.Rounding.Up));
+                if (exactInput) amount1 = -amount1;
             }
         }
 
@@ -123,16 +123,16 @@ contract UniswapPoolStub {
             amount1 = amountSpecified;
 
             if (token0Quoted) {
-                // amountSpecified: token1 precision
+                // amount1: token1 precision
                 // price: token0 precision
                 // amount0: token0 precision
-                amount0 = int256(amountSpecified.abs().mulDiv(uint256(price), uint256(token1Precision), Math.Rounding.Up));
-                if (amountSpecified > 0) amount0 = -amount0;
+                amount0 = int256(amount1.abs().mulDiv(uint256(price), uint256(token1Precision), Math.Rounding.Up));
+                if (exactInput) amount0 = -amount0;
             } else {
-                // amountSpecified: token1 precision
+                // amount1: token1 precision
                 // price: token1 precision
                 // amount0: token0 precision
-                amount0 = -amountSpecified * token0Precision / price;
+                amount0 = -amount1 * token0Precision / price;
             }
         }
     }
@@ -143,14 +143,14 @@ contract UniswapPoolStub {
     }
 
     function peek() internal view returns (int256 price) {
-        AggregatorV3Interface baseOracle = token0Quoted ? token1Oracle : token0Oracle;
-        AggregatorV3Interface quoteOracle = token0Quoted ? token0Oracle : token1Oracle;
+        AggregatorV2V3Interface baseOracle = token0Quoted ? token1Oracle : token0Oracle;
+        AggregatorV2V3Interface quoteOracle = token0Quoted ? token0Oracle : token1Oracle;
 
         int256 baseOraclePrecision = int256(10 ** baseOracle.decimals());
         int256 quoteOraclePrecision = int256(10 ** quoteOracle.decimals());
 
-        (, int256 basePrice,,,) = baseOracle.latestRoundData();
-        (, int256 quotePrice,,,) = quoteOracle.latestRoundData();
+        int256 basePrice = baseOracle.latestAnswer();
+        int256 quotePrice = quoteOracle.latestAnswer();
 
         address quote = address(token0Quoted ? token0 : token1);
 

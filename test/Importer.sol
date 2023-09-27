@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/governance/TimelockController.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
+import "@aave/core-v3/contracts/interfaces/IPoolDataProvider.sol";
 
 // Stubs
 import { ChainlinkAggregatorV2V3Mock } from "test/stub/ChainlinkAggregatorV2V3Mock.sol";

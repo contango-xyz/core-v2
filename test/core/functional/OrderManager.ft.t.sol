@@ -6,7 +6,7 @@ import "../../utils.t.sol";
 import "../../StorageUtils.t.sol";
 import "src/core/OrderManager.sol";
 
-contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
+contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerErrors, IContangoErrors {
 
     using { toOrderId } for OrderParams;
     using { first } for Vm.Log[];
@@ -518,7 +518,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
         );
 
         require(!success, "should have failed");
-        require(bytes4(data) == IContangoErrors.PriceBelowLimit.selector, "error selector not expected");
+        require(bytes4(data) == PriceBelowLimit.selector, "error selector not expected");
         assertTrue(om.hasOrder(orderId), "order not removed");
 
         env.spotStub().stubPrice({
@@ -776,7 +776,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             orderType: OrderType.Limit
         });
 
-        vm.expectRevert(abi.encodeWithSelector(IContangoErrors.InvalidInstrument.selector, invalidSymbol));
+        vm.expectRevert(abi.encodeWithSelector(InvalidInstrument.selector, invalidSymbol));
 
         om.place(params);
     }
@@ -984,7 +984,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents {
             orderType: OrderType.StopLoss
         });
 
-        vm.expectRevert(IContangoErrors.CashflowCcyRequired.selector);
+        vm.expectRevert(CashflowCcyRequired.selector);
 
         vm.prank(TRADER);
         om.place(params);

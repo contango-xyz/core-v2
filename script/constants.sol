@@ -9,10 +9,10 @@ address constant ALFREDO = 0x81FaCe447BF931eB0C7d1e9fFd6C7407cd2aE5a6;
 
 bytes32 constant INITIAL_SALT = keccak256("Contango V2");
 
-Timelock constant TIMELOCK = Timelock.wrap(payable(0xc0939a4Ed0129bc5162F6f693935B3F72a46a90D));
-address payable constant TIMELOCK_ADDRESS = payable(Timelock.unwrap(TIMELOCK));
-address constant POSITION_NFT = 0xc95093f28730BCeF3dE10cAf28C0394902B5ab1a;
-address constant UNDERLYING_POSITION_FACTORY = 0x4a52C24a047E807AEdBC84bcDC199449031Ad43E;
+address payable constant TIMELOCK_ADDRESS = payable(0xc0939a4Ed0129bc5162F6f693935B3F72a46a90D);
+Timelock constant TIMELOCK = Timelock.wrap(TIMELOCK_ADDRESS);
+address constant POSITION_NFT = 0xC2462f03920D47fC5B9e2C5F0ba5D2ded058fD78;
+address constant UNDERLYING_POSITION_FACTORY = 0xDaBA83815404f5e1bc33f5885db7D96F51e127F5;
 
 function proxyAddress(string memory name) pure returns (address payable) {
     bytes memory _name = abi.encodePacked(name);

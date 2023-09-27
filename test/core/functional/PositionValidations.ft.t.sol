@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 import "../../BaseTest.sol";
 
-contract PositionValidationsFunctional is BaseTest {
+contract PositionValidationsFunctional is BaseTest, IContangoErrors {
 
     using SignedMath for *;
     using SafeCast for *;
@@ -100,7 +100,7 @@ contract PositionValidationsFunctional is BaseTest {
         );
 
         require(!success, "should have failed");
-        require(bytes4(data) == IContangoErrors.ExcessiveInputQuote.selector, "error selector not expected");
+        require(bytes4(data) == ExcessiveInputQuote.selector, "error selector not expected");
         (uint256 limit, uint256 actual) = abi.decode(removeSelector(data), (uint256, uint256));
         assertEqDecimal(limit, originalSwapAmount, instrument.quoteDecimals, "limit");
         assertGt(actual, originalSwapAmount, "actual");
@@ -159,7 +159,7 @@ contract PositionValidationsFunctional is BaseTest {
         );
 
         require(!success, "should have failed");
-        require(bytes4(data) == IContangoErrors.PriceAboveLimit.selector, "error selector not expected");
+        require(bytes4(data) == PriceAboveLimit.selector, "error selector not expected");
         (uint256 limit, uint256 actual) = abi.decode(removeSelector(data), (uint256, uint256));
         assertEqDecimal(limit, quote.price, instrument.quoteDecimals, "limit");
         assertGt(actual, quote.price, "actual");
@@ -226,7 +226,7 @@ contract PositionValidationsFunctional is BaseTest {
         );
 
         require(!success, "should have failed");
-        require(bytes4(data) == IContangoErrors.ExcessiveInputQuote.selector, "error selector not expected");
+        require(bytes4(data) == ExcessiveInputQuote.selector, "error selector not expected");
         (uint256 limit, uint256 actual) = abi.decode(removeSelector(data), (uint256, uint256));
         assertEqDecimal(limit, originalSwapAmount, instrument.quoteDecimals, "limit");
         assertGt(actual, originalSwapAmount, "actual");
@@ -293,7 +293,7 @@ contract PositionValidationsFunctional is BaseTest {
         );
 
         require(!success, "should have failed");
-        require(bytes4(data) == IContangoErrors.PriceAboveLimit.selector, "error selector not expected");
+        require(bytes4(data) == PriceAboveLimit.selector, "error selector not expected");
         (uint256 limitPrice, uint256 actualPrice) = abi.decode(removeSelector(data), (uint256, uint256));
         assertEqDecimal(limitPrice, quote.price, instrument.quoteDecimals, "limitPrice");
         assertGt(actualPrice, quote.price, "actualPrice");
@@ -363,7 +363,7 @@ contract PositionValidationsFunctional is BaseTest {
         );
 
         require(!success, "should have failed");
-        require(bytes4(data) == IContangoErrors.InsufficientBaseCashflow.selector, "error selector not expected");
+        require(bytes4(data) == InsufficientBaseCashflow.selector, "error selector not expected");
         (int256 expected, int256 actual) = abi.decode(removeSelector(data), (int256, int256));
         assertEqDecimal(expected, quote.cashflowUsed, instrument.baseDecimals, "expected");
         assertEqDecimal(actual, quote.cashflowUsed + 1, instrument.baseDecimals, "actual");
@@ -434,7 +434,7 @@ contract PositionValidationsFunctional is BaseTest {
         );
 
         require(!success, "should have failed");
-        require(bytes4(data) == IContangoErrors.PriceBelowLimit.selector, "error selector not expected");
+        require(bytes4(data) == PriceBelowLimit.selector, "error selector not expected");
         (uint256 limit, uint256 actual) = abi.decode(removeSelector(data), (uint256, uint256));
         assertEqDecimal(limit, quote.price, instrument.quoteDecimals, "limit");
         assertLt(actual, quote.price, "actual");
@@ -572,12 +572,12 @@ contract PositionValidationsFunctional is BaseTest {
 
         require(!success, "should have failed");
         if (decreaseLeverage) {
-            require(bytes4(data) == IContangoErrors.PriceBelowLimit.selector, "error selector not expected");
+            require(bytes4(data) == PriceBelowLimit.selector, "error selector not expected");
             (uint256 limitPrice, uint256 actualPrice) = abi.decode(removeSelector(data), (uint256, uint256));
             assertEqDecimal(limitPrice, quote.price, instrument.quoteDecimals, "limitPrice");
             assertLt(actualPrice, quote.price, "actualPrice");
         } else {
-            require(bytes4(data) == IContangoErrors.PriceAboveLimit.selector, "error selector not expected");
+            require(bytes4(data) == PriceAboveLimit.selector, "error selector not expected");
             (uint256 limitPrice, uint256 actualPrice) = abi.decode(removeSelector(data), (uint256, uint256));
             assertEqDecimal(limitPrice, quote.price, instrument.quoteDecimals, "limitPrice");
             assertGt(actualPrice, quote.price, "actualPrice");
@@ -589,7 +589,7 @@ contract PositionValidationsFunctional is BaseTest {
         Symbol invalidSymbol = Symbol.wrap("invalid");
         PositionId newPositionId = env.encoder().encodePositionId(invalidSymbol, mm, PERP, 0);
 
-        vm.expectRevert(abi.encodeWithSelector(IContangoErrors.InvalidInstrument.selector, invalidSymbol));
+        vm.expectRevert(abi.encodeWithSelector(InvalidInstrument.selector, invalidSymbol));
         contango.trade(
             TradeParams({ positionId: newPositionId, quantity: 10 ether, cashflow: 6 ether, cashflowCcy: Currency.Base, limitPrice: 0 }),
             ExecutionParams({
@@ -788,7 +788,7 @@ contract PositionValidationsFunctional is BaseTest {
         );
 
         require(!success, "should have failed");
-        require(bytes4(data) == IContangoErrors.CashflowCcyRequired.selector, "error selector not expected");
+        require(bytes4(data) == CashflowCcyRequired.selector, "error selector not expected");
     }
 
     // Calls claimRewards on the underlying money market

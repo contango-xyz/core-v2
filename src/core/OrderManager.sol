@@ -16,7 +16,7 @@ import "../interfaces/IContango.sol";
 import "../interfaces/IVault.sol";
 import "../interfaces/IOracle.sol";
 
-uint256 constant TOLERANCE_PRECISION = 1e4;
+uint256 constant TOLERANCE_UNIT = 1e4;
 
 uint128 constant INITIAL_GAS_START = 21_000;
 uint256 constant GAS_PER_BYTE = 16;
@@ -25,9 +25,6 @@ uint256 constant TWO_ERC20_TRANSFERS_GAS_ESTIMATE = ERC20_TRANSFERS_GAS_ESTIMATE
 
 uint256 constant MAX_GAS_MULTIPLIER = 10e4; // 10x
 uint256 constant MIN_GAS_MULTIPLIER = 1e4; // 1x
-
-error AboveMaxGasMultiplier(uint64 gasMultiplier);
-error BelowMinGasMultiplier(uint64 gasMultiplier);
 
 contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeable {
 
@@ -227,7 +224,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     {
         uint256 limitPrice = order.limitPrice;
         if (order.orderType == OrderType.StopLoss) {
-            order.limitPrice = uint128(order.limitPrice.mulDiv(TOLERANCE_PRECISION - order.tolerance, TOLERANCE_PRECISION));
+            order.limitPrice = uint128(order.limitPrice.mulDiv(TOLERANCE_UNIT - order.tolerance, TOLERANCE_UNIT));
         }
 
         (positionId, trade_) = contango.trade(order.toTradeParams(), execParams);
@@ -246,10 +243,10 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
 
             IMoneyMarket moneyMarket = positionFactory.moneyMarket(params.positionId);
             bool fullyClosing = params.quantity.absIfNegative() >= moneyMarket.collateralBalance(params.positionId, instrument.base);
-            if (fullyClosing && params.cashflowCcy == Currency.None) revert IContangoErrors.CashflowCcyRequired();
+            if (fullyClosing && params.cashflowCcy == Currency.None) revert CashflowCcyRequired();
         } else {
             positionNFT.validateCreatePositionPermissions(owner);
-            if (address(instrument.base) == address(0)) revert IContangoErrors.InvalidInstrument(symbol);
+            if (address(instrument.base) == address(0)) revert InvalidInstrument(symbol);
             // PositionFactory will blow on an invalid MM
             positionFactory.moneyMarket(mm);
         }
@@ -261,7 +258,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         if (params.quantity > 0 && params.orderType != OrderType.Limit) revert InvalidOrderType(params.orderType);
         if (params.quantity < 0) {
             if (params.orderType == OrderType.Limit) revert InvalidOrderType(params.orderType);
-            if (params.orderType == OrderType.StopLoss && params.tolerance > TOLERANCE_PRECISION) revert InvalidTolerance(params.tolerance);
+            if (params.orderType == OrderType.StopLoss && params.tolerance > TOLERANCE_UNIT) revert InvalidTolerance(params.tolerance);
         }
     }
 
@@ -284,7 +281,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         uint256 rate = cashflowToken != nativeToken ? oracle.rate(nativeToken, cashflowToken) : 0;
 
         // Keeper receives a multiplier of the gas cost
-        keeperReward = _gasCost() * gasMultiplier / 1e4;
+        keeperReward = _gasCost() * gasMultiplier / PERCENTAGE_UNIT;
 
         keeperReward = rate > 0 ? keeperReward.mulDiv(rate, nativeTokenUnit) : keeperReward;
     }
