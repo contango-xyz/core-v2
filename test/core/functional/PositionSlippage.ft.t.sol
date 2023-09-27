@@ -4,7 +4,7 @@ pragma solidity 0.8.20;
 import "../../BaseTest.sol";
 
 /// @dev scenario implementation for https://docs.google.com/spreadsheets/d/1uLRNJOn3uy2PR5H2QJ-X8unBRVCu1Ra51ojMjylPH90/edit#gid=0
-contract PositionSlippageFunctional is BaseTest {
+contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
     using SafeCast for *;
     using SignedMath for *;
@@ -730,7 +730,7 @@ contract PositionSlippageFunctional is BaseTest {
 
     function _assertPriceAboveLimit(bool success, bytes memory data, Quote memory quote) private {
         require(!success, "should have failed");
-        require(bytes4(data) == IContangoErrors.PriceAboveLimit.selector, "error selector not expected");
+        require(bytes4(data) == PriceAboveLimit.selector, "error selector not expected");
         (uint256 limit, uint256 actual) = abi.decode(removeSelector(data), (uint256, uint256));
         assertEqDecimal(limit, quote.price, instrument.quoteDecimals, "limit");
         assertEqDecimal(actual, quote.price * (1e4 + DEFAULT_SLIPPAGE_TOLERANCE) / 1e4, instrument.quoteDecimals, "actual");
@@ -738,7 +738,7 @@ contract PositionSlippageFunctional is BaseTest {
 
     function _assertPriceBelowLimit(bool success, bytes memory data, Quote memory quote) private {
         require(!success, "should have failed");
-        require(bytes4(data) == IContangoErrors.PriceBelowLimit.selector, "error selector not expected");
+        require(bytes4(data) == PriceBelowLimit.selector, "error selector not expected");
         (uint256 limit, uint256 actual) = abi.decode(removeSelector(data), (uint256, uint256));
         assertEqDecimal(limit, quote.price, instrument.quoteDecimals, "limit");
         assertApproxEqRelDecimal(

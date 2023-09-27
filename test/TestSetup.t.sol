@@ -99,7 +99,7 @@ struct TestInstrument {
 struct ERC20Data {
     bytes32 symbol;
     IERC20 token;
-    AggregatorV3Interface chainlinkUsdOracle;
+    AggregatorV2V3Interface chainlinkUsdOracle;
     bool hasPermit;
 }
 

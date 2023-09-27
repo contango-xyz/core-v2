@@ -13,7 +13,12 @@ contract UnderlyingPositionFactory is IUnderlyingPositionFactory, AccessControl 
     error InvalidMoneyMarket(MoneyMarketId mm);
     error MoneyMarketAlreadyRegistered(MoneyMarketId mm, IMoneyMarket imm);
 
-    mapping(MoneyMarketId moneyMarketId => IMoneyMarket moneyMarket) public moneyMarkets;
+    struct MoneyMarketData {
+        IMoneyMarket moneyMarket;
+        bool needsAccount;
+    }
+
+    mapping(MoneyMarketId moneyMarketId => MoneyMarketData mmData) public moneyMarkets;
 
     constructor(Timelock timelock) {
         _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
@@ -21,17 +26,18 @@ contract UnderlyingPositionFactory is IUnderlyingPositionFactory, AccessControl 
 
     function registerMoneyMarket(IMoneyMarket imm) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         MoneyMarketId mm = imm.moneyMarketId();
-        if (moneyMarkets[mm] != IMoneyMarket(address(0))) revert MoneyMarketAlreadyRegistered(mm, imm);
+        if (moneyMarkets[mm].moneyMarket != IMoneyMarket(address(0))) revert MoneyMarketAlreadyRegistered(mm, imm);
 
-        moneyMarkets[mm] = imm;
+        moneyMarkets[mm] = MoneyMarketData({ moneyMarket: imm, needsAccount: imm.NEEDS_ACCOUNT() });
         emit MoneyMarketRegistered(mm, imm);
     }
 
     function createUnderlyingPosition(PositionId positionId) external override onlyRole(CONTANGO_ROLE) returns (IMoneyMarket imm) {
         MoneyMarketId mm = positionId.getMoneyMarket();
-        imm = moneyMarket(mm);
+        MoneyMarketData memory mmData = _moneyMarket(mm);
+        imm = mmData.moneyMarket;
 
-        if (imm.NEEDS_ACCOUNT()) {
+        if (mmData.needsAccount) {
             imm = IMoneyMarket(Clones.cloneDeterministic(address(imm), PositionId.unwrap(positionId)));
             emit UnderlyingPositionCreated(address(imm), positionId);
         }
@@ -39,14 +45,19 @@ contract UnderlyingPositionFactory is IUnderlyingPositionFactory, AccessControl 
 
     function moneyMarket(PositionId positionId) external view override returns (IMoneyMarket imm) {
         MoneyMarketId mm = positionId.getMoneyMarket();
-        imm = moneyMarket(mm);
+        MoneyMarketData memory mmData = _moneyMarket(mm);
+        imm = mmData.moneyMarket;
 
-        if (imm.NEEDS_ACCOUNT()) imm = IMoneyMarket(Clones.predictDeterministicAddress(address(imm), PositionId.unwrap(positionId)));
+        if (mmData.needsAccount) imm = IMoneyMarket(Clones.predictDeterministicAddress(address(imm), PositionId.unwrap(positionId)));
     }
 
-    function moneyMarket(MoneyMarketId mm) public view override returns (IMoneyMarket imm) {
-        imm = moneyMarkets[mm];
-        if (address(imm) == address(0)) revert InvalidMoneyMarket(mm);
+    function moneyMarket(MoneyMarketId mm) public view override returns (IMoneyMarket) {
+        return _moneyMarket(mm).moneyMarket;
+    }
+
+    function _moneyMarket(MoneyMarketId mm) private view returns (MoneyMarketData memory mmData) {
+        mmData = moneyMarkets[mm];
+        if (address(mmData.moneyMarket) == address(0)) revert InvalidMoneyMarket(mm);
     }
 
 }

@@ -22,4 +22,7 @@ interface ArbGasInfo {
     ///        )
     function getPricesInWei() external view returns (uint256, uint256, uint256, uint256, uint256, uint256);
 
+    /// @notice Get L1 gas fees paid by the current transaction
+    function getCurrentTxL1GasFees() external view returns (uint256);
+
 }

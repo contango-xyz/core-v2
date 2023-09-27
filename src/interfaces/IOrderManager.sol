@@ -59,6 +59,8 @@ interface IOrderManagerEvents {
 
 interface IOrderManagerErrors {
 
+    error AboveMaxGasMultiplier(uint64 gasMultiplier); // 0x64d79f87
+    error BelowMinGasMultiplier(uint64 gasMultiplier); // 0x7f732d9b
     error InvalidDeadline(uint256 deadline, uint256 blockTimestamp); // 0x8848019e
     error InvalidOrderType(OrderType orderType); // 0xf2bc1bb6
     error InvalidPrice(uint256 forwardPrice, uint256 limitPrice); // 0xaf608abb

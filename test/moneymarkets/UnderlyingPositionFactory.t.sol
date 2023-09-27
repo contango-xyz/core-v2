@@ -73,6 +73,7 @@ contract UnderlyingPositionFactoryTest is BaseTest, IUnderlyingPositionFactoryEv
     function testSetters() public {
         address compound = address(0xc0);
         vm.mockCall(compound, abi.encodeWithSelector(IMoneyMarket.moneyMarketId.selector), abi.encode(MM_COMPOUND));
+        vm.mockCall(compound, abi.encodeWithSelector(IMoneyMarket.NEEDS_ACCOUNT.selector), abi.encode(true));
 
         vm.expectEmit(true, true, true, true);
         emit MoneyMarketRegistered(MM_COMPOUND, IMoneyMarket(compound));
@@ -83,6 +84,7 @@ contract UnderlyingPositionFactoryTest is BaseTest, IUnderlyingPositionFactoryEv
     function testValidations() public {
         address compound = address(0xc0);
         vm.mockCall(compound, abi.encodeWithSelector(IMoneyMarket.moneyMarketId.selector), abi.encode(MM_COMPOUND));
+        vm.mockCall(compound, abi.encodeWithSelector(IMoneyMarket.NEEDS_ACCOUNT.selector), abi.encode(true));
 
         // can't register money market twice
         vm.startPrank(TIMELOCK_ADDRESS);

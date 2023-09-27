@@ -18,13 +18,11 @@ contract SpotStub {
         address poolAddress;
         IERC20 token0;
         IERC20 token1;
-        AggregatorV3Interface token0Oracle;
-        AggregatorV3Interface token1Oracle;
+        AggregatorV2V3Interface token0Oracle;
+        AggregatorV2V3Interface token1Oracle;
         bool token0Quoted;
         int256 spread;
     }
-
-    mapping(address => bool) internal stubbedAddresses;
 
     address public immutable uniswapFactory;
 
@@ -60,13 +58,12 @@ contract SpotStub {
     }
 
     function stubChainlinkPrice(int256 price, address chainlinkAggregator) public returns (ChainlinkAggregatorV2V3Mock oracle) {
-        if (!stubbedAddresses[chainlinkAggregator]) {
-            uint8 decimals = ChainlinkAggregatorV2V3Mock(chainlinkAggregator).decimals();
-            VM.etch(chainlinkAggregator, address(new ChainlinkAggregatorV2V3Mock(decimals)).code);
-            stubbedAddresses[chainlinkAggregator] = true;
-        }
-
-        oracle = ChainlinkAggregatorV2V3Mock(chainlinkAggregator).set(price);
+        (bool success, bytes memory returndata) =
+            chainlinkAggregator.call(abi.encodeWithSelector(ChainlinkAggregatorV2V3Mock(chainlinkAggregator).decimals.selector));
+        // defaults to 8 if v3 interface is not supported
+        uint8 decimals = success ? abi.decode(returndata, (uint8)) : 8;
+        VM.etch(chainlinkAggregator, VM.getDeployedCode("ChainlinkAggregatorV2V3Mock.sol"));
+        oracle = ChainlinkAggregatorV2V3Mock(chainlinkAggregator).setDecimals(decimals).set(price);
     }
 
     function movePrice(ERC20Data memory data, int256 percentage) public returns (int256 newPrice) {
@@ -87,24 +84,22 @@ contract SpotStub {
         IERC20 token0 = IERC20(poolKey.token0);
         IERC20 token1 = IERC20(poolKey.token1);
 
-        AggregatorV3Interface token0Oracle = base.token == token0 ? base.chainlinkUsdOracle : quote.chainlinkUsdOracle;
-        AggregatorV3Interface token1Oracle = base.token == token1 ? base.chainlinkUsdOracle : quote.chainlinkUsdOracle;
+        AggregatorV2V3Interface token0Oracle = base.token == token0 ? base.chainlinkUsdOracle : quote.chainlinkUsdOracle;
+        AggregatorV2V3Interface token1Oracle = base.token == token1 ? base.chainlinkUsdOracle : quote.chainlinkUsdOracle;
 
         poolAddress = PoolAddress.computeAddress(uniswapFactory, poolKey);
 
-        if (!stubbedAddresses[poolAddress]) {
-            _stubUniswapPool(
-                StubUniswapPoolParams({
-                    poolAddress: poolAddress,
-                    token0: token0,
-                    token1: token1,
-                    token0Oracle: token0Oracle,
-                    token1Oracle: token1Oracle,
-                    token0Quoted: quote.token == token0,
-                    spread: spread
-                })
-            );
-        }
+        _stubUniswapPool(
+            StubUniswapPoolParams({
+                poolAddress: poolAddress,
+                token0: token0,
+                token1: token1,
+                token0Oracle: token0Oracle,
+                token1Oracle: token1Oracle,
+                token0Quoted: quote.token == token0,
+                spread: spread
+            })
+        );
     }
 
     function _stubUniswapPool(StubUniswapPoolParams memory params) private {
@@ -119,7 +114,6 @@ contract SpotStub {
                         _token0Quoted: params.token0Quoted})
             ).code
         );
-        stubbedAddresses[params.poolAddress] = true;
         VM.label(params.poolAddress, "UniswapPoolStub");
         UniswapPoolStub(params.poolAddress).setAbsoluteSpread(params.spread);
     }

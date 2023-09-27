@@ -5,6 +5,7 @@ import "./extensions/PositionIdExt.sol";
 
 uint256 constant WAD = 1e18;
 uint256 constant RAY = 1e27;
+uint256 constant PERCENTAGE_UNIT = 1e4;
 uint256 constant ONE_HUNDRED_PERCENT = 1e4;
 
 enum Currency {
