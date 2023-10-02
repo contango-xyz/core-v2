@@ -1,0 +1,130 @@
+{
+    "arbitrum-one": {
+      "multisig": {
+        "address": "0xE865379A78d65D4cc58472BC16514e39bDEB2759"
+      },
+      "treasury": {
+        "address": "0x643178CF8AEc063962654CAc256FD1f7fe06ac28"
+      },
+      "Timelock": {
+        "address": "0xc0939a4Ed0129bc5162F6f693935B3F72a46a90D"
+      },
+      "ContangoProxy": {
+        "address": "0x6Cae28b3D09D8f8Fc74ccD496AC986FC84C0C24E"
+      },
+      "Contango": {
+        "address": "0xa4649Bc2565a3B5675BAA0f09784E828b7a8E0dB"
+      },
+      "PositionNFT": {
+        "address": "0xc95093f28730BCeF3dE10cAf28C0394902B5ab1a"
+      },
+      "IPool": {
+        "address": "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
+      },
+      "IPoolAddressesProvider": {
+        "address": "0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb"
+      },
+      "UnderlyingPositionFactory": {
+        "address": "0x4a52C24a047E807AEdBC84bcDC199449031Ad43E"
+      },
+      "AaveMoneyMarket": {
+        "address": "0x4eE92eA287F4EfA62B2Ea6aF87C3573E2D530E61"
+      },
+      "IAaveRewardsController": {
+        "address": "0x0000000000000000000000000000000000000000"
+      },
+      "BalancerFlashLoanProvider": {
+        "address": "0x3d4DF8596e5750A4F721c8764d585dcc8623d009"
+      },
+      "AaveFlashLoanProvider": {
+        "address": "0x02C7632b84B3447845531541d0285D67E656e50c"
+      },
+      "UniswapFlashLoanProvider": {
+        "address": "0x23de8e0bB91A105bEFf9d40d8d75C1A9fE40f523"
+      },
+      "FixedFeeModel_001": {
+        "address": "0xd81969C39BA010F857d2977D4F7a9c9f41fC2b8A"
+      },
+      "NativeToken": {
+        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+      },
+      "OrderManagerProxy": {
+        "address": "0xA64f0dbB10c473978C2EFe069da207991e8e3Cb3"
+      },
+      "OrderManager": {
+        "address": "0x2014dcfDCdF850172c380413e4fE9989a79d9184"
+      },
+      "ReferralManager": {
+        "address": "0xb683b28C4Bb0955693550314207BeEDdF7F94987"
+      },
+      "IWitch": {
+        "address": "0x89343a24a217172A569A0bD68763Bf0671A3efd8"
+      },
+      "VaultProxy": {
+        "address": "0x3F37C7d8e61C000085AAc0515775b06A3412F36b"
+      },
+      "Vault": {
+        "address": "0xe604FAe70909C97e42b262e993eC53DFa23f81C7"
+      },
+      "MaestroProxy": {
+        "address": "0xa6a147946FACAc9E0B99824870B36088764f969F"
+      },
+      "Maestro": {
+        "address": "0xcaA84A393E7c1c2c9429B5Aa81E994E199281De0"
+      },
+      "FeeManagerProxy": {
+        "address": "0xA362611E47eb1888e0f6fD4b5a65A42d7C3eA3A4"
+      },
+      "FeeManager": {
+        "address": "0x1B51B89B6c3f855cEb11710001909EC5E01a7951"
+      },
+      "InitialProxyImpl-ContangoProxy": {
+        "address": "0xb9021d7e1d7d800f813107d878FDF8F36eD14B77"
+      },
+      "InitialProxyImpl-VaultProxy": {
+        "address": "0xac72e62714E656A69009eC992272C624BdAaE0c2"
+      },
+      "InitialProxyImpl-OrderManagerProxy": {
+        "address": "0x037A5eA2F7fd0160871F09796713C99dD55ac198"
+      },
+      "InitialProxyImpl-MaestroProxy": {
+        "address": "0x35E6C82B43B03c15C80A321202E966AAF665b246"
+      },
+      "InitialProxyImpl-FeeManagerProxy": {
+        "address": "0x6919d5bb68295559EaFea6ABD17F4C506c269ec9"
+      },
+      "AaveOracle": {
+        "address": "0x87a1C2099d6cd02a1c9183BED8401ACB4Dc8929c"
+      },
+      "UpgradeableBeacon-Aave": {
+        "address": "0x465704c99BA869069f48d88D1F0dC7D7ebd270Cd"
+      },
+      "AaveImmutableProxy": {
+        "address": "0xa71cAB37c5A2FD2543f21acab3ccAe4BeB127458"
+      },
+      "AaveMoneyMarketView": {
+        "address": "0x1d6B81326e6166D3cc55442b7F19f4B47AAfA228"
+      },
+      "IPermit2": {
+        "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+      },
+      "IMarket": {
+        "startBlock": 120103580
+      },
+      "SpotExecutor": {
+        "address": "0x7f857C9901e9838fD9901bf7d1548B2A8dFA68b0"
+      },
+      "Quoter": {
+        "address": "0x8463681b27fa296e10655776E66f432aD498FDB3"
+      },
+      "Balancer": {
+        "address": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+      },
+      "SwapRouter02": {
+        "address": "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45"
+      },
+      "UniswapFactory": {
+        "address": "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+      }
+    }
+  }
