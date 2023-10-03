@@ -18,11 +18,6 @@ contract ContangoStorageTest is BaseTest {
     Env internal env;
     TestInstrument internal instrument;
     MoneyMarketId internal mm;
-    UniswapPoolStub internal poolStub;
-
-    Trade internal expectedTrade;
-    uint256 internal expectedCollateral;
-    uint256 internal expectedDebt;
 
     Contango internal contango;
 
@@ -34,6 +29,7 @@ contract ContangoStorageTest is BaseTest {
     function setUp() public {
         env = provider(Network.Arbitrum);
         env.init();
+        mm = MM_AAVE;
         contango = env.contango();
         su = new StorageUtils(address(contango));
 
@@ -44,31 +40,48 @@ contract ContangoStorageTest is BaseTest {
     function testInstruments() public {
         instrument = env.createInstrument({ baseData: env.erc20(WETH), quoteData: env.erc20(USDC) });
         contango.setClosingOnly(instrument.symbol, true);
-        bytes32 symbolAndClosingOnly = su.read_bytes32(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP))) + 0));
+        bytes32 symbolAndClosingOnly = su.read_bytes32(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP + 7))) + 0));
         assertEq(symbolAndClosingOnly << 128, Symbol.unwrap(instrument.symbol), "instrument.symbol");
         assertEq(uint8(bytes1(symbolAndClosingOnly << 120)), 1, "instrument.closingOnly");
-        assertEq(
-            su.read_address(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP))) + 1)),
-            address(instrument.base),
-            "instrument.base"
-        );
-        assertEq(
-            su.read_uint(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP))) + 2)),
-            10 ** instrument.baseDecimals,
-            "instrument.baseUnit"
-        );
-        assertEq(
-            su.read_address(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP))) + 3)),
-            address(instrument.quote),
-            "instrument.quote"
-        );
-        assertEq(
-            su.read_uint(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP))) + 4)),
-            10 ** instrument.quoteDecimals,
-            "instrument.quoteUnit"
-        );
+
+        bytes32 baseAndBaseUnit = su.read_bytes32(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP + 7))) + 1));
+        assertEq(address(bytes20(baseAndBaseUnit << 96)), address(instrument.base), "instrument.base");
+        assertEq(uint256(baseAndBaseUnit >> 160), 10 ** instrument.baseDecimals, "instrument.baseUnit");
+
+        bytes32 quoteAndQuoteUnit = su.read_bytes32(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP + 7))) + 2));
+        assertEq(address(bytes20(quoteAndQuoteUnit << 96)), address(instrument.quote), "instrument.quote");
+        assertEq(uint256(quoteAndQuoteUnit >> 160), 10 ** instrument.quoteDecimals, "instrument.quoteUnit");
+
         // This should fail if we add stuff to the struct and we don't test it
-        assertEq(su.read(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP))) + 5)), abi.encode(0), "instrument.empty");
+        assertEq(su.read(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP + 7))) + 3)), abi.encode(0), "instrument.empty");
+    }
+
+    function testLastOwner() public {
+        instrument = env.createInstrument({ baseData: env.erc20(WETH), quoteData: env.erc20(USDC) });
+        address poolAddress = env.spotStub().stubPrice({
+            base: instrument.baseData,
+            quote: instrument.quoteData,
+            baseUsdPrice: 1000e8,
+            quoteUsdPrice: 1e8,
+            uniswapFee: 3000
+        });
+
+        UniswapPoolStub poolStub = UniswapPoolStub(poolAddress);
+        poolStub.setAbsoluteSpread(1e6);
+
+        (, PositionId positionId,) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: mm,
+            quantity: 10 ether,
+            leverage: 2e18,
+            cashflowCcy: Currency.Base
+        });
+
+        assertEq(su.read_address(bytes32(uint256(keccak256(abi.encode(positionId, GAP + 6))))), address(0), "empty lastOwner");
+
+        env.positionActions().closePosition({ positionId: positionId, quantity: type(uint128).max, cashflow: 0, cashflowCcy: Currency.Base });
+
+        assertEq(su.read_address(bytes32(uint256(keccak256(abi.encode(positionId, GAP + 6))))), TRADER, "lastOwner");
     }
 
 }
