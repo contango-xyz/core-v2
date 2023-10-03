@@ -46,9 +46,9 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         Symbol symbol;
         bool closingOnly;
         IERC20 base;
-        uint256 baseUnit;
+        uint64 baseUnit;
         IERC20 quote;
-        uint256 quoteUnit;
+        uint64 quoteUnit;
     }
 
     PositionNFT public immutable positionNFT;
@@ -66,11 +66,11 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
      */
     uint256[50_000 - 301] private __gap;
 
-    mapping(Symbol symbol => InstrumentStorage instrument) private instruments;
-    uint256[3] private __dead; // TODO kill if we re-deploy
+    uint256[4] private __dead; // TODO kill if we re-deploy
     bytes32 private callbackHash;
     bytes32 private tradeHash;
     mapping(PositionId positionId => address owner) private lastOwner;
+    mapping(Symbol symbol => InstrumentStorage instrument) private instruments;
 
     constructor(PositionNFT nft, IVault v, IUnderlyingPositionFactory pf, IFeeManager fm, SpotExecutor spot) {
         positionNFT = nft;
@@ -720,9 +720,9 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
 
         instruments[symbol].symbol = symbol;
         instruments[symbol].base = base;
-        instruments[symbol].baseUnit = ERC20Lib.unit(base);
+        instruments[symbol].baseUnit = ERC20Lib.unit(base).toUint64();
         instruments[symbol].quote = quote;
-        instruments[symbol].quoteUnit = ERC20Lib.unit(quote);
+        instruments[symbol].quoteUnit = ERC20Lib.unit(quote).toUint64();
 
         ERC20Lib.approveIfNecessary(base, address(feeManager));
         ERC20Lib.approveIfNecessary(quote, address(feeManager));
