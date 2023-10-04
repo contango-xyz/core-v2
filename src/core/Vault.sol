@@ -34,8 +34,7 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
      *
      * After adding some OZ mixins, we consumed 301 slots from the original 50k gap.
      */
-    uint256[50_000 - 301] private __gap;
-
+    uint256[4] private __dead; // Storage was replaced on this contract so we kill the slots to avoid dirty reads
     mapping(IERC20 token => TokenData tokenData) private tokens;
 
     constructor(IWETH9 _nativeToken) {
@@ -48,10 +47,14 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
         __Pausable_init_unchained();
         __UUPSUpgradeable_init_unchained();
         _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
-        tokens[nativeToken].isSupported = true;
+        _setTokenSupport(nativeToken, true);
     }
 
     function setTokenSupport(IERC20 token, bool isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setTokenSupport(token, isSupported);
+    }
+
+    function _setTokenSupport(IERC20 token, bool isSupported) internal {
         tokens[token].isSupported = isSupported;
         emit TokenSupportSet(token, isSupported);
     }
