@@ -24,9 +24,6 @@ contract Hacks is BaseTest {
         contango = env.contango();
         vault = env.vault();
 
-        env.positionActions().setSlippageTolerance(0);
-        env.positionActions2().setSlippageTolerance(0);
-
         mm = MM_AAVE;
         instrument = env.createInstrument({ baseData: env.erc20(WETH), quoteData: env.erc20(USDC) });
         address poolAddress = env.spotStub().stubPrice({
@@ -34,7 +31,7 @@ contract Hacks is BaseTest {
             quote: instrument.quoteData,
             baseUsdPrice: 1000e8,
             quoteUsdPrice: 1e8,
-            uniswapFee: 3000
+            uniswapFee: 500
         });
 
         poolStub = UniswapPoolStub(poolAddress);
@@ -63,13 +60,13 @@ contract Hacks is BaseTest {
             cashflowCcy: Currency.Quote
         });
 
-        PositionStatus memory status1 = env.quoter().positionStatus(positionId1);
-        assertEqDecimal(status1.collateral, 9.980019980019980018 ether, instrument.baseDecimals, "collateral 1");
-        assertEqDecimal(status1.debt, 6000e6, instrument.quoteDecimals, "debt 1");
+        Balances memory balances1 = env.tsQuoter().moneyMarkets(mm).balances(positionId1, instrument.base, instrument.quote);
+        assertApproxEqAbsDecimal(balances1.collateral, 9.99 ether, 0.001 ether, instrument.baseDecimals, "collateral 1");
+        assertApproxEqAbsDecimal(balances1.debt, 6010e6, 1e6, instrument.quoteDecimals, "debt 1");
 
-        PositionStatus memory status2 = env.quoter().positionStatus(positionId2);
-        assertEqDecimal(status2.collateral, 9.980019980019980018 ether, instrument.baseDecimals, "collateral 2");
-        assertEqDecimal(status2.debt, 6000e6, instrument.quoteDecimals, "debt 2");
+        Balances memory balances2 = env.tsQuoter().moneyMarkets(mm).balances(positionId2, instrument.base, instrument.quote);
+        assertApproxEqAbsDecimal(balances2.collateral, 9.99 ether, 0.001 ether, instrument.baseDecimals, "collateral 2");
+        assertApproxEqAbsDecimal(balances2.debt, 6010e6, 1e6, instrument.quoteDecimals, "debt 2");
 
         IERC20 weth = env.token(WETH);
 

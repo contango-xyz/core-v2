@@ -77,7 +77,7 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
             quote: instrument.quoteData,
             baseUsdPrice: 1000e8,
             quoteUsdPrice: 1e8,
-            uniswapFee: 3000
+            uniswapFee: 500
         });
 
         (, PositionId positionId,) = env.positionActions().openPosition({
@@ -163,36 +163,27 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
             quote: instrument.quoteData,
             baseUsdPrice: 1000e8,
             quoteUsdPrice: 1e8,
-            uniswapFee: 3000
+            uniswapFee: 500
         });
 
         PositionId positionId = env.encoder().encodePositionId(instrument.symbol, MM_EXACTLY, PERP, 0);
 
         Currency cashflowCcy = Currency.Base;
-        Quote memory quote = env.positionActions().quoteOpenPosition({
+        TSQuote memory quote = env.positionActions().quoteTrade({
             positionId: positionId,
             quantity: 10 ether,
             cashflow: 4 ether,
             cashflowCcy: cashflowCcy,
             leverage: 0
         });
-
-        bytes memory swapBytes = env.positionActions().prepareOpenPosition(positionId, quote, cashflowCcy);
+        env.dealAndApprove(instrument.base, TRADER, uint256(quote.cashflowUsed), address(env.vault()));
 
         IERC7399 flp = new BadFLP(env.balancerFLP());
+        quote.execParams.flashLoanProvider = flp;
 
         vm.prank(TRADER);
         vm.expectRevert(UnexpectedTrade.selector);
-        maestro.depositAndTrade(
-            TradeParams({
-                positionId: positionId,
-                quantity: int256(quote.quantity),
-                cashflow: quote.cashflowUsed,
-                cashflowCcy: cashflowCcy,
-                limitPrice: quote.price
-            }),
-            ExecutionParams({ router: uniswap, spender: uniswap, swapAmount: quote.swapAmount, swapBytes: swapBytes, flashLoanProvider: flp })
-        );
+        maestro.depositAndTrade(quote.tradeParams, quote.execParams);
     }
 
     function testPauseUnpausePermissions() public {

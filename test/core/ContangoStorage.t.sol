@@ -46,11 +46,11 @@ contract ContangoStorageTest is BaseTest {
 
         bytes32 baseAndBaseUnit = su.read_bytes32(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP + 7))) + 1));
         assertEq(address(bytes20(baseAndBaseUnit << 96)), address(instrument.base), "instrument.base");
-        assertEq(uint256(baseAndBaseUnit >> 160), 10 ** instrument.baseDecimals, "instrument.baseUnit");
+        assertEq(uint256(baseAndBaseUnit >> 160), instrument.baseUnit, "instrument.baseUnit");
 
         bytes32 quoteAndQuoteUnit = su.read_bytes32(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP + 7))) + 2));
         assertEq(address(bytes20(quoteAndQuoteUnit << 96)), address(instrument.quote), "instrument.quote");
-        assertEq(uint256(quoteAndQuoteUnit >> 160), 10 ** instrument.quoteDecimals, "instrument.quoteUnit");
+        assertEq(uint256(quoteAndQuoteUnit >> 160), instrument.quoteUnit, "instrument.quoteUnit");
 
         // This should fail if we add stuff to the struct and we don't test it
         assertEq(su.read(bytes32(uint256(keccak256(abi.encode(instrument.symbol, GAP + 7))) + 3)), abi.encode(0), "instrument.empty");
@@ -63,7 +63,7 @@ contract ContangoStorageTest is BaseTest {
             quote: instrument.quoteData,
             baseUsdPrice: 1000e8,
             quoteUsdPrice: 1e8,
-            uniswapFee: 3000
+            uniswapFee: 500
         });
 
         UniswapPoolStub poolStub = UniswapPoolStub(poolAddress);

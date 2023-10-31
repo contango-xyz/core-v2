@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../../libraries/ERC20Lib.sol";
 
 import "./dependencies/IAuditor.sol";
+import "./dependencies/IInterestRateModel.sol";
 import "./ExactlyReverseLookup.sol";
 
 import "../interfaces/IMoneyMarketView.sol";
@@ -39,41 +40,12 @@ contract ExactlyMoneyMarketView is IMoneyMarketView {
         balances_.debt = reverseLookup.market(debtAsset).previewDebt(_account(positionId));
     }
 
-    function normalisedBalances(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
-        external
-        view
-        returns (NormalisedBalances memory normalisedBalances_)
-    {
-        Prices memory prices_ = prices(Symbol.wrap(""), collateralAsset, debtAsset);
-        Balances memory balances_ = balances(positionId, collateralAsset, debtAsset);
-        normalisedBalances_.collateral =
-            balances_.collateral.mulDiv(prices_.collateral, 10 ** collateralAsset.decimals(), Math.Rounding.Down);
-        normalisedBalances_.debt = balances_.debt.mulDiv(prices_.debt, 10 ** debtAsset.decimals(), Math.Rounding.Up);
-        normalisedBalances_.unit = prices_.unit;
-    }
-
-    function prices(Symbol, IERC20 collateralAsset, IERC20 debtAsset) public view returns (Prices memory prices_) {
+    function prices(PositionId, IERC20 collateralAsset, IERC20 debtAsset) public view returns (Prices memory prices_) {
         (,,,, address collateralPriceFeed) = auditor.markets(reverseLookup.market(collateralAsset));
         (,,,, address debtPriceFeed) = auditor.markets(reverseLookup.market(debtAsset));
         prices_.collateral = auditor.assetPrice(collateralPriceFeed);
         prices_.debt = auditor.assetPrice(debtPriceFeed);
         prices_.unit = WAD;
-    }
-
-    function borrowingLiquidity(IERC20 asset) external view returns (uint256 liquidity) {
-        IMarket market = reverseLookup.market(asset);
-        uint256 adjusted = market.floatingAssets().mulDiv(WAD - market.reserveFactor(), WAD, Math.Rounding.Down);
-        uint256 borrowed = market.floatingBackupBorrowed() + market.totalFloatingBorrowAssets();
-        liquidity = adjusted > borrowed ? adjusted - borrowed : 0;
-    }
-
-    function lendingLiquidity(IERC20 token) external view returns (uint256) {
-        return token.totalSupply();
-    }
-
-    function minCR(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) public view returns (uint256) {
-        (, uint256 liquidationThreshold) = thresholds(positionId, collateralAsset, debtAsset);
-        return WAD.mulDiv(WAD, liquidationThreshold, Math.Rounding.Up);
     }
 
     function thresholds(PositionId, IERC20 collateralAsset, IERC20 debtAsset)
@@ -88,9 +60,23 @@ contract ExactlyMoneyMarketView is IMoneyMarketView {
         ltv = liquidationThreshold;
     }
 
-    function borrowingRate(IERC20 asset) external view returns (uint256 borrowingRate_) { }
+    function liquidity(PositionId, IERC20 collateralAsset, IERC20 debtAsset) external view returns (uint256 borrowing, uint256 lending) {
+        IMarket market = reverseLookup.market(debtAsset);
+        uint256 adjusted = market.floatingAssets().mulDiv(WAD - market.reserveFactor(), WAD, Math.Rounding.Down);
+        uint256 borrowed = market.floatingBackupBorrowed() + market.totalFloatingBorrowAssets();
+        borrowing = adjusted > borrowed ? adjusted - borrowed : 0;
 
-    function lendingRate(IERC20 asset) external view returns (uint256 lendingRate_) { }
+        lending = collateralAsset.totalSupply();
+    }
+
+    function rates(PositionId, IERC20, IERC20 debtAsset) external view returns (uint256 borrowing, uint256 lending) {
+        lending = 0;
+
+        IMarket market = reverseLookup.market(debtAsset);
+        borrowing = market.interestRateModel().floatingRate(
+            market.floatingAssets() > 0 ? Math.min(market.floatingDebt().mulDiv(1e18, market.floatingAssets(), Math.Rounding.Up), 1e18) : 0
+        );
+    }
 
     function _account(PositionId positionId) internal view returns (address) {
         return address(positionFactory.moneyMarket(positionId));

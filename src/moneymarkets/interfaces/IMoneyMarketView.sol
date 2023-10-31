@@ -10,12 +10,6 @@ struct Balances {
     uint256 debt;
 }
 
-struct NormalisedBalances {
-    uint256 collateral;
-    uint256 debt;
-    uint256 unit;
-}
-
 struct Prices {
     uint256 collateral;
     uint256 debt;
@@ -28,25 +22,21 @@ interface IMoneyMarketView {
 
     function balances(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) external returns (Balances memory balances_);
 
-    function normalisedBalances(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
-        external
-        returns (NormalisedBalances memory balances);
-
-    function prices(Symbol symbol, IERC20 collateralAsset, IERC20 debtAsset) external view returns (Prices memory prices_);
-
-    function borrowingLiquidity(IERC20 asset) external view returns (uint256);
-
-    function lendingLiquidity(IERC20 asset) external view returns (uint256);
-
-    function minCR(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) external view returns (uint256);
+    function prices(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) external view returns (Prices memory prices_);
 
     function thresholds(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
         external
         view
         returns (uint256 ltv, uint256 liquidationThreshold);
 
-    function borrowingRate(IERC20 asset) external view returns (uint256 borrowingRate_);
+    function liquidity(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
+        external
+        view
+        returns (uint256 borrowing, uint256 lending);
 
-    function lendingRate(IERC20 asset) external view returns (uint256 lendingRate_);
+    function rates(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
+        external
+        view
+        returns (uint256 borrowing, uint256 lending);
 
 }

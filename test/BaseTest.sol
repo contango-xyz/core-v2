@@ -45,4 +45,9 @@ abstract contract BaseTest is Test {
         );
     }
 
+    function skipWithBlock(uint256 time) internal {
+        skip(time);
+        vm.roll(block.number + time / 12);
+    }
+
 }

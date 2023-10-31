@@ -25,6 +25,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     Maestro internal maestro;
     IOrderManager internal om;
     IVault internal vault;
+    PositionActions internal positionActions;
 
     address internal keeper = address(0xb07);
     address internal uniswap;
@@ -38,13 +39,14 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         mm = MM_AAVE;
         instrument = env.createInstrument(env.erc20(WETH), env.erc20(USDC));
         contango = env.contango();
+        positionActions = env.positionActions();
         positionNFT = contango.positionNFT();
         address poolAddress = env.spotStub().stubPrice({
             base: instrument.baseData,
             quote: instrument.quoteData,
             baseUsdPrice: 1000e8,
             quoteUsdPrice: 1e8,
-            uniswapFee: 3000
+            uniswapFee: 500
         });
 
         env.etchNoFeeModel();
@@ -61,6 +63,11 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         vm.prank(TIMELOCK_ADDRESS);
         OrderManager(address(om)).grantRole(BOT_ROLE, keeper);
+
+        // Sets block.basefee
+        vm.fee(1.5e9); // 1.5 gwei
+        // Sets tx.gasprice
+        vm.txGasPrice(1.7e9); // implicit tip of 0.2 gwei
     }
 
     // slot complexity:
@@ -85,7 +92,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         // ================ Order storage ==================
 
-        (, PositionId positionId,) = env.positionActions().openPosition({
+        (, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -137,33 +144,21 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     function _testOpenPosition_HP(bool useMaestro) private {
         PositionId positionId = env.encoder().encodePositionId(instrument.symbol, mm, PERP, 0);
 
-        Quote memory quote = env.quoter().quoteOpen(
-            OpenQuoteParams({
-                positionId: positionId,
-                quantity: 10 ether,
-                leverage: 2e18,
-                cashflow: 0,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
+        TSQuote memory quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: 10 ether,
+            leverage: 2e18,
+            cashflow: 0,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         env.deposit(instrument.quote, TRADER, quote.cashflowUsed.toUint256() * 1.001e3 / 1e3);
 
-        bytes memory swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.quote, uint24(3000), instrument.base),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
-
         OrderParams memory params = OrderParams({
             positionId: positionId,
-            quantity: quote.quantity.toInt256().toInt128(),
-            limitPrice: 1000e6,
+            quantity: quote.quantity.toInt128(),
+            limitPrice: 1001e6,
             tolerance: 0,
             cashflow: quote.cashflowUsed.toInt128(),
             cashflowCcy: Currency.Quote,
@@ -180,23 +175,14 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         uint256 keeperReward;
         vm.recordLogs();
         vm.prank(keeper);
-        (positionId, trade, keeperReward) = om.execute(
-            orderId,
-            ExecutionParams({
-                router: uniswap,
-                spender: uniswap,
-                swapAmount: quote.swapAmount,
-                swapBytes: swapBytes,
-                flashLoanProvider: quote.flashLoanProvider
-            })
-        );
+        (positionId, trade, keeperReward) = om.execute(orderId, quote.execParams);
 
         _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
 
         assertEq(positionNFT.positionOwner(positionId), TRADER, "positionOwner");
         assertApproxEqRelDecimal(
-            trade.quantity.toUint256(), quote.quantity, DEFAULT_SLIPPAGE_TOLERANCE * 1e14, instrument.baseDecimals, "trade.quantity"
+            trade.quantity, quote.quantity, DEFAULT_SLIPPAGE_TOLERANCE * 1e14, instrument.baseDecimals, "trade.quantity"
         );
 
         assertGt(keeperReward, 0, "keeper reward");
@@ -204,7 +190,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     }
 
     function testIncreasePosition_HP() public {
-        (Quote memory quote, PositionId positionId,) = env.positionActions().openPosition({
+        (TSQuote memory quote, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -212,33 +198,21 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
             cashflowCcy: Currency.Quote
         });
 
-        quote = env.quoter().quoteOpen(
-            OpenQuoteParams({
-                positionId: positionId,
-                quantity: 4 ether,
-                leverage: 0,
-                cashflow: 3000e6,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
+        quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: 4 ether,
+            leverage: 0,
+            cashflow: 3000e6,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         env.deposit(instrument.quote, TRADER, quote.cashflowUsed.toUint256() * 1.001e3 / 1e3);
 
-        bytes memory swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.quote, uint24(3000), instrument.base),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
-
         OrderParams memory params = OrderParams({
             positionId: positionId,
-            quantity: quote.quantity.toInt256().toInt128(),
-            limitPrice: 1000e6,
+            quantity: quote.quantity.toInt128(),
+            limitPrice: 1001e6,
             tolerance: 0,
             cashflow: quote.cashflowUsed.toInt128(),
             cashflowCcy: Currency.Quote,
@@ -255,30 +229,19 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         uint256 keeperReward;
         vm.recordLogs();
         vm.prank(keeper);
-        (positionId, trade, keeperReward) = om.execute(
-            orderId,
-            ExecutionParams({
-                router: uniswap,
-                spender: uniswap,
-                swapAmount: quote.swapAmount,
-                swapBytes: swapBytes,
-                flashLoanProvider: quote.flashLoanProvider
-            })
-        );
+        (positionId, trade, keeperReward) = om.execute(orderId, quote.execParams);
 
         _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
 
-        assertApproxEqRelDecimal(
-            trade.quantity.toUint256(), 4 ether, DEFAULT_SLIPPAGE_TOLERANCE * 1e14, instrument.baseDecimals, "trade.quantity"
-        );
+        assertApproxEqRelDecimal(trade.quantity, 4 ether, DEFAULT_SLIPPAGE_TOLERANCE * 1e14, instrument.baseDecimals, "trade.quantity");
 
         assertGt(keeperReward, 0, "keeper reward");
         assertEqDecimal(instrument.quote.balanceOf(keeper), keeperReward, instrument.quoteDecimals, "keeper balance");
     }
 
     function testDecreasePosition_HP() public {
-        (Quote memory quote, PositionId positionId,) = env.positionActions().openPosition({
+        (TSQuote memory quote, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -288,30 +251,18 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         skip(1 seconds);
 
-        quote = env.quoter().quoteClose(
-            CloseQuoteParams({
-                positionId: positionId,
-                quantity: 4 ether,
-                leverage: 0,
-                cashflow: -3000e6,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
-
-        bytes memory swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.base, uint24(3000), instrument.quote),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
+        quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: -4 ether,
+            leverage: 0,
+            cashflow: -3000e6,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         OrderParams memory params = OrderParams({
             positionId: positionId,
-            quantity: -quote.quantity.toInt256().toInt128(),
+            quantity: quote.quantity.toInt128(),
             limitPrice: 1000e6,
             tolerance: 0,
             cashflow: quote.cashflowUsed.toInt128(),
@@ -327,16 +278,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         vm.recordLogs();
         vm.prank(keeper);
-        (, Trade memory trade, uint256 keeperReward) = om.execute(
-            orderId,
-            ExecutionParams({
-                router: uniswap,
-                spender: uniswap,
-                swapAmount: quote.swapAmount,
-                swapBytes: swapBytes,
-                flashLoanProvider: quote.flashLoanProvider
-            })
-        );
+        (, Trade memory trade, uint256 keeperReward) = om.execute(orderId, quote.execParams);
 
         _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
@@ -351,7 +293,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     }
 
     function testClosePosition_HP() public {
-        (Quote memory quote, PositionId positionId,) = env.positionActions().openPosition({
+        (TSQuote memory quote, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -361,26 +303,14 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         skip(1 seconds);
 
-        quote = env.quoter().quoteClose(
-            CloseQuoteParams({
-                positionId: positionId,
-                quantity: 10 ether,
-                leverage: 0,
-                cashflow: 0,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
-
-        bytes memory swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.base, uint24(3000), instrument.quote),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
+        quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: -10 ether,
+            leverage: 0,
+            cashflow: 0,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         OrderParams memory params = OrderParams({
             positionId: positionId,
@@ -399,16 +329,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         vm.recordLogs();
         vm.prank(keeper);
-        (, Trade memory trade, uint256 keeperReward) = om.execute(
-            orderId,
-            ExecutionParams({
-                router: uniswap,
-                spender: uniswap,
-                swapAmount: quote.swapAmount,
-                swapBytes: swapBytes,
-                flashLoanProvider: quote.flashLoanProvider
-            })
-        );
+        (, Trade memory trade, uint256 keeperReward) = om.execute(orderId, quote.execParams);
 
         _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
@@ -424,20 +345,18 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     function testCancel_HP() public {
         PositionId positionId = env.encoder().encodePositionId(instrument.symbol, mm, PERP, 0);
 
-        Quote memory quote = env.quoter().quoteOpen(
-            OpenQuoteParams({
-                positionId: positionId,
-                quantity: 10 ether,
-                leverage: 2e18,
-                cashflow: 0,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
+        TSQuote memory quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: 10 ether,
+            leverage: 2e18,
+            cashflow: 0,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         OrderParams memory params = OrderParams({
             positionId: positionId,
-            quantity: quote.quantity.toInt256().toInt128(),
+            quantity: quote.quantity.toInt128(),
             limitPrice: 1000e6,
             tolerance: 0,
             cashflow: quote.cashflowUsed.toInt128(),
@@ -456,7 +375,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     }
 
     function testTakeProfit_HP() public {
-        (Quote memory quote, PositionId positionId,) = env.positionActions().openPosition({
+        (TSQuote memory quote, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -466,26 +385,14 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         skip(1 seconds);
 
-        quote = env.quoter().quoteClose(
-            CloseQuoteParams({
-                positionId: positionId,
-                quantity: 10 ether,
-                leverage: 0,
-                cashflow: 0,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
-
-        bytes memory swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.base, uint24(3000), instrument.quote),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
+        quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: -10 ether,
+            leverage: 0,
+            cashflow: 0,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         OrderParams memory params = OrderParams({
             positionId: positionId,
@@ -503,19 +410,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         assertTrue(om.hasOrder(orderId), "order placed");
 
         vm.prank(keeper);
-        (bool success, bytes memory data) = address(om).call(
-            abi.encodeWithSelector(
-                om.execute.selector,
-                orderId,
-                ExecutionParams({
-                    router: uniswap,
-                    spender: uniswap,
-                    swapAmount: quote.swapAmount,
-                    swapBytes: swapBytes,
-                    flashLoanProvider: quote.flashLoanProvider
-                })
-            )
-        );
+        (bool success, bytes memory data) = address(om).call(abi.encodeWithSelector(om.execute.selector, orderId, quote.execParams));
 
         require(!success, "should have failed");
         require(bytes4(data) == PriceBelowLimit.selector, "error selector not expected");
@@ -526,21 +421,12 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
             quote: instrument.quoteData,
             baseUsdPrice: 1101e8,
             quoteUsdPrice: 1e8,
-            uniswapFee: 3000
+            uniswapFee: 500
         });
 
         vm.recordLogs();
         vm.prank(keeper);
-        (, Trade memory trade, uint256 keeperReward) = om.execute(
-            orderId,
-            ExecutionParams({
-                router: uniswap,
-                spender: uniswap,
-                swapAmount: quote.swapAmount,
-                swapBytes: swapBytes,
-                flashLoanProvider: quote.flashLoanProvider
-            })
-        );
+        (, Trade memory trade, uint256 keeperReward) = om.execute(orderId, quote.execParams);
 
         _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
@@ -554,7 +440,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     }
 
     function testStopLoss_HP_CashflowQuote() public {
-        (Quote memory quote, PositionId positionId,) = env.positionActions().openPosition({
+        (TSQuote memory quote, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -564,26 +450,14 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         skip(1 seconds);
 
-        quote = env.quoter().quoteClose(
-            CloseQuoteParams({
-                positionId: positionId,
-                quantity: 10 ether,
-                leverage: 0,
-                cashflow: 0,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
-
-        bytes memory swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.base, uint24(3000), instrument.quote),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
+        quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: -10 ether,
+            leverage: 0,
+            cashflow: 0,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         OrderParams memory params = OrderParams({
             positionId: positionId,
@@ -602,16 +476,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         vm.expectRevert(abi.encodePacked(IOrderManagerErrors.InvalidPrice.selector, uint256(1000e6), uint256(899e6)));
         vm.prank(keeper);
-        om.execute(
-            orderId,
-            ExecutionParams({
-                router: uniswap,
-                spender: uniswap,
-                swapAmount: quote.swapAmount,
-                swapBytes: swapBytes,
-                flashLoanProvider: quote.flashLoanProvider
-            })
-        );
+        om.execute(orderId, quote.execParams);
         assertTrue(om.hasOrder(orderId), "order not removed");
 
         env.spotStub().stubPrice({
@@ -619,21 +484,12 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
             quote: instrument.quoteData,
             baseUsdPrice: 899e8,
             quoteUsdPrice: 1e8,
-            uniswapFee: 3000
+            uniswapFee: 500
         });
 
         vm.recordLogs();
         vm.prank(keeper);
-        (, Trade memory trade, uint256 keeperReward) = om.execute(
-            orderId,
-            ExecutionParams({
-                router: uniswap,
-                spender: uniswap,
-                swapAmount: quote.swapAmount,
-                swapBytes: swapBytes,
-                flashLoanProvider: quote.flashLoanProvider
-            })
-        );
+        (, Trade memory trade, uint256 keeperReward) = om.execute(orderId, quote.execParams);
 
         _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
@@ -647,7 +503,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     }
 
     function testStopLoss_HP_CashflowBase() public {
-        (Quote memory quote, PositionId positionId,) = env.positionActions().openPosition({
+        (TSQuote memory quote, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -657,26 +513,14 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         skip(1 seconds);
 
-        quote = env.quoter().quoteClose(
-            CloseQuoteParams({
-                positionId: positionId,
-                quantity: 10 ether,
-                leverage: 0,
-                cashflow: 0,
-                cashflowCcy: Currency.Base,
-                slippageTolerance: 0
-            })
-        );
-
-        bytes memory swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.base, uint24(3000), instrument.quote),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
+        quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: -10 ether,
+            leverage: 0,
+            cashflow: 0,
+            cashflowCcy: Currency.Base,
+            slippageTolerance: 0
+        });
 
         OrderParams memory params = OrderParams({
             positionId: positionId,
@@ -695,16 +539,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         vm.expectRevert(abi.encodePacked(IOrderManagerErrors.InvalidPrice.selector, uint256(1000e6), uint256(899e6)));
         vm.prank(keeper);
-        om.execute(
-            orderId,
-            ExecutionParams({
-                router: uniswap,
-                spender: uniswap,
-                swapAmount: quote.swapAmount,
-                swapBytes: swapBytes,
-                flashLoanProvider: quote.flashLoanProvider
-            })
-        );
+        om.execute(orderId, quote.execParams);
         assertTrue(om.hasOrder(orderId), "order not removed");
 
         env.spotStub().stubPrice({
@@ -712,42 +547,21 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
             quote: instrument.quoteData,
             baseUsdPrice: 899e8,
             quoteUsdPrice: 1e8,
-            uniswapFee: 3000
+            uniswapFee: 500
         });
 
-        quote = env.quoter().quoteClose(
-            CloseQuoteParams({
-                positionId: positionId,
-                quantity: 10 ether,
-                leverage: 0,
-                cashflow: 0,
-                cashflowCcy: Currency.Base,
-                slippageTolerance: 0
-            })
-        );
-
-        swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.base, uint24(3000), instrument.quote),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
+        quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: -10 ether,
+            leverage: 0,
+            cashflow: 0,
+            cashflowCcy: Currency.Base,
+            slippageTolerance: 0
+        });
 
         vm.recordLogs();
         vm.prank(keeper);
-        (, Trade memory trade, uint256 keeperReward) = om.execute(
-            orderId,
-            ExecutionParams({
-                router: uniswap,
-                spender: uniswap,
-                swapAmount: quote.swapAmount,
-                swapBytes: swapBytes,
-                flashLoanProvider: quote.flashLoanProvider
-            })
-        );
+        (, Trade memory trade, uint256 keeperReward) = om.execute(orderId, quote.execParams);
 
         _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
@@ -846,7 +660,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
     // Can't place open order to increase position that is not type Limit
     function testPlace_Validation05() public {
-        (, PositionId positionId,) = env.positionActions().openPosition({
+        (, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -877,7 +691,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
     // Can't place decrease position order with Limit type
     function testPlace_Validation06() public {
-        (, PositionId positionId,) = env.positionActions().openPosition({
+        (, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -912,7 +726,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
     // Can't place and order on a position without approval
     function testPlace_Validation08() public {
-        (, PositionId positionId,) = env.positionActions().openPosition({
+        (, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -965,7 +779,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
     // Can't place an order to fully close a position with cashflow currency set to None
     function testPlace_Validation11() public {
-        (, PositionId positionId,) = env.positionActions().openPosition({
+        (, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -984,8 +798,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
             orderType: OrderType.StopLoss
         });
 
-        vm.expectRevert(CashflowCcyRequired.selector);
-
+        vm.expectRevert(abi.encodeWithSelector(CashflowCcyRequired.selector));
         vm.prank(TRADER);
         om.place(params);
     }
@@ -1011,7 +824,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
             orderType: OrderType.StopLoss
         });
 
-        vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.InvalidTolerance.selector, 1.0001e4));
+        vm.expectRevert(abi.encodeWithSelector(InvalidTolerance.selector, 1.0001e4));
 
         vm.prank(TRADER);
         om.place(params);
@@ -1021,20 +834,18 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     function testCancel_Validation1() public {
         PositionId positionId = env.encoder().encodePositionId(instrument.symbol, mm, PERP, 0);
 
-        Quote memory quote = env.quoter().quoteOpen(
-            OpenQuoteParams({
-                positionId: positionId,
-                quantity: 10 ether,
-                leverage: 2e18,
-                cashflow: 0,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
+        TSQuote memory quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: 10 ether,
+            leverage: 2e18,
+            cashflow: 0,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         OrderParams memory params = OrderParams({
             positionId: positionId,
-            quantity: quote.quantity.toInt256().toInt128(),
+            quantity: quote.quantity.toInt128(),
             limitPrice: 1000e6,
             tolerance: 0,
             cashflow: quote.cashflowUsed.toInt128(),
@@ -1054,20 +865,18 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     function testCancel_Validation2() public {
         PositionId positionId = env.encoder().encodePositionId(instrument.symbol, mm, PERP, 0);
 
-        Quote memory quote = env.quoter().quoteOpen(
-            OpenQuoteParams({
-                positionId: positionId,
-                quantity: 10 ether,
-                leverage: 2e18,
-                cashflow: 0,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
+        TSQuote memory quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: 10 ether,
+            leverage: 2e18,
+            cashflow: 0,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         OrderParams memory params = OrderParams({
             positionId: positionId,
-            quantity: quote.quantity.toInt256().toInt128(),
+            quantity: quote.quantity.toInt128(),
             limitPrice: 1000e6,
             tolerance: 0,
             cashflow: quote.cashflowUsed.toInt128(),
@@ -1120,7 +929,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
     // Can't trade if position was transferred
     function testTrade_Validation2() public {
-        (Quote memory quote, PositionId positionId,) = env.positionActions().openPosition({
+        (TSQuote memory quote, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -1128,22 +937,20 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
             cashflowCcy: Currency.Quote
         });
 
-        quote = env.quoter().quoteOpen(
-            OpenQuoteParams({
-                positionId: positionId,
-                quantity: 4 ether,
-                leverage: 0,
-                cashflow: 3000e6,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
+        quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: 4 ether,
+            leverage: 0,
+            cashflow: 3000e6,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         ExecutionParams memory execParams;
 
         OrderParams memory params = OrderParams({
             positionId: positionId,
-            quantity: quote.quantity.toInt256().toInt128(),
+            quantity: quote.quantity.toInt128(),
             limitPrice: 1000e6,
             tolerance: 0,
             cashflow: quote.cashflowUsed.toInt128(),
@@ -1166,7 +973,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
     // Can't trade on a position that doesn't exist anymore
     function testTrade_Validation3() public {
-        (Quote memory quote, PositionId positionId,) = env.positionActions().openPosition({
+        (TSQuote memory quote, PositionId positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
@@ -1174,32 +981,20 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
             cashflowCcy: Currency.Quote
         });
 
-        quote = env.quoter().quoteOpen(
-            OpenQuoteParams({
-                positionId: positionId,
-                quantity: 4 ether,
-                leverage: 0,
-                cashflow: 3000e6,
-                cashflowCcy: Currency.Quote,
-                slippageTolerance: 0
-            })
-        );
+        quote = env.tsQuoter().quote({
+            positionId: positionId,
+            quantity: 4 ether,
+            leverage: 0,
+            cashflow: 3000e6,
+            cashflowCcy: Currency.Quote,
+            slippageTolerance: 0
+        });
 
         env.dealAndApprove(instrument.quote, TRADER, quote.cashflowUsed.toUint256(), address(vault));
 
-        bytes memory swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.quote, uint24(3000), instrument.base),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
-
         OrderParams memory params = OrderParams({
             positionId: positionId,
-            quantity: quote.quantity.toInt256().toInt128(),
+            quantity: quote.quantity.toInt128(),
             limitPrice: 1000e6,
             tolerance: 0,
             cashflow: quote.cashflowUsed.toInt128(),
@@ -1224,16 +1019,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         vm.expectRevert("ERC721: invalid token ID");
         vm.prank(keeper);
-        om.execute(
-            orderId,
-            ExecutionParams({
-                router: uniswap,
-                spender: uniswap,
-                swapAmount: quote.swapAmount,
-                swapBytes: swapBytes,
-                flashLoanProvider: quote.flashLoanProvider
-            })
-        );
+        om.execute(orderId, quote.execParams);
 
         assertTrue(om.hasOrder(orderId), "order not removed"); // garbage left behind
     }

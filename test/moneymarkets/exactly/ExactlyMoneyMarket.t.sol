@@ -50,6 +50,18 @@ contract ExactlyMoneyMarketTest is Test {
         sut.initialise(positionId, lendToken, borrowToken);
     }
 
+    function testInitialise_InvalidMoneyMarketId() public {
+        IERC20 lendToken = env.token(WETH);
+        IERC20 borrowToken = env.token(USDC);
+
+        sut = env.deployer().deployExactlyMoneyMarket(env, env.contango());
+        positionId = env.encoder().encodePositionId(Symbol.wrap("WETHUSDC"), MM_AAVE, PERP, 1);
+
+        vm.expectRevert(IMoneyMarket.InvalidMoneyMarketId.selector);
+        vm.prank(contango);
+        sut.initialise(positionId, lendToken, borrowToken);
+    }
+
     function testInitialise() public {
         IERC20 lendToken = env.token(WETH);
         IERC20 borrowToken = env.token(USDC);
@@ -80,11 +92,13 @@ contract ExactlyMoneyMarketTest is Test {
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
         vm.prank(contango);
-        sut.lend(positionId, lendToken, lendAmount);
+        uint256 lent = sut.lend(positionId, lendToken, lendAmount);
+        assertEqDecimal(lent, lendAmount, lendToken.decimals(), "lent amount");
 
         // borrow
         vm.prank(contango);
-        sut.borrow(positionId, borrowToken, borrowAmount, address(this));
+        uint256 borrowed = sut.borrow(positionId, borrowToken, borrowAmount, address(this));
+        assertEqDecimal(borrowed, borrowAmount, borrowToken.decimals(), "borrowed amount");
         assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
 
         assertApproxEqAbsDecimal(
@@ -119,7 +133,7 @@ contract ExactlyMoneyMarketTest is Test {
         uint256 withdrew = sut.withdraw(positionId, lendToken, collateral, address(this));
 
         assertEq(withdrew, collateral, "withdrew all collateral");
-        assertEqDecimal(sut.collateralBalance(positionId, lendToken), 0, lendToken.decimals(), "collateral is zeor");
+        assertEqDecimal(sut.collateralBalance(positionId, lendToken), 0, lendToken.decimals(), "collateral is zero");
         assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
 
         // Claim rewards after closing position
@@ -141,11 +155,13 @@ contract ExactlyMoneyMarketTest is Test {
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
         vm.prank(contango);
-        sut.lend(positionId, lendToken, lendAmount);
+        uint256 lent = sut.lend(positionId, lendToken, lendAmount);
+        assertEqDecimal(lent, lendAmount, lendToken.decimals(), "lent amount");
 
         // borrow
         vm.prank(contango);
-        sut.borrow(positionId, borrowToken, borrowAmount, address(this));
+        uint256 borrowed = sut.borrow(positionId, borrowToken, borrowAmount, address(this));
+        assertEqDecimal(borrowed, borrowAmount, borrowToken.decimals(), "borrowed amount");
         assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
 
         assertApproxEqAbsDecimal(
@@ -188,11 +204,13 @@ contract ExactlyMoneyMarketTest is Test {
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
         vm.prank(contango);
-        sut.lend(positionId, lendToken, lendAmount);
+        uint256 lent = sut.lend(positionId, lendToken, lendAmount);
+        assertEqDecimal(lent, lendAmount, lendToken.decimals(), "lent amount");
 
         // borrow
         vm.prank(contango);
-        sut.borrow(positionId, borrowToken, borrowAmount, address(this));
+        uint256 borrowed = sut.borrow(positionId, borrowToken, borrowAmount, address(this));
+        assertEqDecimal(borrowed, borrowAmount, borrowToken.decimals(), "borrowed amount");
         assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
 
         assertApproxEqAbsDecimal(

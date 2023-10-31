@@ -4,6 +4,7 @@ pragma solidity 0.8.20;
 import "src/models/FixedFeeModel.sol";
 
 import "../BaseTest.sol";
+import "forge-std/console.sol";
 
 contract MaestroTest is BaseTest {
 
@@ -37,15 +38,13 @@ contract MaestroTest is BaseTest {
         usdc = env.token(USDC);
         weth = env.token(WETH);
 
-        positionActions.setSlippageTolerance(0);
-
         instrument = env.createInstrument({ baseData: env.erc20(WETH), quoteData: env.erc20(USDC) });
         address poolAddress = env.spotStub().stubPrice({
             base: instrument.baseData,
             quote: instrument.quoteData,
             baseUsdPrice: 1000e8,
             quoteUsdPrice: 1e8,
-            uniswapFee: 3000
+            uniswapFee: 500
         });
 
         deal(address(instrument.baseData.token), poolAddress, type(uint96).max);
@@ -147,7 +146,7 @@ contract MaestroTest is BaseTest {
         assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
     }
 
-    function testDepositAndTrade() public {
+    function testDepositAndTradeVanilla() public {
         env.dealAndApprove(usdc, TRADER, 4000e6, address(vault));
 
         (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
@@ -206,7 +205,13 @@ contract MaestroTest is BaseTest {
     }
 
     function testTradeAndWithdraw() public {
-        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4000e6, Currency.Quote, 0);
+        (, PositionId positionId,) = positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4000e6,
+            cashflowCcy: Currency.Quote
+        });
 
         // decrease without cashflow without failing
         (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareCloseTrade(1 ether, positionId, Currency.None);
@@ -225,7 +230,13 @@ contract MaestroTest is BaseTest {
     }
 
     function testTradeAndWithdrawNative() public {
-        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+        (, PositionId positionId,) = positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4 ether,
+            cashflowCcy: Currency.Base
+        });
 
         // decrease without cashflow without failing
         (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareCloseTrade(1 ether, positionId, Currency.None);
@@ -244,7 +255,13 @@ contract MaestroTest is BaseTest {
     }
 
     function testTradeAndWithdraw_FailOnInvalidCashflow() public {
-        positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4000e6, Currency.Quote, 0);
+        positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4000e6,
+            cashflowCcy: Currency.Quote
+        });
 
         // increase with positive cashflow and try to withdraw
 
@@ -445,7 +462,13 @@ contract MaestroTest is BaseTest {
     }
 
     function testPlaceLinkedOrder() public {
-        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+        (, PositionId positionId,) = positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4 ether,
+            cashflowCcy: Currency.Base
+        });
 
         LinkedOrderParams memory linkedOrderParams = LinkedOrderParams({
             limitPrice: 1100e6,
@@ -464,7 +487,13 @@ contract MaestroTest is BaseTest {
     }
 
     function testPlaceLinkedOrders() public {
-        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+        (, PositionId positionId,) = positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4 ether,
+            cashflowCcy: Currency.Base
+        });
 
         LinkedOrderParams memory linkedOrderParams1 = LinkedOrderParams({
             limitPrice: 1100e6,
@@ -601,7 +630,13 @@ contract MaestroTest is BaseTest {
     }
 
     function testCancelMultipleOrders() public {
-        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+        (, PositionId positionId,) = positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4 ether,
+            cashflowCcy: Currency.Base
+        });
 
         LinkedOrderParams memory linkedOrderParams1 = LinkedOrderParams({
             limitPrice: 1100e6,
@@ -634,7 +669,13 @@ contract MaestroTest is BaseTest {
     }
 
     function testCancelReplaceLinkedOrder() public {
-        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+        (, PositionId positionId,) = positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4 ether,
+            cashflowCcy: Currency.Base
+        });
 
         LinkedOrderParams memory linkedOrderParams = LinkedOrderParams({
             limitPrice: 1100e6,
@@ -666,7 +707,13 @@ contract MaestroTest is BaseTest {
     }
 
     function testCancelReplaceLinkedOrders() public {
-        (, PositionId positionId,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
+        (, PositionId positionId,) = positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4 ether,
+            cashflowCcy: Currency.Base
+        });
 
         LinkedOrderParams memory linkedOrderParams1 = LinkedOrderParams({
             limitPrice: 1100e6,
@@ -718,8 +765,20 @@ contract MaestroTest is BaseTest {
     }
 
     function testCancelReplaceLinkedOrders_FailOnDifferentPositionIds() public {
-        (, PositionId positionId1,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 10 ether, 4 ether, Currency.Base, 0);
-        (, PositionId positionId2,) = positionActions.openPosition(instrument.symbol, MM_AAVE, 9 ether, 3 ether, Currency.Base, 0);
+        (, PositionId positionId1,) = positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4 ether,
+            cashflowCcy: Currency.Base
+        });
+        (, PositionId positionId2,) = positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 9 ether,
+            cashflow: 3 ether,
+            cashflowCcy: Currency.Base
+        });
 
         vm.prank(TRADER);
         OrderId linkedOrderId1 = maestro.placeLinkedOrder(
@@ -818,28 +877,16 @@ contract MaestroTest is BaseTest {
         internal
         returns (TradeParams memory tradeParams, ExecutionParams memory executionParams)
     {
-        Quote memory quote = positionActions.quoteClosePosition({
+        TSQuote memory quote = positionActions.quoteTrade({
             positionId: positionId,
-            quantity: quantity,
+            quantity: -int256(quantity),
             leverage: 0,
             cashflow: 0,
             cashflowCcy: cashflowCcy
         });
 
-        tradeParams = TradeParams({
-            positionId: positionId,
-            quantity: -quote.quantity.toInt256(),
-            cashflow: 0,
-            cashflowCcy: cashflowCcy,
-            limitPrice: quote.price
-        });
-        executionParams = ExecutionParams({
-            router: env.uniswap(),
-            spender: env.uniswap(),
-            swapAmount: quote.swapAmount,
-            swapBytes: _swapBytes(quote),
-            flashLoanProvider: quote.flashLoanProvider
-        });
+        tradeParams = quote.tradeParams;
+        executionParams = quote.execParams;
     }
 
     function _prepareTrade(Currency cashflowCcy, int256 cashflow)
@@ -848,52 +895,11 @@ contract MaestroTest is BaseTest {
     {
         PositionId positionId = env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0);
 
-        Quote memory quote = positionActions.quoteOpenPosition({
-            positionId: positionId,
-            quantity: 10 ether,
-            cashflow: cashflow,
-            cashflowCcy: cashflowCcy,
-            leverage: 0
-        });
+        TSQuote memory quote =
+            positionActions.quoteWithCashflow({ positionId: positionId, quantity: 10 ether, cashflow: cashflow, cashflowCcy: cashflowCcy });
 
-        tradeParams = TradeParams({
-            positionId: positionId,
-            quantity: quote.quantity.toInt256(),
-            cashflow: quote.cashflowUsed,
-            cashflowCcy: cashflowCcy,
-            limitPrice: quote.price
-        });
-        executionParams = ExecutionParams({
-            router: env.uniswap(),
-            spender: env.uniswap(),
-            swapAmount: quote.swapAmount,
-            swapBytes: _swapBytes(quote),
-            flashLoanProvider: quote.flashLoanProvider
-        });
-    }
-
-    function _swapBytes(Quote memory quote) internal view returns (bytes memory swapBytes) {
-        if (quote.swapCcy == Currency.Quote) {
-            swapBytes = abi.encodeWithSelector(
-                env.uniswapRouter().exactInput.selector,
-                SwapRouter02.ExactInputParams({
-                    path: abi.encodePacked(instrument.quote, uint24(3000), instrument.base),
-                    recipient: address(contango.spotExecutor()),
-                    amountIn: quote.swapAmount,
-                    amountOutMinimum: 0 // UI's problem
-                 })
-            );
-        } else if (quote.swapCcy == Currency.Base) {
-            swapBytes = abi.encodeWithSelector(
-                env.uniswapRouter().exactInput.selector,
-                SwapRouter02.ExactInputParams({
-                    path: abi.encodePacked(instrument.base, uint24(3000), instrument.quote),
-                    recipient: address(contango.spotExecutor()),
-                    amountIn: quote.swapAmount,
-                    amountOutMinimum: 0 // UI's problem
-                 })
-            );
-        }
+        tradeParams = quote.tradeParams;
+        executionParams = quote.execParams;
     }
 
 }

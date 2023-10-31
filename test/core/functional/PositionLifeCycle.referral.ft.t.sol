@@ -5,8 +5,8 @@ import "./AbstractPositionLifeCycle.ft.t.sol";
 
 abstract contract ReferralAbstractPositionLifeCycleFunctional is AbstractPositionLifeCycleFunctional {
 
-    function setUp(Network network, MoneyMarketId _mm) internal virtual override {
-        super.setUp(network, _mm);
+    function setUp(Network network, MoneyMarketId _mm, bytes32 base, bytes32 quote, uint256 _multiplier) internal virtual override {
+        super.setUp(network, _mm, base, quote, _multiplier);
 
         IReferralManager referralManager = env.feeManager().referralManager();
         vm.prank(TIMELOCK_ADDRESS);
@@ -26,7 +26,7 @@ abstract contract ReferralAbstractPositionLifeCycleFunctional is AbstractPositio
 contract ReferralPositionLifeCycleAaveArbitrumFunctional is ReferralAbstractPositionLifeCycleFunctional {
 
     function setUp() public {
-        super.setUp(Network.Arbitrum, MM_AAVE);
+        super.setUp(Network.Arbitrum, MM_AAVE, WETH, USDC, WETH_STABLE_MULTIPLIER);
     }
 
 }
@@ -34,7 +34,7 @@ contract ReferralPositionLifeCycleAaveArbitrumFunctional is ReferralAbstractPosi
 contract ReferralPositionLifeCycleAaveOptimismFunctional is ReferralAbstractPositionLifeCycleFunctional {
 
     function setUp() public {
-        super.setUp(Network.Optimism, MM_AAVE);
+        super.setUp(Network.Optimism, MM_AAVE, WETH, USDC, WETH_STABLE_MULTIPLIER);
     }
 
 }
@@ -42,7 +42,7 @@ contract ReferralPositionLifeCycleAaveOptimismFunctional is ReferralAbstractPosi
 contract ReferralPositionLifeCycleAavePolygonFunctional is ReferralAbstractPositionLifeCycleFunctional {
 
     function setUp() public {
-        super.setUp(Network.Polygon, MM_AAVE);
+        super.setUp(Network.Polygon, MM_AAVE, WETH, USDC, WETH_STABLE_MULTIPLIER);
     }
 
 }
@@ -50,7 +50,7 @@ contract ReferralPositionLifeCycleAavePolygonFunctional is ReferralAbstractPosit
 contract ReferralPositionLifeCycleExactlyOptimismFunctional is ReferralAbstractPositionLifeCycleFunctional {
 
     function setUp() public {
-        super.setUp(Network.Optimism, MM_EXACTLY);
+        super.setUp(Network.Optimism, MM_EXACTLY, WETH, USDC, WETH_STABLE_MULTIPLIER);
     }
 
 }

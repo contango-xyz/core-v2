@@ -48,11 +48,13 @@ contract AaveMoneyMarketPolygonTest is Test {
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
         vm.prank(contango);
-        sut.lend(positionId, lendToken, lendAmount);
+        uint256 lent = sut.lend(positionId, lendToken, lendAmount);
+        assertEqDecimal(lent, lendAmount, lendToken.decimals(), "lent amount");
 
         // borrow
         vm.prank(contango);
-        sut.borrow(positionId, borrowToken, borrowAmount, address(this));
+        uint256 borrowed = sut.borrow(positionId, borrowToken, borrowAmount, address(this));
+        assertEqDecimal(borrowed, borrowAmount, borrowToken.decimals(), "borrowed amount");
         assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
 
         assertEqDecimal(
@@ -85,7 +87,7 @@ contract AaveMoneyMarketPolygonTest is Test {
         uint256 withdrew = sut.withdraw(positionId, lendToken, collateral, address(this));
 
         assertEq(withdrew, collateral, "withdrew all collateral");
-        assertEqDecimal(sut.collateralBalance(positionId, lendToken), 0, lendToken.decimals(), "collateral is zeor");
+        assertEqDecimal(sut.collateralBalance(positionId, lendToken), 0, lendToken.decimals(), "collateral is zero");
         assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
 
         // Claim rewards after closing position

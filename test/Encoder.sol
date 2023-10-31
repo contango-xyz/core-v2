@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
-import { IPool, DataTypes, ReserveConfiguration } from "@aave/core-v3/contracts/protocol/pool/Pool.sol";
+import "@aave/core-v3/contracts/interfaces/IPoolDataProvider.sol";
 
 import { IContango, Instrument } from "src/interfaces/IContango.sol";
 import { PositionId, Symbol, MoneyMarketId, InvalidExpiry, InvalidUInt32, InvalidUInt48 } from "src/libraries/DataTypes.sol";
@@ -11,14 +11,12 @@ import { InvalidUInt8 } from "src/libraries/BitFlags.sol";
 
 contract Encoder {
 
-    using ReserveConfiguration for DataTypes.ReserveConfigurationMap;
-
     IContango public immutable contango;
-    IPool public immutable pool;
+    IPoolDataProvider public immutable aaveDataProvider;
 
-    constructor(IContango _contango, IPool _pool) {
+    constructor(IContango _contango, IPoolDataProvider _aaveDataProvider) {
         contango = _contango;
-        pool = _pool;
+        aaveDataProvider = _aaveDataProvider;
     }
 
     function encodePositionId(Symbol symbol, MoneyMarketId mm, uint256 expiry, uint256 number)
@@ -27,17 +25,21 @@ contract Encoder {
         returns (PositionId positionId)
     {
         bytes1 flags;
-        if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_AAVE)) {
-            Instrument memory instrument = contango.instrument(symbol);
-
-            DataTypes.ReserveData memory baseData = pool.getReserveData(address(instrument.base));
-            if (baseData.isolationModeTotalDebt != 0) flags = setBit(flags, ISOLATION_MODE);
-
-            uint256 eModeCategory = pool.getReserveData(address(instrument.quote)).configuration.getEModeCategory();
-            if (eModeCategory > 0 && eModeCategory == baseData.configuration.getEModeCategory()) flags = setBit(flags, E_MODE);
-        }
+        if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_AAVE)) flags = _aaveFlags(aaveDataProvider, symbol);
 
         return encode(symbol, mm, expiry, number, flags);
+    }
+
+    function _aaveFlags(IPoolDataProvider dataProvider, Symbol symbol) private view returns (bytes1 flags) {
+        Instrument memory instrument = contango.instrument(symbol);
+
+        uint256 debtCeiling = dataProvider.getDebtCeiling(address(instrument.base));
+        if (debtCeiling != 0) flags = setBit(flags, ISOLATION_MODE);
+
+        uint256 eModeCategory = dataProvider.getReserveEModeCategory(address(instrument.quote));
+        if (eModeCategory > 0 && eModeCategory == dataProvider.getReserveEModeCategory(address(instrument.base))) {
+            flags = setBit(flags, E_MODE);
+        }
     }
 
 }

@@ -18,7 +18,7 @@ contract BaseMoneyMarketTest is Test {
 
         contango = address(env.contango());
 
-        sut = new FooMoneyMarket(env.contango());
+        sut = new FooMoneyMarket( MoneyMarketId.wrap(0), env.contango());
 
         positionId = env.encoder().encodePositionId(Symbol.wrap("WETHUSDC"), MM_EXACTLY, PERP, 1);
     }
@@ -59,7 +59,7 @@ contract BaseMoneyMarketTest is Test {
 
 contract FooMoneyMarket is BaseMoneyMarket {
 
-    constructor(IContango _contango) BaseMoneyMarket(MoneyMarketId.wrap(0), _contango) { }
+    constructor(MoneyMarketId _moneyMarketId, IContango _contango) BaseMoneyMarket(_moneyMarketId, _contango) { }
 
     function NEEDS_ACCOUNT() external pure returns (bool) {
         return true;

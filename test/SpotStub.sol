@@ -67,7 +67,7 @@ contract SpotStub {
     }
 
     function movePrice(ERC20Data memory data, int256 percentage) public returns (int256 newPrice) {
-        require(percentage >= -1e18 && percentage <= 10_000e18, "Invalid percentage");
+        require(percentage >= -1e18 && percentage <= 10e18, "Invalid percentage");
         (, int256 currentPrice,,,) = data.chainlinkUsdOracle.latestRoundData();
         newPrice = currentPrice * (percentage + 1e18) / 1e18;
         stubChainlinkPrice(newPrice, address(data.chainlinkUsdOracle));

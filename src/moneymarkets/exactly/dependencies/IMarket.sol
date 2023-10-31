@@ -3,6 +3,7 @@ pragma solidity ^0.8.10;
 
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IAuditor.sol";
+import "./IInterestRateModel.sol";
 
 interface IMarket {
 
@@ -123,7 +124,7 @@ interface IMarket {
         uint256 dampSpeedUp_,
         uint256 dampSpeedDown_
     ) external;
-    function interestRateModel() external view returns (address);
+    function interestRateModel() external view returns (IInterestRateModel);
     function lastAccumulatorAccrual() external view returns (uint32);
     function lastAverageUpdate() external view returns (uint32);
     function lastFloatingDebtUpdate() external view returns (uint32);

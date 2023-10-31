@@ -5,8 +5,6 @@ import "forge-std/Test.sol";
 
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
-import "aave-v3-core/contracts/interfaces/IPoolAddressesProvider.sol";
-
 import "src/core/Contango.sol";
 import "src/core/OrderManager.sol";
 import "src/core/Maestro.sol";
@@ -16,11 +14,8 @@ import "src/interfaces/IOrderManager.sol";
 import "src/core/ReferralManager.sol";
 import "src/core/FeeManager.sol";
 
-import { BalancerWrapper as BalancerFlashLoanProvider, IFlashLoaner } from "erc7399-wrappers/balancer/BalancerWrapper.sol";
-import {
-    AaveWrapper as AaveFlashLoanProvider,
-    IPoolAddressesProvider as WrapperIPoolAddressesProvider
-} from "erc7399-wrappers/aave/AaveWrapper.sol";
+import "test/flp/balancer/BalancerFlashLoanProvider.sol";
+import "test/flp/aave/AaveFlashLoanProvider.sol";
 
 import "src/moneymarkets/UnderlyingPositionFactory.sol";
 import "src/moneymarkets/UpgradeableBeaconWithOwner.sol";
@@ -38,13 +33,13 @@ import "./dependencies/chainlink/AggregatorV2V3Interface.sol";
 import "./dependencies/Uniswap.sol";
 import "./stub/NoFeeModel.sol";
 import { PositionActions } from "./PositionActions.sol";
-import "./Quoter.sol";
 import "./Encoder.sol";
 import "./SpotStub.sol";
 import "./TestHelper.sol";
 import "./PermitUtils.t.sol";
 import "./Network.sol";
 import "./utils.t.sol";
+import "./TSQuoter.sol";
 
 Vm constant VM = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
@@ -55,25 +50,22 @@ address payable constant TRADER2 = payable(address(0x70997970C51812dc3A010C7d01b
 address payable constant TREASURY = payable(0x643178CF8AEc063962654CAc256FD1f7fe06ac28);
 address payable constant LIQUIDATOR = payable(address(0xfec));
 
-uint256 constant ARBITRUM_BASE_BLOCK_NUMBER = 98_674_994;
-uint256 constant OPTIMISM_BASE_BLOCK_NUMBER = 107_312_284;
-uint256 constant MAINNET_BASE_BLOCK_NUMBER = 17_066_045;
-uint256 constant POLYGON_BASE_BLOCK_NUMBER = 45_578_550;
-
 // erc20 tokens
 bytes32 constant LINK = "LINK";
 bytes32 constant DAI = "DAI";
+bytes32 constant SDAI = "sDAI";
 bytes32 constant USDC = "USDC";
 bytes32 constant WETH = "WETH";
 bytes32 constant WMATIC = "WMATIC";
+bytes32 constant WBTC = "WBTC";
+bytes32 constant USDT = "USDT";
+bytes32 constant ARB = "ARB";
+bytes32 constant LUSD = "LUSD";
+bytes32 constant RETH = "RETH";
+bytes32 constant GNO = "GNO";
 
-uint256 constant DEFAULT_FEE = 0.001e18; // 0.1%
-
-uint32 constant MATURITY_2309 = 1_695_999_600;
-bytes6 constant FYETH2309 = 0x0030FF00028e;
-bytes6 constant FYDAI2309 = 0x0031FF00028e;
-bytes6 constant FYUSDC2309 = 0x0032FF00028e;
-bytes6 constant ETH_ID = "00";
+uint256 constant DEFAULT_TRADING_FEE = 0.001e18; // 0.1%
+uint256 constant DEFAULT_ORACLE_UNIT = 1e8;
 
 bytes32 constant DEFAULT_ADMIN_ROLE = "";
 
@@ -83,6 +75,15 @@ function provider(Network network) returns (Env) {
     if (network == Network.Arbitrum) return new ArbitrumEnv();
     else if (network == Network.Optimism) return new OptimismEnv();
     else if (network == Network.Polygon) return new PolygonEnv();
+    else if (network == Network.Mainnet) return new MainnetEnv();
+    else revert(string.concat("Unsupported network: ", network.toString()));
+}
+
+function forkBlock(Network network) pure returns (uint256) {
+    if (network == Network.Arbitrum) return 98_674_994;
+    else if (network == Network.Optimism) return 107_312_284;
+    else if (network == Network.Polygon) return 45_578_550;
+    else if (network == Network.Mainnet) return 18_012_703;
     else revert(string.concat("Unsupported network: ", network.toString()));
 }
 
@@ -91,9 +92,11 @@ struct TestInstrument {
     ERC20Data baseData;
     IERC20 base;
     uint8 baseDecimals;
+    uint256 baseUnit;
     ERC20Data quoteData;
     IERC20 quote;
     uint8 quoteDecimals;
+    uint256 quoteUnit;
 }
 
 struct ERC20Data {
@@ -109,8 +112,12 @@ struct ERC20Bounds {
     uint256 dust;
 }
 
+function slippage(uint256 value, uint256 _slippage) pure returns (uint256) {
+    return Math.mulDiv(value, _slippage, 1e4, Math.Rounding.Up);
+}
+
 function slippage(uint256 value) pure returns (uint256) {
-    return Math.mulDiv(value, DEFAULT_SLIPPAGE_TOLERANCE, 1e4, Math.Rounding.Up);
+    return slippage(value, DEFAULT_SLIPPAGE_TOLERANCE);
 }
 
 function discountSlippage(uint256 value) pure returns (uint256) {
@@ -121,12 +128,20 @@ function addSlippage(uint256 value) pure returns (uint256) {
     return value + slippage(value);
 }
 
-function totalFee(uint256 quantity) pure returns (uint256) {
-    return Math.mulDiv(quantity, DEFAULT_FEE, 1e18, Math.Rounding.Up);
+function tradingFee(uint256 quantity, uint256 fee) pure returns (uint256) {
+    return Math.mulDiv(quantity, fee, 1e18);
+}
+
+function tradingFee(uint256 quantity, uint256 fee, Math.Rounding rounding) pure returns (uint256) {
+    return Math.mulDiv(quantity, fee, 1e18, rounding);
+}
+
+function tradingFee(uint256 quantity) pure returns (uint256) {
+    return Math.mulDiv(quantity, DEFAULT_TRADING_FEE, 1e18);
 }
 
 function discountFee(uint256 quantity) pure returns (uint256) {
-    return quantity - totalFee(quantity);
+    return quantity - tradingFee(quantity);
 }
 
 /// @dev returns the init code (creation code + ABI-encoded args) used in CREATE2
@@ -134,6 +149,16 @@ function discountFee(uint256 quantity) pure returns (uint256) {
 /// @param args the ABI-encoded arguments to the constructor of C
 function initCode(bytes memory creationCode, bytes memory args) pure returns (bytes memory) {
     return abi.encodePacked(creationCode, args);
+}
+
+struct Deployment {
+    Maestro maestro;
+    IVault vault;
+    Contango contango;
+    IOrderManager orderManager;
+    IOracle oracle;
+    IFeeManager feeManager;
+    TSQuoter tsQuoter;
 }
 
 contract Deployer {
@@ -170,78 +195,79 @@ contract Deployer {
         VM.label(address(vault), "Vault");
     }
 
-    function deployContango(Env env)
-        public
-        returns (
-            Maestro maestro,
-            IVault vault,
-            Contango contango,
-            Quoter quoter,
-            IOrderManager orderManager,
-            IOracle oracle,
-            IFeeManager feeManager
-        )
-    {
+    function deployContango(Env env) public returns (Deployment memory deployment) {
         PositionNFT positionNFT = new PositionNFT(TIMELOCK);
         UnderlyingPositionFactory positionFactory = new UnderlyingPositionFactory(TIMELOCK);
 
-        vault = deployVault(env);
+        deployment.vault = deployVault(env);
 
-        feeManager = new FeeManager({
+        deployment.feeManager = new FeeManager({
             _treasury: TREASURY,
-            _vault: vault,
-            _feeModel: new FixedFeeModel(DEFAULT_FEE),
+            _vault: deployment.vault,
+            _feeModel: new FixedFeeModel(DEFAULT_TRADING_FEE),
             _referralManager: new ReferralManager(TIMELOCK)
         });
-        FeeManager(address(feeManager)).initialize(TIMELOCK);
+        FeeManager(address(deployment.feeManager)).initialize(TIMELOCK);
 
-        contango = new Contango(positionNFT, vault, positionFactory, feeManager, new SpotExecutor());
-        Contango(payable(address(contango))).initialize(TIMELOCK);
+        deployment.contango = new Contango(positionNFT, deployment.vault, positionFactory, deployment.feeManager, new SpotExecutor());
+        Contango(payable(address(deployment.contango))).initialize(TIMELOCK);
 
-        quoter = new Quoter(contango);
+        deployment.tsQuoter = new TSQuoter(Contango(payable(address(deployment.contango))));
 
         VM.startPrank(TIMELOCK_ADDRESS);
-        positionFactory.grantRole(CONTANGO_ROLE, address(contango));
+        positionFactory.grantRole(CONTANGO_ROLE, address(deployment.contango));
 
         if (env.marketAvailable(MM_AAVE)) {
-            positionFactory.registerMoneyMarket(deployAaveMoneyMarket(env, contango));
-            quoter.setMoneyMarket(new AaveMoneyMarketView(MM_AAVE, env.aaveAddressProvider(), positionFactory));
+            positionFactory.registerMoneyMarket(deployAaveMoneyMarket(env, deployment.contango));
+            deployment.tsQuoter.setMoneyMarket(new AaveMoneyMarketView(MM_AAVE, env.aaveAddressProvider(), positionFactory));
         }
         if (env.marketAvailable(MM_EXACTLY)) {
-            ExactlyMoneyMarket moneyMarket = deployExactlyMoneyMarket(env, contango);
+            ExactlyMoneyMarket moneyMarket = deployExactlyMoneyMarket(env, deployment.contango);
             positionFactory.registerMoneyMarket(moneyMarket);
-            quoter.setMoneyMarket(new ExactlyMoneyMarketView(MM_EXACTLY, moneyMarket.reverseLookup(), env.auditor(), positionFactory));
+            deployment.tsQuoter.setMoneyMarket(
+                new ExactlyMoneyMarketView(MM_EXACTLY, moneyMarket.reverseLookup(), env.auditor(), positionFactory)
+            );
         }
+
         VM.stopPrank();
 
         VM.startPrank(TIMELOCK_ADDRESS);
-        positionNFT.grantRole(MINTER_ROLE, address(contango));
+        positionNFT.grantRole(MINTER_ROLE, address(deployment.contango));
 
         // Flash loan providers
-        IERC7399 balancerFLP = new BalancerFlashLoanProvider(IFlashLoaner(env.balancer()));
-        Quoter(address(quoter)).addFlashLoanProvider(balancerFLP);
-        env.setBalancerFLP(balancerFLP);
+        {
+            IERC7399 balancerFLP = new BalancerFlashLoanProvider(IFlashLoaner(env.balancer()));
+            deployment.tsQuoter.addFlashLoanProvider(balancerFLP);
+            env.setBalancerFLP(balancerFLP);
 
-        IERC7399 aaveFLP = new AaveFlashLoanProvider(WrapperIPoolAddressesProvider(address(env.aaveAddressProvider())));
-        Quoter(address(quoter)).addFlashLoanProvider(aaveFLP);
-        env.setAaveFLP(aaveFLP);
+            if (env.marketAvailable(MM_AAVE)) {
+                IERC7399 aaveFLP = new AaveFlashLoanProvider(env.aaveAddressProvider());
+                deployment.tsQuoter.addFlashLoanProvider(aaveFLP);
+                env.setAaveFLP(aaveFLP);
+            }
+        }
 
         VM.stopPrank();
 
-        orderManager = new OrderManager(contango, env.nativeToken());
-        oracle = new AaveOracle(env.aaveAddressProvider());
-        OrderManager(payable(address(orderManager))).initialize({ timelock: TIMELOCK, _gasMultiplier: 2e4, _gasTip: 0, _oracle: oracle });
+        deployment.orderManager = new OrderManager(deployment.contango, env.nativeToken());
+        deployment.oracle = new AaveOracle(env.aaveAddressProvider());
+        OrderManager(payable(address(deployment.orderManager))).initialize({
+            timelock: TIMELOCK,
+            _gasMultiplier: 2e4,
+            _gasTip: 0,
+            _oracle: deployment.oracle
+        });
 
-        maestro = new Maestro(TIMELOCK, contango, orderManager, vault, env.permit2());
-        VM.label(address(maestro), "Maestro");
+        deployment.maestro = new Maestro(TIMELOCK, deployment.contango,deployment. orderManager,deployment. vault, env.permit2());
+        VM.label(address(deployment.maestro), "Maestro");
 
         VM.startPrank(TIMELOCK_ADDRESS);
-        positionNFT.setContangoContract(address(maestro), true);
-        positionNFT.setContangoContract(address(orderManager), true);
-        AccessControl(address(vault)).grantRole(CONTANGO_ROLE, address(maestro));
-        AccessControl(address(vault)).grantRole(CONTANGO_ROLE, address(contango));
-        AccessControl(address(vault)).grantRole(CONTANGO_ROLE, address(orderManager));
-        AccessControl(address(feeManager)).grantRole(CONTANGO_ROLE, address(contango));
+        positionNFT.setContangoContract(address(deployment.maestro), true);
+        positionNFT.setContangoContract(address(deployment.orderManager), true);
+        AccessControl(address(deployment.vault)).grantRole(CONTANGO_ROLE, address(deployment.maestro));
+        AccessControl(address(deployment.vault)).grantRole(CONTANGO_ROLE, address(deployment.contango));
+        AccessControl(address(deployment.vault)).grantRole(CONTANGO_ROLE, address(deployment.orderManager));
+        AccessControl(address(deployment.feeManager)).grantRole(CONTANGO_ROLE, address(deployment.contango));
         VM.stopPrank();
     }
 
@@ -252,6 +278,12 @@ function toString(Currency currency) pure returns (string memory) {
     else if (currency == Currency.Base) return "Base";
     else if (currency == Currency.Quote) return "Quote";
     else revert("Unsupported currency");
+}
+
+function toString(MoneyMarketId mm) pure returns (string memory) {
+    if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_AAVE)) return "Aave";
+    else if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_EXACTLY)) return "Exactly";
+    else revert("Unsupported money market");
 }
 
 abstract contract Env is StdAssertions, StdCheats {
@@ -270,11 +302,10 @@ abstract contract Env is StdAssertions, StdCheats {
     SpotStub public spotStub;
     PositionActions public positionActions;
     PositionActions public positionActions2;
-    TestHelper public testHelper;
+    TestHelper public helper;
     NoFeeModel public noFeeModel;
     // Contango
     Contango public contango;
-    Quoter public quoter;
     IVault public vault;
     Maestro public maestro;
     IOrderManager public orderManager;
@@ -282,6 +313,7 @@ abstract contract Env is StdAssertions, StdCheats {
     IOracle public oracle;
     IFeeManager public feeManager;
     Encoder public encoder;
+    TSQuoter public tsQuoter;
     // Chain
     IWETH9 public nativeToken;
     // MultiChain
@@ -303,22 +335,23 @@ abstract contract Env is StdAssertions, StdCheats {
         deployer = new Deployer();
         VM.makePersistent(address(deployer));
 
-        testHelper = new TestHelper();
-        VM.makePersistent(address(testHelper));
+        helper = new TestHelper();
+        VM.makePersistent(address(helper));
 
         noFeeModel = new NoFeeModel();
         VM.makePersistent(address(noFeeModel));
 
-        positionActions = new PositionActions(testHelper, this, TRADER, TRADER_PK);
+        positionActions = new PositionActions(helper, this, TRADER, TRADER_PK);
         VM.makePersistent(address(positionActions));
 
-        positionActions2 = new PositionActions(testHelper, this, TRADER2, TRADER2_PK);
+        positionActions2 = new PositionActions(helper, this, TRADER2, TRADER2_PK);
         VM.makePersistent(address(positionActions2));
 
-        _bounds[LINK] = ERC20Bounds(15e18, type(uint96).max, 0.000001e18);
-        _bounds[DAI] = ERC20Bounds(100e18, type(uint96).max, 0.0001e18);
-        _bounds[USDC] = ERC20Bounds(100e6, type(uint96).max / 1e12, 0.0001e6);
-        _bounds[WETH] = ERC20Bounds(0.1e18, type(uint96).max, 0.00001e18); // TODO might have rounding issues in the uni pool stub, maybe dust should be lower
+        _bounds[LINK] = ERC20Bounds({ min: 15e18, max: type(uint96).max, dust: 0.000001e18 });
+        _bounds[DAI] = ERC20Bounds({ min: 100e18, max: type(uint96).max, dust: 0.0001e18 });
+        _bounds[SDAI] = ERC20Bounds({ min: 100e18, max: type(uint96).max, dust: 0.0001e18 });
+        _bounds[USDC] = ERC20Bounds({ min: 100e6, max: type(uint96).max / 1e12, dust: 0.0001e6 });
+        _bounds[WETH] = ERC20Bounds({ min: 0.1e18, max: type(uint96).max, dust: 0.0000001e18 });
     }
 
     function init() public virtual;
@@ -332,6 +365,7 @@ abstract contract Env is StdAssertions, StdCheats {
         deal(address(token(WETH)), TREASURY, 0);
         // deal(address(token(LINK)), TREASURY, 0);
         deal(address(token(DAI)), TREASURY, 0);
+        // deal(address(token(SDAI)), TREASURY, 0);
         deal(address(token(USDC)), TREASURY, 0);
     }
 
@@ -389,10 +423,6 @@ abstract contract Env is StdAssertions, StdCheats {
             tmp.push(erc20(DAI));
             tmp.push(erc20(USDC));
             tmp.push(erc20(WETH));
-        } else if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_COMPOUND)) {
-            tmp.push(erc20(DAI));
-            tmp.push(erc20(USDC));
-            tmp.push(erc20(WETH));
         } else if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_EXACTLY)) {
             tmp.push(erc20(USDC));
             tmp.push(erc20(WETH));
@@ -421,9 +451,11 @@ abstract contract Env is StdAssertions, StdCheats {
             baseData: baseData,
             base: baseData.token,
             baseDecimals: baseData.token.decimals(),
+            baseUnit: 10 ** baseData.token.decimals(),
             quoteData: quoteData,
             quote: quoteData.token,
-            quoteDecimals: quoteData.token.decimals()
+            quoteDecimals: quoteData.token.decimals(),
+            quoteUnit: 10 ** quoteData.token.decimals()
         });
         _instruments[symbol] = instrument;
     }
@@ -436,28 +468,36 @@ abstract contract Env is StdAssertions, StdCheats {
         assertNoBalances(instrument, positionId, flp);
     }
 
+    function checkInvariants(TestInstrument memory instrument, PositionId positionId, IERC7399 flp, uint256 contangoBaseTolerance) public {
+        assertNoBalances(instrument, positionId, flp, contangoBaseTolerance);
+    }
+
     function assertNoBalances(TestInstrument memory instrument, PositionId positionId, IERC7399 flp) public {
-        testHelper.assertNoBalances(instrument.base, address(contango), bounds(instrument.baseData.symbol).dust, "contango balance: base");
-        testHelper.assertNoBalances(
-            instrument.quote, address(contango), bounds(instrument.quoteData.symbol).dust, "contango balance: quote"
-        );
-        testHelper.assertNoBalances(
+        assertNoBalances(instrument, positionId, flp, bounds(instrument.baseData.symbol).dust);
+    }
+
+    function assertNoBalances(TestInstrument memory instrument, PositionId positionId, IERC7399 flp, uint256 contangoBaseTolerance)
+        public
+    {
+        helper.assertNoBalances(instrument.base, address(contango), contangoBaseTolerance, "contango balance: base");
+        helper.assertNoBalances(instrument.quote, address(contango), bounds(instrument.quoteData.symbol).dust, "contango balance: quote");
+        helper.assertNoBalances(
             instrument.base, address(positionFactory.moneyMarket(positionId)), bounds(instrument.baseData.symbol).dust, "MM balance: base"
         );
-        testHelper.assertNoBalances(
+        helper.assertNoBalances(
             instrument.quote,
             address(positionFactory.moneyMarket(positionId)),
             bounds(instrument.quoteData.symbol).dust,
             "MM balance: quote"
         );
         if (address(flp) != address(0)) {
-            testHelper.assertNoBalances(
+            helper.assertNoBalances(
                 instrument.base,
                 address(flp),
                 bounds(instrument.baseData.symbol).dust,
                 string.concat("FLP (", VM.toString(address(flp)), ") balance: base")
             );
-            testHelper.assertNoBalances(
+            helper.assertNoBalances(
                 instrument.quote,
                 address(flp),
                 bounds(instrument.quoteData.symbol).dust,
@@ -554,7 +594,6 @@ contract ArbitrumEnv is Env {
 
     constructor() {
         _moneyMarkets.push(MM_AAVE);
-        // _moneyMarkets.push(MM_YIELD);
 
         _erc20s[LINK] = ERC20Data({
             symbol: LINK,
@@ -580,6 +619,24 @@ contract ArbitrumEnv is Env {
             chainlinkUsdOracle: AggregatorV2V3Interface(0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612),
             hasPermit: true
         });
+        _erc20s[USDT] = ERC20Data({
+            symbol: USDT,
+            token: IERC20(0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9),
+            chainlinkUsdOracle: AggregatorV2V3Interface(0x3f3f5dF88dC9F13eac63DF89EC16ef6e7E25DdE7),
+            hasPermit: true
+        });
+        _erc20s[ARB] = ERC20Data({
+            symbol: ARB,
+            token: IERC20(0x912CE59144191C1204E64559FE8253a0e49E6548),
+            chainlinkUsdOracle: AggregatorV2V3Interface(0xb2A824043730FE05F3DA2efaFa1CBbe83fa548D6),
+            hasPermit: true
+        });
+        _erc20s[LUSD] = ERC20Data({
+            symbol: LUSD,
+            token: IERC20(0x93b346b6BC2548dA6A1E7d98E9a421B42541425b),
+            chainlinkUsdOracle: AggregatorV2V3Interface(0x0411D28c94d85A36bC72Cb0f875dfA8371D8fFfF),
+            hasPermit: true
+        });
 
         spotStub = new SpotStub(0x1F98431c8aD98523631AE4a59f267346ea31F984);
         VM.makePersistent(address(spotStub));
@@ -591,7 +648,7 @@ contract ArbitrumEnv is Env {
     }
 
     function init() public override {
-        init(ARBITRUM_BASE_BLOCK_NUMBER);
+        init(forkBlock(Network.Arbitrum));
     }
 
     function init(uint256 blockNumber) public virtual override {
@@ -599,9 +656,16 @@ contract ArbitrumEnv is Env {
         fork("arbitrum", blockNumber);
         cleanTreasury();
 
-        (maestro, vault, contango, quoter, orderManager, oracle, feeManager) = deployer.deployContango(this);
+        Deployment memory deployment = deployer.deployContango(this);
+        maestro = deployment.maestro;
+        vault = deployment.vault;
+        contango = deployment.contango;
+        orderManager = deployment.orderManager;
+        oracle = deployment.oracle;
+        feeManager = deployment.feeManager;
+        tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
-        encoder = new Encoder(contango, IPool(aaveAddressProvider.getPool()));
+        encoder = new Encoder(contango, IPoolDataProvider(aaveAddressProvider.getPoolDataProvider()));
     }
 
 }
@@ -648,7 +712,7 @@ contract OptimismEnv is Env {
     }
 
     function init() public override {
-        init(OPTIMISM_BASE_BLOCK_NUMBER);
+        init(forkBlock(Network.Optimism));
     }
 
     function init(uint256 blockNumber) public virtual override {
@@ -656,9 +720,16 @@ contract OptimismEnv is Env {
         fork("optimism", blockNumber);
         cleanTreasury();
 
-        (maestro, vault, contango, quoter, orderManager, oracle, feeManager) = deployer.deployContango(this);
+        Deployment memory deployment = deployer.deployContango(this);
+        maestro = deployment.maestro;
+        vault = deployment.vault;
+        contango = deployment.contango;
+        orderManager = deployment.orderManager;
+        oracle = deployment.oracle;
+        feeManager = deployment.feeManager;
+        tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
-        encoder = new Encoder(contango, IPool(aaveAddressProvider.getPool()));
+        encoder = new Encoder(contango, IPoolDataProvider(aaveAddressProvider.getPoolDataProvider()));
     }
 
 }
@@ -710,7 +781,7 @@ contract PolygonEnv is Env {
     }
 
     function init() public override {
-        init(POLYGON_BASE_BLOCK_NUMBER);
+        init(forkBlock(Network.Polygon));
     }
 
     function init(uint256 blockNumber) public virtual override {
@@ -719,9 +790,16 @@ contract PolygonEnv is Env {
         cleanTreasury();
         nativeToken = IWETH9(address(token(WMATIC)));
 
-        (maestro, vault, contango, quoter, orderManager, oracle, feeManager) = deployer.deployContango(this);
+        Deployment memory deployment = deployer.deployContango(this);
+        maestro = deployment.maestro;
+        vault = deployment.vault;
+        contango = deployment.contango;
+        orderManager = deployment.orderManager;
+        oracle = deployment.oracle;
+        feeManager = deployment.feeManager;
+        tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
-        encoder = new Encoder(contango, IPool(aaveAddressProvider.getPool()));
+        encoder = new Encoder(contango, IPoolDataProvider(aaveAddressProvider.getPoolDataProvider()));
     }
 
 }
@@ -744,6 +822,12 @@ contract MainnetEnv is Env {
             chainlinkUsdOracle: AggregatorV2V3Interface(0xAed0c38402a5d19df6E4c03F4E2DceD6e29c1ee9),
             hasPermit: false
         });
+        _erc20s[SDAI] = ERC20Data({
+            symbol: SDAI,
+            token: IERC20(0x83F20F44975D03b1b09e64809B757c47f942BEeA),
+            chainlinkUsdOracle: AggregatorV2V3Interface(0xb9E6DBFa4De19CCed908BcbFe1d015190678AB5f),
+            hasPermit: false
+        });
         _erc20s[USDC] = ERC20Data({
             symbol: USDC,
             token: IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48),
@@ -754,6 +838,24 @@ contract MainnetEnv is Env {
             symbol: WETH,
             token: IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2),
             chainlinkUsdOracle: AggregatorV2V3Interface(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419),
+            hasPermit: false
+        });
+        _erc20s[WBTC] = ERC20Data({
+            symbol: WBTC,
+            token: IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599),
+            chainlinkUsdOracle: AggregatorV2V3Interface(0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c), // BTC / USD
+            hasPermit: false
+        });
+        _erc20s[RETH] = ERC20Data({
+            symbol: RETH,
+            token: IERC20(0xae78736Cd615f374D3085123A210448E74Fc6393),
+            chainlinkUsdOracle: AggregatorV2V3Interface(0x05225Cd708bCa9253789C1374e4337a019e99D56),
+            hasPermit: false
+        });
+        _erc20s[GNO] = ERC20Data({
+            symbol: GNO,
+            token: IERC20(0x6810e776880C02933D47DB1b9fc05908e5386b96),
+            chainlinkUsdOracle: AggregatorV2V3Interface(0x4A7Ad931cb40b564A1C453545059131B126BC828),
             hasPermit: false
         });
 
@@ -767,16 +869,24 @@ contract MainnetEnv is Env {
     }
 
     function init() public override {
-        init(MAINNET_BASE_BLOCK_NUMBER);
+        init(forkBlock(Network.Mainnet));
     }
 
     function init(uint256 blockNumber) public override {
+        super.init(blockNumber);
         fork("mainnet", blockNumber);
         cleanTreasury();
 
-        (maestro, vault, contango, quoter, orderManager, oracle, feeManager) = deployer.deployContango(this);
+        Deployment memory deployment = deployer.deployContango(this);
+        maestro = deployment.maestro;
+        vault = deployment.vault;
+        contango = deployment.contango;
+        orderManager = deployment.orderManager;
+        oracle = deployment.oracle;
+        feeManager = deployment.feeManager;
+        tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
-        encoder = new Encoder(contango, IPool(aaveAddressProvider.getPool()));
+        encoder = new Encoder(contango, IPoolDataProvider(aaveAddressProvider.getPoolDataProvider()));
     }
 
 }

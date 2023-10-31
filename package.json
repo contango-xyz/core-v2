@@ -1,0 +1,13 @@
+{
+    "name": "@contango/core-v2",
+    "version": "1.0.0",
+    "license": "BUSL-1.1",
+    "homepage": "https://contango.xyz",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/contango-xyz/core-v2.git"
+    },
+    "workspaces": [
+        "sdk"
+    ]
+}
