@@ -66,7 +66,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
      */
     uint256[50_000 - 301] private __gap;
 
-    uint256[4] private __dead; // TODO kill if we re-deploy
+    uint256[4] private __dead; // Storage was replaced on this contract so we kill the slots to avoid dirty reads
     bytes32 private callbackHash;
     bytes32 private tradeHash;
     mapping(PositionId positionId => address owner) private lastOwner;

@@ -290,8 +290,12 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     function _gasCost() internal view virtual returns (uint256 gasCost) {
         // 21000 min tx gas (starting gasStart value) + gas used so far + 16 gas per byte of data + 60k for the 2 ERC20 transfers
         uint256 gasSpent = gasStart - gasleft() + GAS_PER_BYTE * msg.data.length + TWO_ERC20_TRANSFERS_GAS_ESTIMATE;
-        // gas spent @ (current baseFee + tip)
-        gasCost = gasSpent * (block.basefee + gasTip);
+
+        uint256 baseFee = block.basefee;
+        uint256 txTip = tx.gasprice - baseFee;
+
+        // gas spent @ (current baseFee + capped tip)
+        gasCost = gasSpent * (baseFee + Math.min(gasTip, txTip));
     }
 
 }

@@ -34,6 +34,8 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
      *
      * After adding some OZ mixins, we consumed 301 slots from the original 50k gap.
      */
+    uint256[50_000 - 301] private __gap;
+
     uint256[4] private __dead; // Storage was replaced on this contract so we kill the slots to avoid dirty reads
     mapping(IERC20 token => TokenData tokenData) private tokens;
 
