@@ -204,7 +204,7 @@ contract Deployer {
         deployment.feeManager = new FeeManager({
             _treasury: TREASURY,
             _vault: deployment.vault,
-            _feeModel: new FixedFeeModel(DEFAULT_TRADING_FEE),
+            _feeModel: new FixedFeeModel(TIMELOCK, DEFAULT_TRADING_FEE),
             _referralManager: new ReferralManager(TIMELOCK)
         });
         FeeManager(address(deployment.feeManager)).initialize(TIMELOCK);
