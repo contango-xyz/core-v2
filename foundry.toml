@@ -110,9 +110,6 @@ via_ir = false
 bytecode_hash = "none"
 cbor_metadata = false
 
-[profile.ci]
-fuzz.runs = 2000
-
 [profile.dev]
 optimizer = false
 # Whether contract build warnings will cause compilation to fail
@@ -124,12 +121,14 @@ optimism = "${OPTIMISM_URL}"
 polygon = "${POLYGON_URL}"
 localhost = "http://127.0.0.1:8545"
 mainnet = "${MAINNET_URL}"
+goerli = "${GOERLI_URL}"
 
 [etherscan]
 arbitrum = { key = "${ETHERSCAN_ARBITRUM_KEY}" }
 optimism = { key = "${ETHERSCAN_OPTIMISM_KEY}" }
 polygon = { key = "${ETHERSCAN_POLYGON_KEY}" }
 mainnet = { key = "${ETHERSCAN_MAINNET_KEY}" }
+goerli = { key = "${ETHERSCAN_GOERLI_KEY}" }
 
 [fmt]
 # Maximum line length where formatter will try to wrap the line

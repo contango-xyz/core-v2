@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.19;
 
-import "@aave/core-v3/contracts/interfaces/IPool.sol";
-import "@aave/core-v3/contracts/interfaces/IPoolDataProvider.sol";
+import { IPoolAddressesProvider } from "src/moneymarkets/aave/dependencies/IPoolAddressesProvider.sol";
+import { IPool } from "src/moneymarkets/aave/dependencies/IPool.sol";
 
 /**
  * @title IFlashLoanSimpleReceiver

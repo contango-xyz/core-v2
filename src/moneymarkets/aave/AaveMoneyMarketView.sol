@@ -3,10 +3,10 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "@aave/core-v3/contracts/interfaces/IAaveOracle.sol";
-import "@aave/core-v3/contracts/interfaces/IPool.sol";
-import "@aave/core-v3/contracts/interfaces/IPoolAddressesProvider.sol";
-import "@aave/core-v3/contracts/interfaces/IPoolDataProvider.sol";
+import "./dependencies/IAaveOracle.sol";
+import "./dependencies/IPool.sol";
+import "./dependencies/IPoolAddressesProvider.sol";
+import "./dependencies/IPoolDataProvider.sol";
 
 import "../interfaces/IMoneyMarketView.sol";
 import "../interfaces/IUnderlyingPositionFactory.sol";
@@ -64,7 +64,7 @@ contract AaveMoneyMarketView is IMoneyMarketView {
             positionId.getNumber() > 0 ? pool.getUserEMode(_account(positionId)) : _eModeCategory(collateralAsset, debtAsset);
 
         if (eModeCategory > 0) {
-            DataTypes.EModeCategory memory eModeCategoryData = pool.getEModeCategoryData(uint8(eModeCategory));
+            AaveDataTypes.EModeCategory memory eModeCategoryData = pool.getEModeCategoryData(uint8(eModeCategory));
             ltv = eModeCategoryData.ltv;
             liquidationThreshold = eModeCategoryData.liquidationThreshold;
         } else {

@@ -28,7 +28,13 @@ function proxyAddress(string memory name) pure returns (address payable) {
 
 MoneyMarketId constant MM_AAVE = MoneyMarketId.wrap(1);
 MoneyMarketId constant MM_COMPOUND = MoneyMarketId.wrap(2);
+// MoneyMarketId constant MM_YIELD = MoneyMarketId.wrap(3); // discontinued
 MoneyMarketId constant MM_EXACTLY = MoneyMarketId.wrap(4);
+MoneyMarketId constant MM_SONNE = MoneyMarketId.wrap(5);
+MoneyMarketId constant MM_SPARK = MoneyMarketId.wrap(7);
+MoneyMarketId constant MM_MORPHO_BLUE = MoneyMarketId.wrap(8);
 
 uint32 constant PERP = type(uint32).max;
 uint256 constant DEFAULT_SLIPPAGE_TOLERANCE = 0.001e4;
+
+address constant BOT = 0xC1AF33328E013d1c16e1Fd8b409E2a7cb6c11814;

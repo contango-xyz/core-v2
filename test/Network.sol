@@ -11,7 +11,8 @@ enum Network {
     Mainnet,
     Arbitrum,
     Optimism,
-    Polygon
+    Polygon,
+    Goerli
 }
 
 function toString(Network network) pure returns (string memory) {
@@ -19,6 +20,7 @@ function toString(Network network) pure returns (string memory) {
     if (network == Network.Optimism) return "optimism";
     if (network == Network.Polygon) return "matic";
     if (network == Network.Mainnet) return "mainnet";
+    if (network == Network.Goerli) return "goerli";
     if (network == Network.LocalhostArbitrum) return "localhost-arbitrum";
     if (network == Network.LocalhostOptimism) return "localhost-optimism";
     if (network == Network.LocalhostPolygon) return "localhost-matic";
@@ -54,6 +56,7 @@ function currentNetwork() view returns (Network) {
     if (block.chainid == 10) return Network.Optimism;
     if (block.chainid == 137) return Network.Polygon;
     if (block.chainid == 42_161) return Network.Arbitrum;
+    if (block.chainid == 5) return Network.Goerli;
     if (block.chainid == 31_337) return Network.LocalhostArbitrum;
     if (block.chainid == 31_338) return Network.LocalhostOptimism;
     if (block.chainid == 31_339) return Network.LocalhostMainnet;

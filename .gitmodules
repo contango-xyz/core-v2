@@ -7,12 +7,12 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "lib/aave-v3-core"]
-	path = lib/aave-v3-core
-	url = https://github.com/contango-xyz/aave-v3-core
 [submodule "lib/erc7399"]
 	path = lib/erc7399
 	url = https://github.com/alcueca/erc7399
 [submodule "lib/erc7399-wrappers"]
 	path = lib/erc7399-wrappers
 	url = https://github.com/alcueca/erc7399-wrappers
+[submodule "lib/morpho-blue"]
+	path = lib/morpho-blue
+	url = git@github.com:contango-xyz/morpho-blue
