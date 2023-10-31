@@ -8,6 +8,7 @@ error InvalidUInt32(uint256 n);
 error InvalidExpiry();
 error InvalidPositionId();
 
+//                                 { 5B: Payload  }
 //  16B   -      1B      -   4B   -  1B   -  4B   -  6B
 // symbol - money market - expiry - flags - empty - number
 
@@ -51,4 +52,8 @@ function withNumber(PositionId positionId, uint256 number) pure returns (Positio
 
 function getFlags(PositionId positionId) pure returns (bytes1) {
     return bytes1(PositionId.unwrap(positionId) << 168);
+}
+
+function getPayload(PositionId positionId) pure returns (Payload) {
+    return Payload.wrap(bytes5(PositionId.unwrap(positionId) << 168));
 }

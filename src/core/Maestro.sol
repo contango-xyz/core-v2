@@ -4,7 +4,6 @@ pragma solidity 0.8.20;
 import "@openzeppelin/contracts/utils/math/SignedMath.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { IPermit2 } from "../dependencies/Uniswap.sol";
@@ -15,12 +14,15 @@ import "../interfaces/IOrderManager.sol";
 import "../interfaces/IVault.sol";
 import "../libraries/Errors.sol";
 import "../libraries/Validations.sol";
+import "../libraries/ERC20Lib.sol";
+import "../utils/SimpleSpotExecutor.sol";
 
 contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
 
     using SignedMath for int256;
     using SafeCast for *;
     using SafeERC20 for IERC20Permit;
+    using ERC20Lib for *;
     using { validateCreatePositionPermissions, validateModifyPositionPermissions } for PositionNFT;
 
     bytes32 public constant UPPER_BIT_MASK = (0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
@@ -32,13 +34,22 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
     PositionNFT public immutable positionNFT;
     IWETH9 public immutable nativeToken;
     IPermit2 public immutable permit2;
+    SimpleSpotExecutor public immutable spotExecutor;
 
-    constructor(Timelock _timelock, IContango _contango, IOrderManager _orderManager, IVault _vault, IPermit2 _permit2) {
+    constructor(
+        Timelock _timelock,
+        IContango _contango,
+        IOrderManager _orderManager,
+        IVault _vault,
+        IPermit2 _permit2,
+        SimpleSpotExecutor _spotExecutor
+    ) {
         timelock = _timelock;
         contango = _contango;
         orderManager = _orderManager;
         vault = _vault;
         permit2 = _permit2;
+        spotExecutor = _spotExecutor;
         positionNFT = _contango.positionNFT();
         nativeToken = _vault.nativeToken();
     }
@@ -51,24 +62,25 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
         return vault.depositNative{ value: msg.value }(msg.sender);
     }
 
-    function depositWithPermit(IERC20Permit token, EIP2098Permit calldata permit) public override returns (uint256) {
-        address sender = msg.sender;
-
+    function applyPermit(IERC20Permit token, EIP2098Permit calldata permit, address spender) public {
         // Inspired by https://github.com/Uniswap/permit2/blob/main/src/libraries/SignatureVerification.sol
         token.safePermit({
-            owner: sender,
-            spender: address(vault),
+            owner: msg.sender,
+            spender: spender,
             value: permit.amount,
             deadline: permit.deadline,
             r: permit.r,
             v: uint8(uint256(permit.vs >> 255)) + 27,
             s: permit.vs & UPPER_BIT_MASK
         });
-
-        return vault.deposit(IERC20(address(token)), sender, permit.amount);
     }
 
-    function depositWithPermit2(IERC20 token, EIP2098Permit calldata permit) public override returns (uint256) {
+    function depositWithPermit(IERC20Permit token, EIP2098Permit calldata permit) public override returns (uint256) {
+        applyPermit(token, permit, address(vault));
+        return deposit(IERC20(address(token)), permit.amount);
+    }
+
+    function usePermit2(IERC20 token, EIP2098Permit calldata permit, address to) public {
         address sender = msg.sender;
         permit2.permitTransferFrom({
             permit: IPermit2.PermitTransferFrom({
@@ -76,12 +88,48 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
                 nonce: uint256(keccak256(abi.encode(sender, token, permit.amount, permit.deadline))),
                 deadline: permit.deadline
             }),
-            transferDetails: IPermit2.SignatureTransferDetails({ to: address(vault), requestedAmount: permit.amount }),
+            transferDetails: IPermit2.SignatureTransferDetails({ to: to, requestedAmount: permit.amount }),
             owner: sender,
             signature: abi.encodePacked(permit.r, permit.vs)
         });
+    }
 
-        return vault.deposit(token, sender, permit.amount);
+    function depositWithPermit2(IERC20 token, EIP2098Permit calldata permit) public override returns (uint256) {
+        usePermit2(token, permit, address(vault));
+        return deposit(token, permit.amount);
+    }
+
+    function _swapAndDeposit(address payer, IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap) internal returns (uint256) {
+        if (payer != address(0)) tokenToSell.transferOut(payer, address(spotExecutor), swap.swapAmount);
+        uint256 output = spotExecutor.executeSwap(tokenToSell, tokenToDeposit, swap, address(vault));
+        return deposit(tokenToDeposit, output);
+    }
+
+    function swapAndDeposit(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap) public override returns (uint256) {
+        return _swapAndDeposit(msg.sender, tokenToSell, tokenToDeposit, swap);
+    }
+
+    function swapAndDepositNative(IERC20 tokenToDeposit, Swap calldata swap) public payable override returns (uint256) {
+        nativeToken.deposit{ value: msg.value }();
+        return _swapAndDeposit(address(this), nativeToken, tokenToDeposit, swap);
+    }
+
+    function swapAndDepositWithPermit(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap, EIP2098Permit calldata permit)
+        public
+        override
+        returns (uint256)
+    {
+        applyPermit(IERC20Permit(address(tokenToSell)), permit, address(this));
+        return _swapAndDeposit(msg.sender, tokenToSell, tokenToDeposit, swap);
+    }
+
+    function swapAndDepositWithPermit2(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap, EIP2098Permit calldata permit)
+        public
+        override
+        returns (uint256)
+    {
+        usePermit2(tokenToSell, permit, address(spotExecutor));
+        return _swapAndDeposit(address(0), tokenToSell, tokenToDeposit, swap);
     }
 
     function withdraw(IERC20 token, uint256 amount, address to) public override returns (uint256) {
@@ -92,8 +140,22 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
         return vault.withdrawNative(msg.sender, amount, to);
     }
 
-    function trade(TradeParams calldata tradeParams, ExecutionParams calldata execParams) public returns (PositionId, Trade memory) {
+    function swapAndWithdraw(IERC20 tokenToSell, IERC20 tokenToReceive, Swap calldata swap, address to) public returns (uint256) {
+        withdraw(tokenToSell, swap.swapAmount, address(spotExecutor));
+        return spotExecutor.executeSwap(tokenToSell, tokenToReceive, swap, to);
+    }
+
+    function swapAndWithdrawNative(IERC20 tokenToSell, Swap calldata swap, address payable to) public returns (uint256 output) {
+        withdraw(tokenToSell, swap.swapAmount, address(spotExecutor));
+        output = spotExecutor.executeSwap(tokenToSell, nativeToken, swap, address(this));
+        nativeToken.transferOutNative(to, output);
+    }
+
+    function trade(TradeParams memory tradeParams, ExecutionParams calldata execParams) public returns (PositionId, Trade memory) {
         if (positionNFT.exists(tradeParams.positionId)) positionNFT.validateModifyPositionPermissions(tradeParams.positionId);
+        if (tradeParams.cashflow == type(int256).max) {
+            tradeParams.cashflow = vault.balanceOf(_cashflowToken(tradeParams), msg.sender).toInt256();
+        }
         return contango.tradeOnBehalfOf(tradeParams, execParams, msg.sender);
     }
 
@@ -102,9 +164,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
         payable
         returns (PositionId, Trade memory)
     {
-        Instrument memory instrument = contango.instrument(tradeParams.positionId.getSymbol());
-        IERC20 cashflowToken = tradeParams.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
-        _deposit(cashflowToken, tradeParams.cashflow.toUint256());
+        _deposit(_cashflowToken(tradeParams), tradeParams.cashflow.toUint256());
         return trade(tradeParams, execParams);
     }
 
@@ -114,11 +174,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
         returns (PositionId, Trade memory)
     {
         _validatePermitAmount(tradeParams.cashflow, permit);
-
-        Instrument memory instrument = contango.instrument(tradeParams.positionId.getSymbol());
-        IERC20Permit cashflowToken = IERC20Permit(address(tradeParams.cashflowCcy == Currency.Base ? instrument.base : instrument.quote));
-
-        depositWithPermit(cashflowToken, permit);
+        depositWithPermit(IERC20Permit(address(_cashflowToken(tradeParams))), permit);
         return trade(tradeParams, execParams);
     }
 
@@ -157,6 +213,26 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
                 withdraw(cashflowToken, amount, to);
             }
         }
+    }
+
+    function tradeAndLinkedOrder(
+        TradeParams calldata tradeParams,
+        ExecutionParams calldata execParams,
+        LinkedOrderParams memory linkedOrderParams
+    ) external payable returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId) {
+        (positionId, trade_) = trade(tradeParams, execParams);
+        linkedOrderId = placeLinkedOrder(positionId, linkedOrderParams);
+    }
+
+    function tradeAndLinkedOrders(
+        TradeParams calldata tradeParams,
+        ExecutionParams calldata execParams,
+        LinkedOrderParams memory linkedOrderParams1,
+        LinkedOrderParams memory linkedOrderParams2
+    ) external payable returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId1, OrderId linkedOrderId2) {
+        (positionId, trade_) = trade(tradeParams, execParams);
+        linkedOrderId1 = placeLinkedOrder(positionId, linkedOrderParams1);
+        linkedOrderId2 = placeLinkedOrder(positionId, linkedOrderParams2);
     }
 
     function depositTradeAndLinkedOrder(
@@ -324,6 +400,15 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
 
     function _authorizeUpgrade(address) internal virtual override {
         if (msg.sender != Timelock.unwrap(timelock)) revert Unauthorised(msg.sender);
+    }
+
+    function _cashflowToken(TradeParams memory tradeParams) internal view returns (IERC20 cashflowToken) {
+        Instrument memory instrument = contango.instrument(tradeParams.positionId.getSymbol());
+        cashflowToken = tradeParams.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
+    }
+
+    receive() external payable {
+        if (msg.sender != address(nativeToken)) revert SenderIsNotNativeToken(msg.sender, address(nativeToken));
     }
 
 }

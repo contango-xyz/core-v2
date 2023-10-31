@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 import "../libraries/DataTypes.sol";
 import "../interfaces/IOrderManager.sol";
+import "../utils/SimpleSpotExecutor.sol";
 
 struct LinkedOrderParams {
     uint128 limitPrice; // in quote currency
@@ -69,6 +70,31 @@ interface IMaestro is IContangoErrors, IOrderManagerErrors, IVaultErrors {
     function tradeAndWithdrawNative(TradeParams calldata tradeParams, ExecutionParams calldata execParams, address to)
         external
         returns (PositionId positionId, Trade memory trade_, uint256 amount);
+
+    function swapAndDeposit(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap) external returns (uint256);
+
+    function swapAndDepositNative(IERC20 tokenToDeposit, Swap calldata swap) external payable returns (uint256);
+
+    function swapAndDepositWithPermit(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap, EIP2098Permit calldata permit)
+        external
+        returns (uint256);
+
+    function swapAndDepositWithPermit2(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap, EIP2098Permit calldata permit)
+        external
+        returns (uint256);
+
+    function tradeAndLinkedOrder(
+        TradeParams calldata tradeParams,
+        ExecutionParams calldata execParams,
+        LinkedOrderParams memory linkedOrderParams
+    ) external payable returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId);
+
+    function tradeAndLinkedOrders(
+        TradeParams calldata tradeParams,
+        ExecutionParams calldata execParams,
+        LinkedOrderParams memory linkedOrderParams1,
+        LinkedOrderParams memory linkedOrderParams2
+    ) external payable returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId1, OrderId linkedOrderId2);
 
     function depositTradeAndLinkedOrder(
         TradeParams calldata tradeParams,

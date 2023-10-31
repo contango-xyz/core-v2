@@ -59,4 +59,8 @@ library ERC20Lib {
         return 10 ** token.decimals();
     }
 
+    function infiniteApproval(IERC20 token, address addr) internal {
+        token.forceApprove(addr, type(uint256).max);
+    }
+
 }

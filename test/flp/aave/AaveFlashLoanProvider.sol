@@ -2,8 +2,9 @@
 // Thanks to ultrasecr.eth
 pragma solidity ^0.8.19;
 
-import "@aave/core-v3/contracts/interfaces/IPool.sol";
-import "@aave/core-v3/contracts/interfaces/IPoolDataProvider.sol";
+import { IPool } from "src/moneymarkets/aave/dependencies/IPool.sol";
+import { IPoolDataProvider } from "src/moneymarkets/aave/dependencies/IPoolDataProvider.sol";
+import { IPoolAddressesProvider } from "src/moneymarkets/aave/dependencies/IPoolAddressesProvider.sol";
 import { IFlashLoanSimpleReceiver } from "./interfaces/IFlashLoanSimpleReceiver.sol";
 
 import "../BaseWrapper.sol";

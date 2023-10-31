@@ -16,9 +16,13 @@ enum Currency {
 
 type Symbol is bytes16;
 
+type Payload is bytes5;
+
 type PositionId is bytes32;
 
-using { decode, getSymbol, getNumber, getMoneyMarket, getExpiry, isPerp, isExpired, withNumber, getFlags } for PositionId global;
+using {
+    decode, getSymbol, getNumber, getMoneyMarket, getExpiry, isPerp, isExpired, withNumber, getFlags, getPayload
+} for PositionId global;
 
 type OrderId is bytes32;
 

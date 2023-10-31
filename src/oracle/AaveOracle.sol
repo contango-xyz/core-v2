@@ -3,8 +3,8 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "@aave/core-v3/contracts/interfaces/IAaveOracle.sol";
-import "@aave/core-v3/contracts/interfaces/IPoolAddressesProvider.sol";
+import "../moneymarkets/aave/dependencies/IAaveOracle.sol";
+import "../moneymarkets/aave/dependencies/IPoolAddressesProvider.sol";
 
 import "../libraries/Arrays.sol";
 import "../interfaces/IOracle.sol";
