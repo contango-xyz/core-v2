@@ -93,11 +93,12 @@ contract MaestroTest is BaseTest {
         assertEq(vault.balanceOf(usdc, TRADER), 10_000e6, "trader vault balance");
     }
 
-    function _swap(IERC20 from, IERC20 to, uint256 amount, address recipient) internal view returns (Swap memory) {
-        return Swap({
+    function _swap(IERC20 from, IERC20 to, uint256 amount, address recipient) internal view returns (SwapData memory) {
+        return SwapData({
             router: address(router),
             spender: address(router),
-            swapAmount: amount,
+            amountIn: amount,
+            minAmountOut: 0, // UI's problem
             swapBytes: abi.encodeWithSelector(
                 router.exactInput.selector,
                 SwapRouter02.ExactInputParams({
@@ -114,10 +115,10 @@ contract MaestroTest is BaseTest {
         uint256 amount = 10 ether;
         env.dealAndApprove(weth, TRADER, amount, address(maestro));
 
-        Swap memory swap = _swap(weth, usdc, amount, spotExecutor);
+        SwapData memory swapData = _swap(weth, usdc, amount, spotExecutor);
 
         vm.prank(TRADER);
-        maestro.swapAndDeposit(weth, usdc, swap);
+        maestro.swapAndDeposit(weth, usdc, swapData);
 
         assertEq(vault.balanceOf(usdc, TRADER), 10_000e6, "trader vault balance");
     }
@@ -126,10 +127,10 @@ contract MaestroTest is BaseTest {
         uint256 amount = 10 ether;
         vm.deal(TRADER, amount);
 
-        Swap memory swap = _swap(weth, usdc, amount, spotExecutor);
+        SwapData memory swapData = _swap(weth, usdc, amount, spotExecutor);
 
         vm.prank(TRADER);
-        maestro.swapAndDepositNative{ value: amount }(usdc, swap);
+        maestro.swapAndDepositNative{ value: amount }(usdc, swapData);
 
         assertEq(vault.balanceOf(usdc, TRADER), 10_000e6, "trader vault balance");
     }
@@ -137,12 +138,12 @@ contract MaestroTest is BaseTest {
     function testSwapAndDepositWithPermit() public {
         uint256 amount = 10 ether;
 
-        Swap memory swap = _swap(weth, usdc, amount, spotExecutor);
+        SwapData memory swapData = _swap(weth, usdc, amount, spotExecutor);
 
         EIP2098Permit memory signedPermit = env.dealAndPermit(weth, TRADER, TRADER_PK, amount, address(maestro));
 
         vm.prank(TRADER);
-        maestro.swapAndDepositWithPermit(weth, usdc, swap, signedPermit);
+        maestro.swapAndDepositWithPermit(weth, usdc, swapData, signedPermit);
 
         assertEq(vault.balanceOf(usdc, TRADER), 10_000e6, "trader vault balance");
     }
@@ -150,12 +151,12 @@ contract MaestroTest is BaseTest {
     function testSwapAndDepositWithPermit2() public {
         uint256 amount = 10 ether;
 
-        Swap memory swap = _swap(weth, usdc, amount, spotExecutor);
+        SwapData memory swapData = _swap(weth, usdc, amount, spotExecutor);
 
         EIP2098Permit memory signedPermit = env.dealAndPermit2(weth, TRADER, TRADER_PK, amount, address(maestro));
 
         vm.prank(TRADER);
-        maestro.swapAndDepositWithPermit2(weth, usdc, swap, signedPermit);
+        maestro.swapAndDepositWithPermit2(weth, usdc, swapData, signedPermit);
 
         assertEq(vault.balanceOf(usdc, TRADER), 10_000e6, "trader vault balance");
     }
@@ -210,10 +211,10 @@ contract MaestroTest is BaseTest {
         vm.prank(TRADER);
         maestro.deposit(usdc, amount);
 
-        Swap memory swap = _swap(usdc, weth, amount, spotExecutor);
+        SwapData memory swapData = _swap(usdc, weth, amount, spotExecutor);
 
         vm.prank(TRADER);
-        maestro.swapAndWithdraw(usdc, weth, swap, TRADER);
+        maestro.swapAndWithdraw(usdc, weth, swapData, TRADER);
 
         assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
         assertEq(weth.balanceOf(TRADER), 10 ether, "trader balance");
@@ -226,10 +227,10 @@ contract MaestroTest is BaseTest {
         vm.prank(TRADER);
         maestro.deposit(usdc, amount);
 
-        Swap memory swap = _swap(usdc, weth, amount, spotExecutor);
+        SwapData memory swapData = _swap(usdc, weth, amount, spotExecutor);
 
         vm.prank(TRADER);
-        maestro.swapAndWithdrawNative(usdc, swap, TRADER);
+        maestro.swapAndWithdrawNative(usdc, swapData, TRADER);
 
         assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
         assertEq(TRADER.balance, 10 ether, "trader balance");

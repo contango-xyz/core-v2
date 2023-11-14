@@ -3,23 +3,37 @@ pragma solidity 0.8.20;
 
 import "../libraries/ERC20Lib.sol";
 
-struct Swap {
-    address router;
-    address spender;
-    uint256 swapAmount;
-    bytes swapBytes;
-}
-
-contract SimpleSpotExecutor {
+interface SimpleSpotExecutorEvents {
 
     event SwapExecuted(address indexed tokenToSell, address indexed tokenToBuy, uint256 amountIn, uint256 amountOut);
 
-    function executeSwap(IERC20 tokenToSell, IERC20 tokenToBuy, Swap calldata swap, address to) external returns (uint256 output) {
-        SafeERC20.forceApprove(tokenToSell, swap.spender, swap.swapAmount);
-        Address.functionCall(swap.router, swap.swapBytes);
+}
+
+interface SimpleSpotExecutorErrors {
+
+    error InsufficientAmountOut(uint256 minExpected, uint256 actual);
+
+}
+
+contract SimpleSpotExecutor is SimpleSpotExecutorEvents, SimpleSpotExecutorErrors {
+
+    function executeSwap(
+        IERC20 tokenToSell,
+        IERC20 tokenToBuy,
+        address spender,
+        uint256 amountIn,
+        uint256 minAmountOut,
+        address router,
+        bytes calldata swapBytes,
+        address to
+    ) external returns (uint256 output) {
+        SafeERC20.forceApprove(tokenToSell, spender, amountIn);
+        Address.functionCall(router, swapBytes);
 
         output = ERC20Lib.transferBalance(tokenToBuy, to);
-        emit SwapExecuted(address(tokenToSell), address(tokenToBuy), swap.swapAmount, output);
+        if (output < minAmountOut) revert InsufficientAmountOut(minAmountOut, output);
+
+        emit SwapExecuted(address(tokenToSell), address(tokenToBuy), amountIn, output);
     }
 
 }

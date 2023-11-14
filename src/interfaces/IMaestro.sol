@@ -23,6 +23,14 @@ struct EIP2098Permit {
     bytes32 vs;
 }
 
+struct SwapData {
+    address router;
+    address spender;
+    uint256 amountIn;
+    uint256 minAmountOut;
+    bytes swapBytes;
+}
+
 interface IMaestro is IContangoErrors, IOrderManagerErrors, IVaultErrors {
 
     error InvalidCashflow();
@@ -71,15 +79,15 @@ interface IMaestro is IContangoErrors, IOrderManagerErrors, IVaultErrors {
         external
         returns (PositionId positionId, Trade memory trade_, uint256 amount);
 
-    function swapAndDeposit(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap) external returns (uint256);
+    function swapAndDeposit(IERC20 tokenToSell, IERC20 tokenToDeposit, SwapData calldata swapData) external returns (uint256);
 
-    function swapAndDepositNative(IERC20 tokenToDeposit, Swap calldata swap) external payable returns (uint256);
+    function swapAndDepositNative(IERC20 tokenToDeposit, SwapData calldata swapData) external payable returns (uint256);
 
-    function swapAndDepositWithPermit(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap, EIP2098Permit calldata permit)
+    function swapAndDepositWithPermit(IERC20 tokenToSell, IERC20 tokenToDeposit, SwapData calldata swapData, EIP2098Permit calldata permit)
         external
         returns (uint256);
 
-    function swapAndDepositWithPermit2(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap, EIP2098Permit calldata permit)
+    function swapAndDepositWithPermit2(IERC20 tokenToSell, IERC20 tokenToDeposit, SwapData calldata swapData, EIP2098Permit calldata permit)
         external
         returns (uint256);
 
