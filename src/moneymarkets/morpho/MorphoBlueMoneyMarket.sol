@@ -74,7 +74,7 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
         Id marketId = reverseLookup.marketId(positionId.getPayload());
         MarketParams memory marketParams = morpho.idToMarketParams(marketId);
 
-        morpho.accrueInterest(marketParams); // Accrue interest before before loading the market state
+        morpho.accrueInterest(marketParams); // Accrue interest before loading the market state
         Market memory market = morpho.market(marketId);
 
         (, uint256 borrowShares,) = morpho.position(marketId, address(this));
