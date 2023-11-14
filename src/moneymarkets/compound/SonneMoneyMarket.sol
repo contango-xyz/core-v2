@@ -12,7 +12,6 @@ contract SonneMoneyMarket is BaseMoneyMarket {
 
     using ERC20Lib for IERC20;
     using SafeERC20 for IERC20;
-    using ERC20Lib for IERC20;
 
     error FailedToBorrow(Error _error);
     error FailedToRepay(Error _error);
