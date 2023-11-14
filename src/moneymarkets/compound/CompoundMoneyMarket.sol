@@ -12,7 +12,6 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
 
     using ERC20Lib for IERC20;
     using SafeERC20 for IERC20;
-    using ERC20Lib for IERC20;
 
     error FailedToBorrow(Error _error);
     error FailedToRepay(Error _error);
@@ -102,6 +101,8 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
             IUniswapAnchoredView(comptroller.oracle()).getTokenConfigByUnderlying(asset == nativeToken ? address(0) : address(asset)).cToken;
     }
 
-    receive() external payable { }
+    receive() external payable {
+        // allow native token
+    }
 
 }
