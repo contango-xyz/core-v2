@@ -99,37 +99,49 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
         return deposit(token, permit.amount);
     }
 
-    function _swapAndDeposit(address payer, IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap) internal returns (uint256) {
-        if (payer != address(0)) tokenToSell.transferOut(payer, address(spotExecutor), swap.swapAmount);
-        uint256 output = spotExecutor.executeSwap(tokenToSell, tokenToDeposit, swap, address(vault));
+    function _swapAndDeposit(address payer, IERC20 tokenToSell, IERC20 tokenToDeposit, SwapData calldata swapData)
+        internal
+        returns (uint256)
+    {
+        if (payer != address(0)) tokenToSell.transferOut(payer, address(spotExecutor), swapData.amountIn);
+        uint256 output = spotExecutor.executeSwap({
+            tokenToSell: tokenToSell,
+            tokenToBuy: tokenToDeposit,
+            spender: swapData.spender,
+            amountIn: swapData.amountIn,
+            minAmountOut: swapData.minAmountOut,
+            router: swapData.router,
+            swapBytes: swapData.swapBytes,
+            to: address(vault)
+        });
         return deposit(tokenToDeposit, output);
     }
 
-    function swapAndDeposit(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap) public override returns (uint256) {
-        return _swapAndDeposit(msg.sender, tokenToSell, tokenToDeposit, swap);
+    function swapAndDeposit(IERC20 tokenToSell, IERC20 tokenToDeposit, SwapData calldata swapData) public override returns (uint256) {
+        return _swapAndDeposit(msg.sender, tokenToSell, tokenToDeposit, swapData);
     }
 
-    function swapAndDepositNative(IERC20 tokenToDeposit, Swap calldata swap) public payable override returns (uint256) {
+    function swapAndDepositNative(IERC20 tokenToDeposit, SwapData calldata swapData) public payable override returns (uint256) {
         nativeToken.deposit{ value: msg.value }();
-        return _swapAndDeposit(address(this), nativeToken, tokenToDeposit, swap);
+        return _swapAndDeposit(address(this), nativeToken, tokenToDeposit, swapData);
     }
 
-    function swapAndDepositWithPermit(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap, EIP2098Permit calldata permit)
+    function swapAndDepositWithPermit(IERC20 tokenToSell, IERC20 tokenToDeposit, SwapData calldata swapData, EIP2098Permit calldata permit)
         public
         override
         returns (uint256)
     {
         applyPermit(IERC20Permit(address(tokenToSell)), permit, address(this));
-        return _swapAndDeposit(msg.sender, tokenToSell, tokenToDeposit, swap);
+        return _swapAndDeposit(msg.sender, tokenToSell, tokenToDeposit, swapData);
     }
 
-    function swapAndDepositWithPermit2(IERC20 tokenToSell, IERC20 tokenToDeposit, Swap calldata swap, EIP2098Permit calldata permit)
+    function swapAndDepositWithPermit2(IERC20 tokenToSell, IERC20 tokenToDeposit, SwapData calldata swapData, EIP2098Permit calldata permit)
         public
         override
         returns (uint256)
     {
         usePermit2(tokenToSell, permit, address(spotExecutor));
-        return _swapAndDeposit(address(0), tokenToSell, tokenToDeposit, swap);
+        return _swapAndDeposit(address(0), tokenToSell, tokenToDeposit, swapData);
     }
 
     function withdraw(IERC20 token, uint256 amount, address to) public override returns (uint256) {
@@ -140,14 +152,32 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
         return vault.withdrawNative(msg.sender, amount, to);
     }
 
-    function swapAndWithdraw(IERC20 tokenToSell, IERC20 tokenToReceive, Swap calldata swap, address to) public returns (uint256) {
-        withdraw(tokenToSell, swap.swapAmount, address(spotExecutor));
-        return spotExecutor.executeSwap(tokenToSell, tokenToReceive, swap, to);
+    function swapAndWithdraw(IERC20 tokenToSell, IERC20 tokenToReceive, SwapData calldata swapData, address to) public returns (uint256) {
+        withdraw(tokenToSell, swapData.amountIn, address(spotExecutor));
+        return spotExecutor.executeSwap({
+            tokenToSell: tokenToSell,
+            tokenToBuy: tokenToReceive,
+            spender: swapData.spender,
+            amountIn: swapData.amountIn,
+            minAmountOut: swapData.minAmountOut,
+            router: swapData.router,
+            swapBytes: swapData.swapBytes,
+            to: to
+        });
     }
 
-    function swapAndWithdrawNative(IERC20 tokenToSell, Swap calldata swap, address payable to) public returns (uint256 output) {
-        withdraw(tokenToSell, swap.swapAmount, address(spotExecutor));
-        output = spotExecutor.executeSwap(tokenToSell, nativeToken, swap, address(this));
+    function swapAndWithdrawNative(IERC20 tokenToSell, SwapData calldata swapData, address payable to) public returns (uint256 output) {
+        withdraw(tokenToSell, swapData.amountIn, address(spotExecutor));
+        output = spotExecutor.executeSwap({
+            tokenToSell: tokenToSell,
+            tokenToBuy: nativeToken,
+            spender: swapData.spender,
+            amountIn: swapData.amountIn,
+            minAmountOut: swapData.minAmountOut,
+            router: swapData.router,
+            swapBytes: swapData.swapBytes,
+            to: address(this)
+        });
         nativeToken.transferOutNative(to, output);
     }
 
