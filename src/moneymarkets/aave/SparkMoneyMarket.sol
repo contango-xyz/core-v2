@@ -8,6 +8,8 @@ contract SparkMoneyMarket is AaveMoneyMarket {
 
     using ERC20Lib for *;
 
+    uint256 public constant DAI_USDC_UNIT_DIFF = 1e12;
+
     IERC20 public immutable dai;
     ISDAI public immutable sDAI;
     IERC20 public immutable usdc;
@@ -48,14 +50,16 @@ contract SparkMoneyMarket is AaveMoneyMarket {
     function _collateralBalance(PositionId positionId, IERC20 asset) internal view virtual override returns (uint256 balance) {
         if (asset == usdc || asset == dai) {
             balance = sDAI.previewRedeem(super._collateralBalance(positionId, sDAI));
-            if (asset == usdc) balance /= 1e12;
+            if (asset == usdc) balance /= DAI_USDC_UNIT_DIFF;
         } else {
             balance = super._collateralBalance(positionId, asset);
         }
     }
 
     function debtBalance(PositionId positionId, IERC20 asset) public view virtual override returns (uint256 balance) {
-        balance = asset == usdc ? (super.debtBalance(positionId, dai) + 1e12 - 1) / 1e12 : super.debtBalance(positionId, asset);
+        balance = asset == usdc
+            ? (super.debtBalance(positionId, dai) + DAI_USDC_UNIT_DIFF - 1) / DAI_USDC_UNIT_DIFF
+            : super.debtBalance(positionId, asset);
     }
 
     function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
@@ -64,7 +68,7 @@ contract SparkMoneyMarket is AaveMoneyMarket {
 
             if (asset == usdc) {
                 psm.sellGem(address(this), amount);
-                amount *= 1e12;
+                amount *= DAI_USDC_UNIT_DIFF;
             }
 
             super._lend(positionId, sDAI, sDAI.deposit(amount, address(this)), address(this));
@@ -80,7 +84,7 @@ contract SparkMoneyMarket is AaveMoneyMarket {
         returns (uint256 actualAmount)
     {
         if (asset == usdc) {
-            actualAmount = super._borrow(positionId, dai, amount * 1e12, address(this)) / 1e12;
+            actualAmount = super._borrow(positionId, dai, amount * DAI_USDC_UNIT_DIFF, address(this)) / DAI_USDC_UNIT_DIFF;
             psm.buyGem(to, amount);
         } else {
             actualAmount = super._borrow(positionId, asset, amount, to);
@@ -97,7 +101,7 @@ contract SparkMoneyMarket is AaveMoneyMarket {
             actualAmount = Math.min(amount, debtBalance(positionId, asset));
             asset.transferOut(payer, address(this), actualAmount);
             psm.sellGem(address(this), actualAmount);
-            super._repay(positionId, dai, actualAmount * 1e12, address(this));
+            super._repay(positionId, dai, actualAmount * DAI_USDC_UNIT_DIFF, address(this));
         } else {
             actualAmount = super._repay(positionId, asset, amount, payer);
         }
@@ -106,13 +110,15 @@ contract SparkMoneyMarket is AaveMoneyMarket {
     function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
         if (asset == usdc || asset == dai) {
             actualAmount = sDAI.redeem({
-                shares: super._withdraw(positionId, sDAI, sDAI.previewWithdraw(asset == usdc ? amount * 1e12 : amount), address(this)),
+                shares: super._withdraw(
+                    positionId, sDAI, sDAI.previewWithdraw(asset == usdc ? amount * DAI_USDC_UNIT_DIFF : amount), address(this)
+                    ),
                 receiver: asset == usdc ? address(this) : to,
                 owner: address(this)
             });
 
             if (asset == usdc) {
-                actualAmount /= 1e12;
+                actualAmount /= DAI_USDC_UNIT_DIFF;
                 psm.buyGem(to, actualAmount);
             }
         } else {
@@ -136,7 +142,7 @@ contract SparkMoneyMarket is AaveMoneyMarket {
     ) public virtual override returns (bytes memory result) {
         bool isUsdc = asset == usdc;
         asset = isUsdc ? dai : asset;
-        amount = isUsdc ? amount * 1e12 : amount;
+        amount = isUsdc ? amount * DAI_USDC_UNIT_DIFF : amount;
 
         return _flashBorrow(asset, amount, abi.encode(MetaParamsSpark({ params: params, callback: callback, isUsdc: isUsdc })));
     }
@@ -153,7 +159,7 @@ contract SparkMoneyMarket is AaveMoneyMarket {
     {
         MetaParamsSpark memory metaParams = abi.decode(metaParamsBytes, (MetaParamsSpark));
         asset = metaParams.isUsdc ? usdc : IERC20(assets[0]);
-        amount = metaParams.isUsdc ? amounts[0] / 1e12 : amounts[0];
+        amount = metaParams.isUsdc ? amounts[0] / DAI_USDC_UNIT_DIFF : amounts[0];
 
         if (metaParams.isUsdc) psm.buyGem(address(this), amount);
 
