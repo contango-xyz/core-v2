@@ -25,7 +25,7 @@ contract MorphoBlueReverseLookup is MorphoBlueReverseLookupEvents, MorphoBlueRev
 
     IMorpho public immutable morpho;
 
-    uint256 public nextPayload = 1;
+    uint40 public nextPayload = 1;
     mapping(Payload payload => Id marketId) private _marketIds;
     mapping(Id marketId => Payload payload) private _payloads;
 
@@ -38,7 +38,7 @@ contract MorphoBlueReverseLookup is MorphoBlueReverseLookupEvents, MorphoBlueRev
         if (morpho.idToMarketParams(_marketId).loanToken == IERC20(address(0))) revert InvalidMarketId(_marketId);
         if (Payload.unwrap(_payloads[_marketId]) != bytes5(0)) revert MarkerAlreadySet(_marketId, _payloads[_marketId]);
 
-        payload = Payload.wrap(bytes5(uint40(nextPayload++)));
+        payload = Payload.wrap(bytes5(nextPayload++));
         _marketIds[payload] = _marketId;
         _payloads[_marketId] = payload;
         emit MarketSet(payload, _marketId);
