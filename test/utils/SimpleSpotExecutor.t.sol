@@ -37,7 +37,7 @@ contract SimpleSpotExecutorTest is SimpleSpotExecutorEvents, SimpleSpotExecutorE
 
         // expect
         vm.expectEmit(true, true, true, true);
-        emit SwapExecuted(address(tokenA), address(tokenB), amountIn, amountOut);
+        emit SwapExecuted(tokenA, tokenB, amountIn, amountOut);
 
         // when
         sut.executeSwap({

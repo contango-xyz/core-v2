@@ -5,7 +5,7 @@ import "../libraries/ERC20Lib.sol";
 
 interface SimpleSpotExecutorEvents {
 
-    event SwapExecuted(address indexed tokenToSell, address indexed tokenToBuy, uint256 amountIn, uint256 amountOut);
+    event SwapExecuted(IERC20 indexed tokenToSell, IERC20 indexed tokenToBuy, uint256 amountIn, uint256 amountOut);
 
 }
 
@@ -33,7 +33,7 @@ contract SimpleSpotExecutor is SimpleSpotExecutorEvents, SimpleSpotExecutorError
         output = ERC20Lib.transferBalance(tokenToBuy, to);
         if (output < minAmountOut) revert InsufficientAmountOut(minAmountOut, output);
 
-        emit SwapExecuted(address(tokenToSell), address(tokenToBuy), amountIn, output);
+        emit SwapExecuted(tokenToSell, tokenToBuy, amountIn, output);
     }
 
 }
