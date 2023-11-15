@@ -28,7 +28,6 @@ import "src/moneymarkets/exactly/ExactlyMoneyMarket.sol";
 import "src/moneymarkets/exactly/ExactlyMoneyMarketView.sol";
 import "src/moneymarkets/compound/CompoundMoneyMarket.sol";
 import "src/moneymarkets/compound/CompoundMoneyMarketView.sol";
-import "src/moneymarkets/compound/SonneMoneyMarket.sol";
 import "src/moneymarkets/compound/SonneMoneyMarketView.sol";
 import "src/moneymarkets/morpho/MorphoBlueMoneyMarket.sol";
 import "src/moneymarkets/morpho/MorphoBlueMoneyMarketView.sol";
@@ -219,21 +218,22 @@ contract Deployer {
         moneyMarket = new CompoundMoneyMarket({
             _moneyMarketId: MM_COMPOUND,
             _contango: contango,
-            _comptroller: env.compoundComptroller(),
+            _reverseLookup: new CompoundReverseLookup(TIMELOCK, env.compoundComptroller(), env.nativeToken()),
             _nativeToken: env.nativeToken()
         });
         UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
         moneyMarket = CompoundMoneyMarket(payable(address(new ImmutableBeaconProxy(beacon))));
     }
 
-    function deploySonneMoneyMarket(Env env, IContango contango) public returns (SonneMoneyMarket moneyMarket) {
-        moneyMarket = new SonneMoneyMarket({
+    function deploySonneMoneyMarket(Env env, IContango contango) public returns (CompoundMoneyMarket moneyMarket) {
+        moneyMarket = new CompoundMoneyMarket({
             _moneyMarketId: MM_SONNE,
             _contango: contango,
-            _comptroller: env.compoundComptroller()
+            _reverseLookup: new CompoundReverseLookup(TIMELOCK, env.compoundComptroller(), IWETH9(address(0))),
+            _nativeToken: IWETH9(address(0))
         });
         UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
-        moneyMarket = SonneMoneyMarket(payable(address(new ImmutableBeaconProxy(beacon))));
+        moneyMarket = CompoundMoneyMarket(payable(address(new ImmutableBeaconProxy(beacon))));
     }
 
     function deployMorphoBlueMoneyMarket(Env env, IContango contango) public returns (MorphoBlueMoneyMarket moneyMarket) {
@@ -288,16 +288,14 @@ contract Deployer {
             );
         }
         if (env.marketAvailable(MM_COMPOUND)) {
+            CompoundMoneyMarket moneyMarket = deployCompoundMoneyMarket(env, deployment.contango);
             positionFactory.registerMoneyMarket(deployCompoundMoneyMarket(env, deployment.contango));
-            deployment.tsQuoter.setMoneyMarket(
-                new CompoundMoneyMarketView(MM_COMPOUND, positionFactory, env.compoundComptroller(), env.nativeToken())
-            );
+            deployment.tsQuoter.setMoneyMarket(new CompoundMoneyMarketView(MM_COMPOUND, positionFactory, moneyMarket.reverseLookup()));
         }
         if (env.marketAvailable(MM_SONNE)) {
+            CompoundMoneyMarket moneyMarket = deploySonneMoneyMarket(env, deployment.contango);
             positionFactory.registerMoneyMarket(deploySonneMoneyMarket(env, deployment.contango));
-            deployment.tsQuoter.setMoneyMarket(
-                new SonneMoneyMarketView(MM_SONNE, positionFactory, env.compoundComptroller(), env.nativeToken())
-            );
+            deployment.tsQuoter.setMoneyMarket(new SonneMoneyMarketView(MM_SONNE, positionFactory, moneyMarket.reverseLookup()));
         }
         if (env.marketAvailable(MM_SPARK)) {
             positionFactory.registerMoneyMarket(deploySparkMoneyMarket(env, deployment.contango));

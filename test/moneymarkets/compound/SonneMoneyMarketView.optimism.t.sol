@@ -26,7 +26,8 @@ contract SonneMoneyMarketViewTest is Test {
 
         contango = env.contango();
 
-        sut = new SonneMoneyMarketView(MM_SONNE, contango.positionFactory(), env.compoundComptroller(), env.nativeToken());
+        sut =
+        new SonneMoneyMarketView(MM_SONNE, contango.positionFactory(), new CompoundReverseLookup(TIMELOCK, env.compoundComptroller(), IWETH9(address(0))));
 
         instrument = env.createInstrument(env.erc20(WETH), env.erc20(USDC));
 

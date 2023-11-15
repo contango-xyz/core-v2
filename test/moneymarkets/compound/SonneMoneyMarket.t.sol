@@ -9,7 +9,7 @@ contract SonneMoneyMarketTest is BaseTest {
     using ERC20Lib for *;
 
     Env internal env;
-    SonneMoneyMarket internal sut;
+    CompoundMoneyMarket internal sut;
     PositionId internal positionId;
     address internal contango;
 
@@ -63,7 +63,7 @@ contract SonneMoneyMarketTest is BaseTest {
         IERC20 lendToken = env.token(WETH);
         IERC20 borrowToken = env.token(USDC);
 
-        SonneMoneyMarket emm = env.deployer().deploySonneMoneyMarket(env, IContango(contango));
+        CompoundMoneyMarket emm = env.deployer().deploySonneMoneyMarket(env, IContango(contango));
 
         vm.prank(contango);
         emm.initialise(positionId, lendToken, borrowToken);

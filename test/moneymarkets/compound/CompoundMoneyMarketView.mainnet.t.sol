@@ -26,7 +26,8 @@ contract CompoundMoneyMarketViewTest is Test {
 
         contango = env.contango();
 
-        sut = new CompoundMoneyMarketView(MM_COMPOUND, contango.positionFactory(), env.compoundComptroller(), env.nativeToken());
+        sut =
+        new CompoundMoneyMarketView(MM_COMPOUND, contango.positionFactory(), new CompoundReverseLookup(TIMELOCK, env.compoundComptroller(), env.nativeToken()));
 
         instrument = env.createInstrument(env.erc20(WETH), env.erc20(USDC));
 

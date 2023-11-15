@@ -7,6 +7,7 @@ import "../../libraries/Arrays.sol";
 import "../BaseMoneyMarket.sol";
 
 import "./dependencies/IComptroller.sol";
+import "./CompoundReverseLookup.sol";
 
 contract CompoundMoneyMarket is BaseMoneyMarket {
 
@@ -21,13 +22,15 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
 
     bool public constant override NEEDS_ACCOUNT = true;
 
+    CompoundReverseLookup public immutable reverseLookup;
     IComptroller public immutable comptroller;
     IWETH9 public immutable nativeToken;
 
-    constructor(MoneyMarketId _moneyMarketId, IContango _contango, IComptroller _comptroller, IWETH9 _nativeToken)
+    constructor(MoneyMarketId _moneyMarketId, IContango _contango, CompoundReverseLookup _reverseLookup, IWETH9 _nativeToken)
         BaseMoneyMarket(_moneyMarketId, _contango)
     {
-        comptroller = _comptroller;
+        reverseLookup = _reverseLookup;
+        comptroller = _reverseLookup.comptroller();
         nativeToken = _nativeToken;
     }
 
@@ -97,8 +100,7 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
     }
 
     function cToken(IERC20 asset) public view returns (ICToken) {
-        return
-            IUniswapAnchoredView(comptroller.oracle()).getTokenConfigByUnderlying(asset == nativeToken ? address(0) : address(asset)).cToken;
+        return reverseLookup.cToken(asset);
     }
 
     receive() external payable {
