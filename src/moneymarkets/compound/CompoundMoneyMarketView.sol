@@ -9,6 +9,7 @@ import "../interfaces/IMoneyMarketView.sol";
 import "../interfaces/IUnderlyingPositionFactory.sol";
 
 import "./dependencies/IComptroller.sol";
+import "./CompoundReverseLookup.sol";
 
 contract CompoundMoneyMarketView is IMoneyMarketView {
 
@@ -17,14 +18,16 @@ contract CompoundMoneyMarketView is IMoneyMarketView {
 
     MoneyMarketId public immutable moneyMarketId;
     IUnderlyingPositionFactory public immutable positionFactory;
+    CompoundReverseLookup public immutable reverseLookup;
     IComptroller public immutable comptroller;
     IWETH9 public immutable nativeToken;
 
-    constructor(MoneyMarketId _moneyMarketId, IUnderlyingPositionFactory _positionFactory, IComptroller _comptroller, IWETH9 _nativeToken) {
+    constructor(MoneyMarketId _moneyMarketId, IUnderlyingPositionFactory _positionFactory, CompoundReverseLookup _reverseLookup) {
         moneyMarketId = _moneyMarketId;
         positionFactory = _positionFactory;
-        comptroller = _comptroller;
-        nativeToken = _nativeToken;
+        reverseLookup = _reverseLookup;
+        comptroller = _reverseLookup.comptroller();
+        nativeToken = _reverseLookup.nativeToken();
     }
 
     function balances(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) public returns (Balances memory balances_) {
@@ -33,7 +36,7 @@ contract CompoundMoneyMarketView is IMoneyMarketView {
         balances_.debt = cToken(debtAsset).borrowBalanceCurrent(account);
     }
 
-    function prices(PositionId, IERC20 collateralAsset, IERC20 debtAsset) public view returns (Prices memory prices_) {
+    function prices(PositionId, IERC20 collateralAsset, IERC20 debtAsset) public view virtual returns (Prices memory prices_) {
         IUniswapAnchoredView oracle = IUniswapAnchoredView(comptroller.oracle());
         prices_.collateral = oracle.price(_symbol(collateralAsset));
         prices_.debt = oracle.price(_symbol(debtAsset));
@@ -64,8 +67,7 @@ contract CompoundMoneyMarketView is IMoneyMarketView {
     }
 
     function cToken(IERC20 asset) public view returns (ICToken) {
-        return
-            IUniswapAnchoredView(comptroller.oracle()).getTokenConfigByUnderlying(asset == nativeToken ? address(0) : address(asset)).cToken;
+        return reverseLookup.cToken(asset);
     }
 
     // Gets the symbol for an asset, unless it's WETH in which case it returns ETH
