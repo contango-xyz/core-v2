@@ -43,7 +43,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 10 ether, cashflow: 4 ether, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -58,7 +58,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 10 ether, cashflow: 4000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -74,7 +74,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         quote = positionActions.quoteWithCashflow({ positionId: positionId, quantity: 4 ether, cashflow: 0, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -89,7 +89,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 4 ether, cashflow: 3 ether, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -108,9 +108,9 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 4 ether, cashflow: 6 ether, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
-        _assertPriceAboveLimit(success, data, quote);
+        _assertPriceBelowLimit(success, data, quote);
 
         env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
     }
@@ -140,7 +140,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 4 ether, cashflow: 3000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -155,7 +155,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 4 ether, cashflow: 4000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -173,7 +173,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         quote = positionActions.quoteWithCashflow({ positionId: positionId, quantity: 4 ether, cashflow: 6000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
         _assertPriceAboveLimit(success, data, quote);
 
         env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
@@ -189,7 +189,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 4 ether, cashflow: -1 ether, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -204,7 +204,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 1 ether, cashflow: -2 ether, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -219,7 +219,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 1 ether, cashflow: -1000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -234,7 +234,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 1 ether, cashflow: -2000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -251,7 +251,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteTrade({ positionId: positionId, quantity: -4 ether, cashflow: 0, cashflowCcy: cashflowCcy, leverage: 0 });
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceBelowLimit(success, data, quote);
 
@@ -268,7 +268,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: -4 ether, cashflow: 1 ether, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceBelowLimit(success, data, quote);
 
@@ -285,7 +285,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: -4 ether, cashflow: 1000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceBelowLimit(success, data, quote);
 
@@ -302,7 +302,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: -4 ether, cashflow: -3 ether, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceBelowLimit(success, data, quote);
 
@@ -319,9 +319,9 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: -1 ether, cashflow: -2 ether, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
-        _assertPriceBelowLimit(success, data, quote);
+        _assertPriceAboveLimit(success, data, quote);
 
         env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
     }
@@ -336,7 +336,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: -4 ether, cashflow: -3000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceBelowLimit(success, data, quote);
 
@@ -353,7 +353,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: -1 ether, cashflow: -2000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceBelowLimit(success, data, quote);
 
@@ -371,7 +371,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         console.logUint(quote.execParams.swapAmount);
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceBelowLimit(success, data, quote);
 
@@ -387,7 +387,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         TSQuote memory quote = positionActions.quoteFullyClose({ positionId: positionId, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceBelowLimit(success, data, quote);
 
@@ -422,7 +422,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 5 ether, cashflow: 1 ether, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -437,7 +437,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: 5 ether, cashflow: 1000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndOpen(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceAboveLimit(success, data, quote);
 
@@ -454,7 +454,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: -4 ether, cashflow: -1 ether, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceBelowLimit(success, data, quote);
 
@@ -471,7 +471,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         TSQuote memory quote =
             positionActions.quoteWithCashflow({ positionId: positionId, quantity: -4 ether, cashflow: -1000e6, cashflowCcy: cashflowCcy });
 
-        (bool success, bytes memory data) = _movePriceAndClose(positionId, quote, cashflowCcy);
+        (bool success, bytes memory data) = _movePriceDownAndTrade(positionId, quote, cashflowCcy);
 
         _assertPriceBelowLimit(success, data, quote);
 
@@ -487,7 +487,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         (positionId, trade) = positionActions.submitTrade(positionId, quote, Currency.Quote);
     }
 
-    function _movePriceAndOpen(PositionId positionId, TSQuote memory quote, Currency cashflowCcy)
+    function _movePriceUpAndTrade(PositionId positionId, TSQuote memory quote, Currency cashflowCcy)
         private
         returns (bool success, bytes memory data)
     {
@@ -501,7 +501,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         }
     }
 
-    function _movePriceAndClose(PositionId positionId, TSQuote memory quote, Currency cashflowCcy)
+    function _movePriceDownAndTrade(PositionId positionId, TSQuote memory quote, Currency cashflowCcy)
         private
         returns (bool success, bytes memory data)
     {

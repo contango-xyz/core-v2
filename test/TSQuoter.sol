@@ -42,8 +42,22 @@ contract TSQuoter {
         uint256 unit;
     }
 
+    struct Token {
+        address addr;
+        string symbol;
+        string name;
+        uint256 decimals;
+        uint256 unit;
+    }
+
+    struct TSInstrument {
+        bool closingOnly;
+        Token base;
+        Token quote;
+    }
+
     struct TSMetaParams {
-        Instrument instrument;
+        TSInstrument instrument;
         Prices prices;
         Balances balances;
         NormalisedBalances normalisedBalances;
@@ -128,8 +142,25 @@ contract TSQuoter {
         {
             (Symbol symbol, MoneyMarketId mm,,) = positionId.decode();
             instrument = contango.instrument(symbol);
-            tsQuoteParams.meta.instrument = instrument;
+            tsQuoteParams.meta.instrument = TSInstrument({
+                base: Token({
+                    addr: address(instrument.base),
+                    symbol: instrument.base.symbol(),
+                    name: instrument.base.name(),
+                    decimals: instrument.base.decimals(),
+                    unit: instrument.baseUnit
+                }),
+                quote: Token({
+                    addr: address(instrument.quote),
+                    symbol: instrument.quote.symbol(),
+                    name: instrument.quote.name(),
+                    decimals: instrument.quote.decimals(),
+                    unit: instrument.quoteUnit
+                }),
+                closingOnly: instrument.closingOnly
+            });
             moneyMarketView = moneyMarkets[mm];
+            require(address(moneyMarketView) != address(0), "no money market view");
             tsQuoteParams.meta.balances = moneyMarketView.balances(positionId, instrument.base, instrument.quote);
             tsQuoteParams.meta.prices = moneyMarketView.prices(positionId, instrument.base, instrument.quote);
         }

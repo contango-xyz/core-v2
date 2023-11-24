@@ -5,6 +5,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts/utils/Multicall.sol";
 
 import "../moneymarkets/interfaces/IFlashBorrowProvider.sol";
 
@@ -20,7 +21,7 @@ import "../libraries/Validations.sol";
 
 import "./PositionNFT.sol";
 
-contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, UUPSUpgradeable {
+contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, UUPSUpgradeable, Multicall {
 
     using Math for *;
     using SafeCast for *;
@@ -233,7 +234,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         // if applicable, transfer any required cashflow in before executing swaps
         _handlePositiveCashflow(cb);
 
-        trade_.swap = _executeSwap(cb.ep, cb.instrument, asset);
+        trade_.swap = _executeSwap(cb.ep, cb.instrument, asset, cb.limitPrice);
 
         // if applicable, transfer any required base out before increasing quantity
         if (cb.cashflowCcy == Currency.Base) _handleNegativeCashflow(cb);
@@ -268,10 +269,6 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     }
 
     function _openSlippageCheck(TradeParams memory tradeParams, Trade memory _trade, InstrumentStorage memory _instrument) private pure {
-        if (_trade.forwardPrice > tradeParams.limitPrice) {
-            revert PriceAboveLimit({ limit: tradeParams.limitPrice, actual: _trade.forwardPrice });
-        }
-
         if (_trade.swap.inputCcy == Currency.Quote) {
             uint256 expectedBaseOutput = (
                 tradeParams.quantity - (tradeParams.cashflowCcy == Currency.Base ? tradeParams.cashflow : int256(0)) + _trade.fee.toInt256()
@@ -374,7 +371,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         // if applicable, transfer any required cashflow in before executing swaps
         _handlePositiveCashflow(cb);
 
-        if (asset == cb.instrument.base) trade_.swap = _executeSwap(cb.ep, cb.instrument, cb.instrument.base);
+        if (asset == cb.instrument.base) trade_.swap = _executeSwap(cb.ep, cb.instrument, cb.instrument.base, cb.limitPrice);
 
         uint256 quoteBalance = ERC20Lib.myBalance(cb.instrument.quote);
         uint256 repaid;
@@ -397,7 +394,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
 
         uint256 withdrawn = cb.moneyMarket.withdraw(cb.positionId, cb.instrument.base, cb.quantity, address(this));
 
-        if (asset == cb.instrument.quote) trade_.swap = _executeSwap(cb.ep, cb.instrument, cb.instrument.quote);
+        if (asset == cb.instrument.quote) trade_.swap = _executeSwap(cb.ep, cb.instrument, cb.instrument.quote, cb.limitPrice);
 
         if (repayTo != address(0)) ERC20Lib.transferOut(asset, address(this), repayTo, amountOwed);
 
@@ -419,11 +416,6 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     }
 
     function _closeSlippageCheck(TradeParams memory tradeParams, Trade memory _trade, uint256 quantity, bool fullyClose) private pure {
-        // price & forwardPrice will be 0 when we don't swap
-        if (_trade.forwardPrice > 0 && _trade.forwardPrice < tradeParams.limitPrice) {
-            revert PriceBelowLimit({ limit: tradeParams.limitPrice, actual: _trade.forwardPrice });
-        }
-
         // Scenarios 19, 30: _guaranteedBaseCashflowRemoval
         if (
             !fullyClose && tradeParams.cashflowCcy == Currency.Base && tradeParams.cashflow < 0 && _trade.swap.inputCcy == Currency.Base
@@ -449,7 +441,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             _withdrawFromVault({ token: _cashflowToken, account: owner, amount: uint256(tradeParams.cashflow), to: address(this) });
             trade_.cashflow = tradeParams.cashflow;
 
-            if (cashflowInBase) trade_.swap = _executeSwap(execParams, _instrument, _instrument.base);
+            if (cashflowInBase) trade_.swap = _executeSwap(execParams, _instrument, _instrument.base, tradeParams.limitPrice);
 
             _repayFromMarket(moneyMarket, tradeParams.positionId, _instrument.quote, ERC20Lib.myBalance(_instrument.quote));
 
@@ -459,22 +451,12 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             uint256 borrowAmount = cashflowInBase ? execParams.swapAmount : tradeParams.cashflow.abs();
             _borrowFromMarket(moneyMarket, tradeParams.positionId, _instrument.quote, borrowAmount, address(this));
 
-            if (cashflowInBase) trade_.swap = _executeSwap(execParams, _instrument, _instrument.quote);
+            if (cashflowInBase) trade_.swap = _executeSwap(execParams, _instrument, _instrument.quote, tradeParams.limitPrice);
             trade_.cashflow = -_depositBalance(_cashflowToken, owner).toInt256();
-        }
-
-        if (trade_.swap.inputCcy == Currency.Base) {
-            if (tradeParams.limitPrice > trade_.swap.price) {
-                revert PriceBelowLimit({ limit: tradeParams.limitPrice, actual: trade_.swap.price });
-            }
-        } else {
-            if (trade_.swap.price > tradeParams.limitPrice) {
-                revert PriceAboveLimit({ limit: tradeParams.limitPrice, actual: trade_.swap.price });
-            }
         }
     }
 
-    function _executeSwap(ExecutionParams memory execParams, InstrumentStorage memory _instrument, IERC20 tokenToSell)
+    function _executeSwap(ExecutionParams memory execParams, InstrumentStorage memory _instrument, IERC20 tokenToSell, uint256 limitPrice)
         internal
         returns (SwapInfo memory swap)
     {
@@ -486,6 +468,12 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             ERC20Lib.transferOut(tokenToSell, address(this), address(spotExecutor), execParams.swapAmount);
             (swap.input, swap.output, swap.price) =
                 spotExecutor.executeSwap(tokenToSell, tokenToBuy, swap.inputCcy, _instrument.baseUnit, execParams);
+
+            if (swap.inputCcy == Currency.Base) {
+                if (limitPrice > swap.price) revert PriceBelowLimit({ limit: limitPrice, actual: swap.price });
+            } else {
+                if (swap.price > limitPrice) revert PriceAboveLimit({ limit: limitPrice, actual: swap.price });
+            }
         }
     }
 
@@ -704,13 +692,14 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     }
 
     function claimRewards(PositionId positionId, address to) external override {
+        _requireNotPaused();
         if (positionNFT.exists(positionId)) positionNFT.validateModifyPositionPermissions(positionId);
         else if (lastOwner[positionId] != msg.sender) revert Unauthorised(msg.sender);
 
         (Symbol symbol,,,) = positionId.decode();
         InstrumentStorage storage _instrument = instruments[symbol];
-        IMoneyMarket moneyMarket = _moneyMarket(positionId);
-        moneyMarket.claimRewards(positionId, _instrument.base, _instrument.quote, to);
+        _moneyMarket(positionId).claimRewards(positionId, _instrument.base, _instrument.quote, to);
+        emit RewardsClaimed(positionId, to);
     }
 
     // ============================= Admin =========================

@@ -13391,7 +13391,7 @@ var require_timeouts = __commonJS({
       }
     };
     exports.TimeoutError = TimeoutError;
-    function timeoutPromise(promise, timeout, options) {
+    function timeoutPromise2(promise, timeout, options) {
       if (!timeout)
         return promise;
       const realTimeout = options?.reduceBy ? reduceTimeout(timeout, options.reduceBy) : timeout;
@@ -13402,7 +13402,7 @@ var require_timeouts = __commonJS({
         promise.then(resolve).catch(reject).finally(() => clearTimeout(timer));
       });
     }
-    exports.timeoutPromise = timeoutPromise;
+    exports.timeoutPromise = timeoutPromise2;
     function reduceTimeout(timeout, reduceBy) {
       if (!timeout)
         return void 0;
@@ -78842,9 +78842,9 @@ var require_fallback_metadata_source = __commonJS({
           { sources: 0, tokens: new Set(addressesInChain), requirement }
         ]));
         for (const source of sources) {
-          const supportedProperties = source.supportedProperties();
-          if (chainId in supportedProperties) {
-            for (const property in supportedProperties[chainId]) {
+          const supportedProperties2 = source.supportedProperties();
+          if (chainId in supportedProperties2) {
+            for (const property in supportedProperties2[chainId]) {
               requestTracker[chainId][property].sources += 1;
             }
           }
@@ -78853,8 +78853,8 @@ var require_fallback_metadata_source = __commonJS({
       return requestTracker;
     }
     function updateCounterWhenSourceFulfilled(source, requestTracker) {
-      const supportedProperties = source.supportedProperties();
-      for (const [chainId, properties] of Object.entries(supportedProperties)) {
+      const supportedProperties2 = source.supportedProperties();
+      for (const [chainId, properties] of Object.entries(supportedProperties2)) {
         if (chainId in requestTracker) {
           for (const property in properties) {
             requestTracker[Number(chainId)][property].sources -= 1;
@@ -83219,14 +83219,34 @@ var tsQuoterABI = [
             components: [
               {
                 name: "instrument",
-                internalType: "struct Instrument",
+                internalType: "struct TSQuoter.TSInstrument",
                 type: "tuple",
                 components: [
-                  { name: "base", internalType: "contract IERC20Metadata", type: "address" },
-                  { name: "baseUnit", internalType: "uint256", type: "uint256" },
-                  { name: "quote", internalType: "contract IERC20Metadata", type: "address" },
-                  { name: "quoteUnit", internalType: "uint256", type: "uint256" },
-                  { name: "closingOnly", internalType: "bool", type: "bool" }
+                  { name: "closingOnly", internalType: "bool", type: "bool" },
+                  {
+                    name: "base",
+                    internalType: "struct TSQuoter.Token",
+                    type: "tuple",
+                    components: [
+                      { name: "addr", internalType: "address", type: "address" },
+                      { name: "symbol", internalType: "string", type: "string" },
+                      { name: "name", internalType: "string", type: "string" },
+                      { name: "decimals", internalType: "uint256", type: "uint256" },
+                      { name: "unit", internalType: "uint256", type: "uint256" }
+                    ]
+                  },
+                  {
+                    name: "quote",
+                    internalType: "struct TSQuoter.Token",
+                    type: "tuple",
+                    components: [
+                      { name: "addr", internalType: "address", type: "address" },
+                      { name: "symbol", internalType: "string", type: "string" },
+                      { name: "name", internalType: "string", type: "string" },
+                      { name: "decimals", internalType: "uint256", type: "uint256" },
+                      { name: "unit", internalType: "uint256", type: "uint256" }
+                    ]
+                  }
                 ]
               },
               {
@@ -83497,6 +83517,105 @@ var tsQuoterABI = [
     outputs: []
   }
 ];
+var iSwapRouterABI = [
+  {
+    stateMutability: "payable",
+    type: "function",
+    inputs: [
+      {
+        name: "params",
+        internalType: "struct ISwapRouter.ExactInputParams",
+        type: "tuple",
+        components: [
+          { name: "path", internalType: "bytes", type: "bytes" },
+          { name: "recipient", internalType: "address", type: "address" },
+          { name: "deadline", internalType: "uint256", type: "uint256" },
+          { name: "amountIn", internalType: "uint256", type: "uint256" },
+          { name: "amountOutMinimum", internalType: "uint256", type: "uint256" }
+        ]
+      }
+    ],
+    name: "exactInput",
+    outputs: [{ name: "amountOut", internalType: "uint256", type: "uint256" }]
+  },
+  {
+    stateMutability: "payable",
+    type: "function",
+    inputs: [
+      {
+        name: "params",
+        internalType: "struct ISwapRouter.ExactInputSingleParams",
+        type: "tuple",
+        components: [
+          { name: "tokenIn", internalType: "address", type: "address" },
+          { name: "tokenOut", internalType: "address", type: "address" },
+          { name: "fee", internalType: "uint24", type: "uint24" },
+          { name: "recipient", internalType: "address", type: "address" },
+          { name: "deadline", internalType: "uint256", type: "uint256" },
+          { name: "amountIn", internalType: "uint256", type: "uint256" },
+          { name: "amountOutMinimum", internalType: "uint256", type: "uint256" },
+          { name: "sqrtPriceLimitX96", internalType: "uint160", type: "uint160" }
+        ]
+      }
+    ],
+    name: "exactInputSingle",
+    outputs: [{ name: "amountOut", internalType: "uint256", type: "uint256" }]
+  },
+  {
+    stateMutability: "payable",
+    type: "function",
+    inputs: [
+      {
+        name: "params",
+        internalType: "struct ISwapRouter.ExactOutputParams",
+        type: "tuple",
+        components: [
+          { name: "path", internalType: "bytes", type: "bytes" },
+          { name: "recipient", internalType: "address", type: "address" },
+          { name: "deadline", internalType: "uint256", type: "uint256" },
+          { name: "amountOut", internalType: "uint256", type: "uint256" },
+          { name: "amountInMaximum", internalType: "uint256", type: "uint256" }
+        ]
+      }
+    ],
+    name: "exactOutput",
+    outputs: [{ name: "amountIn", internalType: "uint256", type: "uint256" }]
+  },
+  {
+    stateMutability: "payable",
+    type: "function",
+    inputs: [
+      {
+        name: "params",
+        internalType: "struct ISwapRouter.ExactOutputSingleParams",
+        type: "tuple",
+        components: [
+          { name: "tokenIn", internalType: "address", type: "address" },
+          { name: "tokenOut", internalType: "address", type: "address" },
+          { name: "fee", internalType: "uint24", type: "uint24" },
+          { name: "recipient", internalType: "address", type: "address" },
+          { name: "deadline", internalType: "uint256", type: "uint256" },
+          { name: "amountOut", internalType: "uint256", type: "uint256" },
+          { name: "amountInMaximum", internalType: "uint256", type: "uint256" },
+          { name: "sqrtPriceLimitX96", internalType: "uint160", type: "uint160" }
+        ]
+      }
+    ],
+    name: "exactOutputSingle",
+    outputs: [{ name: "amountIn", internalType: "uint256", type: "uint256" }]
+  },
+  {
+    stateMutability: "nonpayable",
+    type: "function",
+    inputs: [
+      { name: "amount0Delta", internalType: "int256", type: "int256" },
+      { name: "amount1Delta", internalType: "int256", type: "int256" },
+      { name: "data", internalType: "bytes", type: "bytes" }
+    ],
+    name: "uniswapV3SwapCallback",
+    outputs: []
+  }
+];
 var swapRouter02ABI = [
   {
     stateMutability: "payable",
@@ -83651,9 +83770,11 @@ var capDebtDelta = (targetDebtDelta, maxDebt, meta) => {
   return debtDelta;
 };
 var deriveNewCollateral = (quantity, { normalisedBalances: normalisedBalances2, prices, instrument }) => {
-  return normalisedBalances2.collateral + mulDiv(quantity, prices.collateral, instrument.baseUnit);
+  return normalisedBalances2.collateral + mulDiv(quantity, prices.collateral, instrument.base.unit);
 };
 var calculateTradingFee = (tradeQuantity, _fee) => {
+  if (_fee === 0n)
+    return 0n;
   const fee = _fee + BigInt(1e13);
   if (tradeQuantity > 0n) {
     return calculateFee(tradeQuantity, mulDiv(WAD, WAD, WAD - fee) - WAD);
@@ -83676,7 +83797,7 @@ var calculateCollateralValues = (quantity, meta, liquidityBuffer) => {
   const newCollateral = deriveNewCollateral(tradeQuantity, meta);
   const collateralDelta = newCollateral - normalisedBalances2.collateral;
   const normalisedFee = calculateTradingFee(collateralDelta, tradingFee);
-  const normalisedBorrowingLiquidity = mulDiv(borrowingLiquidity, prices.debt, instrument.quoteUnit);
+  const normalisedBorrowingLiquidity = mulDiv(borrowingLiquidity, prices.debt, instrument.quote.unit);
   const maxDebt = calculateMaxDebt(newCollateral, ltv, normalisedBorrowingLiquidity, normalisedBalances2.debt, liquidityBuffer.borrowing);
   return { tradeQuantity, fullyClosing, fee, newCollateral, collateralDelta, normalisedFee, maxDebt };
 };
@@ -83690,20 +83811,19 @@ var calculateCollateralAndDebtValuesByLeverage = (quantity, leverage, meta, liqu
 var calculateCollateralAndDebtValuesByCashflow = (quantity, cashflow, cashflowCcy, meta, liquidityBuffer = createLiquidityBuffer()) => {
   const collateralValues = calculateCollateralValues(quantity, meta, liquidityBuffer);
   const { maxDebt, collateralDelta, normalisedFee } = collateralValues;
-  const [price, unit] = cashflowCcy === 1 /* Base */ ? [meta.prices.collateral, meta.instrument.baseUnit] : [meta.prices.debt, meta.instrument.quoteUnit];
+  const [price, unit] = cashflowCcy === 1 /* Base */ ? [meta.prices.collateral, meta.instrument.base.unit] : [meta.prices.debt, meta.instrument.quote.unit];
   const normalisedCashflow = mulDiv(cashflow, price, unit);
   const debtDelta = capDebtDelta(collateralDelta + normalisedFee - normalisedCashflow, maxDebt, meta);
   const newDebt = meta.normalisedBalances.debt + debtDelta;
   return { ...collateralValues, debtDelta, newDebt };
 };
-var convertToQuote = (num, { instrument, prices }) => mulDiv(num, instrument.quoteUnit, prices.debt);
-var convertToBase = (num, { instrument, prices }) => mulDiv(num, instrument.baseUnit, prices.collateral);
+var convertToQuote = (num, { instrument, prices }) => mulDiv(num, instrument.quote.unit, prices.debt);
+var convertToBase = (num, { instrument, prices }) => mulDiv(num, instrument.base.unit, prices.collateral);
 var toBaseOrQuote = (num, meta, ccy) => ccy === 1 /* Base */ ? convertToBase(num, meta) : convertToQuote(num, meta);
 var deriveSwap = (cashflowCcy, debtDelta, collateralDelta, normalisedFee) => {
   let swapCcy = 0 /* None */;
   let nFlashloanAmount = collateralDelta > 0n ? max(debtDelta, 0n) : 0n;
   let nSwapAmount = 0n;
-  let slippageDirection = 1n;
   if (cashflowCcy === 2 /* Quote */) {
     if (collateralDelta > 0n) {
       swapCcy = 2 /* Quote */;
@@ -83711,26 +83831,22 @@ var deriveSwap = (cashflowCcy, debtDelta, collateralDelta, normalisedFee) => {
     } else if (collateralDelta < 0n) {
       swapCcy = 1 /* Base */;
       nFlashloanAmount = nSwapAmount = absolute(collateralDelta + normalisedFee);
-      slippageDirection = -1n;
     }
   } else {
     if (debtDelta > 0n) {
       swapCcy = 2 /* Quote */;
       nSwapAmount = debtDelta;
-      if (collateralDelta < 0n) {
-        slippageDirection = -1n;
-      }
     } else if (debtDelta < 0n) {
       swapCcy = 1 /* Base */;
       nSwapAmount = absolute(debtDelta);
       if (collateralDelta <= 0n) {
-        slippageDirection = -1n;
         if (collateralDelta < 0n) {
           nFlashloanAmount = nSwapAmount;
         }
       }
     }
   }
+  const slippageDirection = swapCcy === 1 /* Base */ ? -1n : 1n;
   return { swapCcy, nFlashloanAmount, nSwapAmount, slippageDirection };
 };
 var calculateSwapAmount = ({
@@ -83791,7 +83907,7 @@ var deriveQuoteValuesQtyCashflowPure = ({
     quantity
   });
   const cashflowUsed = toBaseOrQuote(collateralDelta - debtDelta + normalisedFee, meta, cashflowCcy);
-  const markPrice = mulDiv(meta.prices.collateral, meta.instrument.quoteUnit, meta.prices.debt);
+  const markPrice = mulDiv(meta.prices.collateral, meta.instrument.quote.unit, meta.prices.debt);
   const price = applySlippage(markPrice, slippageTolerance, slippageDirection);
   return {
     cashflowUsed,
@@ -83850,7 +83966,7 @@ var deriveQuoteValuesQtyLeveragePure = ({
       cashflowUsed -= convertToBase(normalisedFee + nFlashloanFee, meta);
     }
   }
-  const markPrice = mulDiv(meta.prices.collateral, meta.instrument.quoteUnit, meta.prices.debt);
+  const markPrice = mulDiv(meta.prices.collateral, meta.instrument.quote.unit, meta.prices.debt);
   const price = applySlippage(markPrice, slippageTolerance, slippageDirection);
   return {
     cashflowUsed,
@@ -83872,7 +83988,9 @@ var chainIdToChainName = {
   31338: "localhost-optimism",
   31339: "localhost-mainnet",
   42161: "arbitrum-one",
+  8453: "base",
   137: "matic",
+  100: "gnosis",
   10: "optimism",
   1: "mainnet"
 };
@@ -83885,26 +84003,78 @@ var normalisedBalances = ({ collateral: collateralPrice, debt: debtPrice, unit }
 });
 
 // src/api/mean-sdk.ts
+var import_sdk2 = __toESM(require_dist3());
+
+// src/api/viem-gas-price-source.ts
 var import_sdk = __toESM(require_dist3());
+var ViemGasPriceSource = class {
+  constructor(publicClient) {
+    this.publicClient = publicClient;
+  }
+  supportedSpeeds() {
+    const support = { standard: "present" };
+    return Object.fromEntries(Object.keys(chainIdToChainName).map((chainId) => [Number(chainId), support]));
+  }
+  async getGasPrice({
+    config
+  }) {
+    const { maxFeePerGas, maxPriorityFeePerGas } = await (0, import_sdk.timeoutPromise)(this.publicClient.estimateFeesPerGas(), config?.timeout);
+    const gasPrice = !!maxFeePerGas && !!maxPriorityFeePerGas ? { standard: { maxFeePerGas: Number(maxFeePerGas).toString(), maxPriorityFeePerGas: Number(maxPriorityFeePerGas).toString() } } : { standard: { gasPrice: Number(await this.publicClient.getGasPrice()).toString() } };
+    return gasPrice;
+  }
+};
+
+// src/api/mean-sdk.ts
 var supportedClients = Object.fromEntries(Object.keys(chainIdToChainName).map((chainId) => [chainId, { viem: true, ethers: false }]));
-var getAllQuotes = async (chainId, sellToken, buyToken, sellAmount, takerAddress, slippageTolerance, transport, dex) => {
-  const customConfig = transport ? {
+var supportedProperties = Object.fromEntries(
+  Object.keys(chainIdToChainName).map((chainId) => [chainId, { symbol: "present", decimals: "present", name: "present" }])
+);
+var getAllQuotes = async (chainId, sellToken, buyToken, sellAmount, takerAddress, slippageTolerance, publicClient, dex) => {
+  const customConfig = publicClient ? {
     provider: {
       source: {
         type: "custom",
         instance: {
           supportedClients: () => supportedClients,
-          getViemTransport: () => transport,
+          getViemTransport: () => publicClient.transport,
           getEthersProvider: () => ({})
         }
       }
     }
   } : {};
-  const spotSdk = (0, import_sdk.buildSDK)({
+  const customGasProviderConf = chainId === 100 || chainId === 8453 ? {
+    gas: {
+      source: {
+        type: "custom",
+        instance: new ViemGasPriceSource(publicClient)
+      }
+    }
+  } : {};
+  const customFetch = typeof window !== "undefined" ? {} : { fetch: { fetch } };
+  const spotSdk = (0, import_sdk2.buildSDK)({
     ...customConfig,
+    ...customGasProviderConf,
+    ...customFetch,
+    metadata: {
+      source: {
+        type: "custom",
+        instance: {
+          supportedProperties: () => supportedProperties,
+          getMetadata: async () => {
+            return {
+              [chainId]: {
+                [sellToken.address]: sellToken,
+                [buyToken.address]: buyToken
+              }
+            };
+          }
+        }
+      }
+    },
     quotes: {
       defaultConfig: {
         global: {
+          disableValidation: true,
           referrer: {
             address: "0x3F37C7d8e61C000085AAc0515775b06A3412F36b",
             name: "Contango"
@@ -83914,12 +84084,12 @@ var getAllQuotes = async (chainId, sellToken, buyToken, sellAmount, takerAddress
     }
   });
   const slippagePercentage = Number(slippageTolerance) / Number(1e16);
-  const excludeSources = ["1inch"];
+  const excludeSources = [];
   const res = await spotSdk.quoteService.getAllQuotes({
     request: {
       chainId,
-      sellToken,
-      buyToken,
+      sellToken: sellToken.address,
+      buyToken: buyToken.address,
       order: {
         type: "sell",
         sellAmount
@@ -83929,18 +84099,41 @@ var getAllQuotes = async (chainId, sellToken, buyToken, sellAmount, takerAddress
       ...dex ? { filters: { includeSources: [dex] } } : { filters: { excludeSources } }
     },
     config: {
+      ignoredFailed: false,
       timeout: "5 s"
     }
   });
-  if (res.length === 0) {
+  const validQuotes = res.filter((quote) => !quote["failed"]);
+  if (validQuotes.length === 0) {
+    console.error("All quotes failed", res);
     throw new Error("No quotes found");
   }
-  return res;
+  return validQuotes;
 };
 
 // src/api/uniswap-stub.ts
 var uniV3Router = "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45";
-var encodeUniSwapBytes = (tokenIn, tokenOut, amountIn, recipient) => {
+var uniV3RouterBase = "0x2626664c2603336E57B271c5C0b26F421741e481";
+var sushiV3Router = "0x4F54dd2F4f30347d841b7783aD08c050d8410a9d";
+var encodeRouterBytes = (tokenIn, tokenOut, amountIn, recipient) => {
+  return encodeFunctionData({
+    abi: iSwapRouterABI,
+    functionName: "exactInputSingle",
+    args: [
+      {
+        tokenIn,
+        tokenOut,
+        fee: 500,
+        recipient,
+        deadline: BigInt(Date.now() + 1e3 * 60 * 10) / 1000n,
+        amountIn,
+        amountOutMinimum: 0n,
+        sqrtPriceLimitX96: 0n
+      }
+    ]
+  });
+};
+var encodeRouter02Bytes = (tokenIn, tokenOut, amountIn, recipient) => {
   return encodeFunctionData({
     abi: swapRouter02ABI,
     functionName: "exactInputSingle",
@@ -83957,15 +84150,15 @@ var encodeUniSwapBytes = (tokenIn, tokenOut, amountIn, recipient) => {
     ]
   });
 };
-var createUniSwapbytes = ({ swapAmount, swapCcy, flashLoanProvider, recipient }, { quote, base }) => {
+var createUniSwapbytes = ({ swapAmount, swapCcy, flashLoanProvider, recipient }, { quote, base }, chainId) => {
   const [tokenIn, tokenOut] = swapCcy === 2 /* Quote */ ? [quote, base] : [base, quote];
-  const swapBytes = encodeUniSwapBytes(tokenIn, tokenOut, swapAmount, recipient);
+  const [router, swapBytes] = chainId === 100 ? [sushiV3Router, encodeRouterBytes(tokenIn.address, tokenOut.address, swapAmount, recipient)] : chainId === 8453 ? [uniV3RouterBase, encodeRouter02Bytes(tokenIn.address, tokenOut.address, swapAmount, recipient)] : [uniV3Router, encodeRouter02Bytes(tokenIn.address, tokenOut.address, swapAmount, recipient)];
   return {
     swapBytes,
     swapAmount,
     flashLoanProvider,
-    spender: uniV3Router,
-    router: uniV3Router
+    spender: router,
+    router
   };
 };
 
@@ -83976,6 +84169,8 @@ program2.name("quoter-cli").version("0.0.1").description("A CLI tool for generat
     abi: tsQuoterABI,
     data: str
   });
+  const { dex, chainId: chainIdStr } = options;
+  const chainId = parseInt(chainIdStr);
   const _params = args?.[0];
   const { mm } = positionIdMapper(_params.positionId);
   const params = {
@@ -83986,30 +84181,54 @@ program2.name("quoter-cli").version("0.0.1").description("A CLI tool for generat
       normalisedBalances: normalisedBalances(
         _params.meta.prices,
         _params.meta.balances,
-        _params.meta.instrument.baseUnit,
-        _params.meta.instrument.quoteUnit
+        _params.meta.instrument.base.unit,
+        _params.meta.instrument.quote.unit
       ),
-      moneyMarketId: mm
+      moneyMarketId: mm,
+      instrument: {
+        ..._params.meta.instrument,
+        base: {
+          ..._params.meta.instrument.base,
+          address: _params.meta.instrument.base.addr,
+          decimals: Number(_params.meta.instrument.base.decimals)
+        },
+        quote: {
+          ..._params.meta.instrument.quote,
+          address: _params.meta.instrument.quote.addr,
+          decimals: Number(_params.meta.instrument.quote.decimals)
+        }
+      },
+      rewards: {
+        baseRewards: {
+          aprs: [],
+          claimable: []
+        },
+        quoteRewards: {
+          aprs: [],
+          claimable: []
+        }
+      }
     }
   };
   const res = params.cashflow || !params.leverage ? deriveQuoteValuesQtyCashflowPure(params) : deriveQuoteValuesQtyLeveragePure(params);
   let execParams;
-  if (options.dex === "uniswap-single-pool") {
+  if (dex === "uniswap-single-pool") {
     execParams = createUniSwapbytes(
       { ...res, flashLoanProvider: params.flashLoanProvider, recipient: params.spotExecutor },
-      params.meta.instrument
+      params.meta.instrument,
+      chainId
     );
   } else {
     const [sellToken, buyToken] = res.swapCcy === 1 /* Base */ ? [params.meta.instrument.base, params.meta.instrument.quote] : [params.meta.instrument.quote, params.meta.instrument.base];
     const [swap] = await getAllQuotes(
-      parseInt(options.chainId),
+      chainId,
       sellToken,
       buyToken,
       res.swapAmount,
       params.spotExecutor,
       params.slippageTolerance,
       null,
-      options.dex
+      dex
     );
     execParams = {
       swapBytes: swap.tx.data,

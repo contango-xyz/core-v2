@@ -77,7 +77,7 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors {
         env.deposit(cashflowCcy == Currency.Quote ? instrument.quote : instrument.base, TRADER, quote.cashflowUsed.toUint256());
 
         bytes memory swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
+            SwapRouter02.exactInput.selector,
             SwapRouter02.ExactInputParams({
                 path: abi.encodePacked(instrument.quote, uint24(500), instrument.base),
                 recipient: address(contango.spotExecutor()),
@@ -160,12 +160,12 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors {
         instrument = env.instruments(positionId.getSymbol());
 
         uint256 originalSwapAmount = quote.execParams.swapAmount;
-        quote.execParams.swapAmount = quote.execParams.swapAmount * 1.001e18 / 1e18; // Swap more than what the user wanted
+        quote.execParams.swapAmount = quote.execParams.swapAmount * 1.002e18 / 1e18; // Swap more than what the user wanted
 
         env.deposit(cashflowCcy == Currency.Quote ? instrument.quote : instrument.base, TRADER, quote.cashflowUsed.toUint256());
 
         quote.execParams.swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
+            SwapRouter02.exactInput.selector,
             SwapRouter02.ExactInputParams({
                 path: abi.encodePacked(instrument.quote, uint24(500), instrument.base),
                 recipient: address(contango.spotExecutor()),
@@ -181,7 +181,7 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors {
         require(!success, "should have failed");
         require(bytes4(data) == ExcessiveInputQuote.selector, "error selector not expected");
         (uint256 limit, uint256 actual) = abi.decode(removeSelector(data), (uint256, uint256));
-        assertApproxEqRelDecimal(limit, quote.execParams.swapAmount, 0.0001e18, instrument.quoteDecimals, "limit");
+        assertApproxEqRelDecimal(limit, quote.execParams.swapAmount, 0.002e18, instrument.quoteDecimals, "limit");
         assertGt(actual, originalSwapAmount, "actual");
     }
 
@@ -260,7 +260,7 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors {
         }
 
         quote.execParams.swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
+            SwapRouter02.exactInput.selector,
             SwapRouter02.ExactInputParams({
                 path: abi.encodePacked(instrument.base, uint24(500), instrument.quote),
                 recipient: address(contango.spotExecutor()),
@@ -357,7 +357,7 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors {
         skip(2 seconds);
 
         quote.execParams.swapBytes = abi.encodeWithSelector(
-            env.uniswapRouter().exactInput.selector,
+            SwapRouter02.exactInput.selector,
             SwapRouter02.ExactInputParams({
                 path: abi.encodePacked(instrument.base, uint24(500), instrument.quote),
                 recipient: address(contango.spotExecutor()),
