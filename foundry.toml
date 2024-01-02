@@ -122,6 +122,9 @@ polygon = "${POLYGON_URL}"
 localhost = "http://127.0.0.1:8545"
 mainnet = "${MAINNET_URL}"
 goerli = "${GOERLI_URL}"
+gnosis = "${GNOSIS_URL}"
+base = "${BASE_URL}"
+# polygonZK = "${POLYGON_ZK_URL}"
 
 [etherscan]
 arbitrum = { key = "${ETHERSCAN_ARBITRUM_KEY}" }
@@ -129,6 +132,9 @@ optimism = { key = "${ETHERSCAN_OPTIMISM_KEY}" }
 polygon = { key = "${ETHERSCAN_POLYGON_KEY}" }
 mainnet = { key = "${ETHERSCAN_MAINNET_KEY}" }
 goerli = { key = "${ETHERSCAN_GOERLI_KEY}" }
+gnosis = { key = "${ETHERSCAN_GNOSIS_KEY}" }
+base = { key = "${ETHERSCAN_BASE_KEY}" }
+# polygonZK = { key = "${ETHERSCAN_POLYGON_ZK_KEY}" }
 
 [fmt]
 # Maximum line length where formatter will try to wrap the line

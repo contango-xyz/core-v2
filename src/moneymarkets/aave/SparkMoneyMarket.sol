@@ -18,13 +18,14 @@ contract SparkMoneyMarket is AaveMoneyMarket {
     constructor(
         MoneyMarketId _moneyMarketId,
         IContango _contango,
-        IPoolAddressesProvider _provider,
+        IPool _pool,
+        IPoolDataProvider _dataProvider,
         IAaveRewardsController _rewardsController,
         IERC20 _dai,
         ISDAI _sDAI,
         IERC20 _usdc,
         IDssPsm _psm
-    ) AaveMoneyMarket(_moneyMarketId, _contango, _provider, _rewardsController) {
+    ) AaveMoneyMarket(_moneyMarketId, _contango, _pool, _dataProvider, _rewardsController) {
         dai = _dai;
         sDAI = _sDAI;
         usdc = _usdc;

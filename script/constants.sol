@@ -18,6 +18,7 @@ function proxyAddress(string memory name) pure returns (address payable) {
     bytes memory _name = abi.encodePacked(name);
 
     if (keccak256(_name) == keccak256("ContangoProxy")) return payable(0x6Cae28b3D09D8f8Fc74ccD496AC986FC84C0C24E);
+    if (keccak256(_name) == keccak256("ContangoLensProxy")) return payable(0xe03835Dfae2644F37049c1feF13E8ceD6b1Bb72a);
     if (keccak256(_name) == keccak256("OrderManagerProxy")) return payable(0xA64f0dbB10c473978C2EFe069da207991e8e3Cb3);
     if (keccak256(_name) == keccak256("VaultProxy")) return payable(0x3F37C7d8e61C000085AAc0515775b06A3412F36b);
     if (keccak256(_name) == keccak256("MaestroProxy")) return payable(0xa6a147946FACAc9E0B99824870B36088764f969F);
@@ -26,6 +27,7 @@ function proxyAddress(string memory name) pure returns (address payable) {
     revert(string.concat("Unknown proxy: ", name));
 }
 
+// REMEMBER: Add the new money market to schema.graphql & subgraph/utils.ts
 MoneyMarketId constant MM_AAVE = MoneyMarketId.wrap(1);
 MoneyMarketId constant MM_COMPOUND = MoneyMarketId.wrap(2);
 // MoneyMarketId constant MM_YIELD = MoneyMarketId.wrap(3); // discontinued
@@ -33,6 +35,14 @@ MoneyMarketId constant MM_EXACTLY = MoneyMarketId.wrap(4);
 MoneyMarketId constant MM_SONNE = MoneyMarketId.wrap(5);
 MoneyMarketId constant MM_SPARK = MoneyMarketId.wrap(7);
 MoneyMarketId constant MM_MORPHO_BLUE = MoneyMarketId.wrap(8);
+MoneyMarketId constant MM_AGAVE = MoneyMarketId.wrap(9);
+MoneyMarketId constant MM_AAVE_V2 = MoneyMarketId.wrap(10);
+MoneyMarketId constant MM_RADIANT = MoneyMarketId.wrap(11);
+MoneyMarketId constant MM_LODESTAR = MoneyMarketId.wrap(12);
+MoneyMarketId constant MM_MOONWELL = MoneyMarketId.wrap(13);
+MoneyMarketId constant MM_COMET = MoneyMarketId.wrap(14);
+MoneyMarketId constant MM_GRANARY = MoneyMarketId.wrap(15);
+MoneyMarketId constant MM_SILO = MoneyMarketId.wrap(16);
 
 uint32 constant PERP = type(uint32).max;
 uint256 constant DEFAULT_SLIPPAGE_TOLERANCE = 0.001e4;

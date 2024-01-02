@@ -25,7 +25,7 @@ contract SparkMoneyMarketMainnetUSDCLongTest is Test {
         contango = address(env.contango());
 
         sut = env.deployer().deploySparkMoneyMarket(env, IContango(contango));
-        pool = IPool(sut.ADDRESSES_PROVIDER().getPool());
+        pool = AaveMoneyMarketView(address(sut)).pool();
         psm = sut.psm();
 
         env.createInstrument(env.erc20(WETH), env.erc20(USDC));
@@ -285,7 +285,7 @@ contract SparkMoneyMarketMainnetUSDCLongTest is Test {
             params: ""
         });
 
-        vm.prank(address(sut.POOL()));
+        vm.prank(address(sut.pool()));
         vm.expectRevert(abi.encodeWithSelector(IFlashBorrowProvider.InvalidSenderOrInitiator.selector));
         IFlashLoanReceiver(address(sut)).executeOperation({
             assets: toArray(address(0)),

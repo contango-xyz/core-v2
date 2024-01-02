@@ -16,27 +16,53 @@ struct Prices {
     uint256 unit;
 }
 
+struct TokenData {
+    IERC20 token;
+    string name;
+    string symbol;
+    uint8 decimals;
+    uint256 unit;
+}
+
+struct Reward {
+    TokenData token;
+    uint256 rate;
+    uint256 claimable;
+    uint256 usdPrice;
+}
+
 interface IMoneyMarketView {
+
+    error UnsupportedAsset(IERC20 asset);
 
     function moneyMarketId() external view returns (MoneyMarketId);
 
-    function balances(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) external returns (Balances memory balances_);
+    function moneyMarketName() external view returns (string memory);
 
-    function prices(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) external view returns (Prices memory prices_);
+    function balances(PositionId positionId) external returns (Balances memory balances_);
 
-    function thresholds(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
-        external
-        view
-        returns (uint256 ltv, uint256 liquidationThreshold);
+    function prices(PositionId positionId) external view returns (Prices memory prices_);
 
-    function liquidity(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
-        external
-        view
-        returns (uint256 borrowing, uint256 lending);
+    function baseQuoteRate(PositionId positionId) external view returns (uint256);
 
-    function rates(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
-        external
-        view
-        returns (uint256 borrowing, uint256 lending);
+    function priceInNativeToken(IERC20 asset) external view returns (uint256 price_);
 
+    function priceInUSD(IERC20 asset) external view returns (uint256 price_);
+
+    function thresholds(PositionId positionId) external view returns (uint256 ltv, uint256 liquidationThreshold);
+
+    function liquidity(PositionId positionId) external view returns (uint256 borrowing, uint256 lending);
+
+    function rates(PositionId positionId) external view returns (uint256 borrowing, uint256 lending);
+
+    function rewards(PositionId positionId) external returns (Reward[] memory borrowing, Reward[] memory lending);
+
+}
+
+function asTokenData(IERC20 token) view returns (TokenData memory tokenData_) {
+    tokenData_.token = token;
+    tokenData_.name = token.name();
+    tokenData_.symbol = token.symbol();
+    tokenData_.decimals = token.decimals();
+    tokenData_.unit = 10 ** token.decimals();
 }

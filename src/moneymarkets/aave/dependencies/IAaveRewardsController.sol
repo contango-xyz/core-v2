@@ -1,6 +1,8 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
+import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+
 interface IAaveRewardsController {
 
     event Accrued(
@@ -32,7 +34,7 @@ interface IAaveRewardsController {
 
     function EMISSION_MANAGER() external view returns (address);
     function REVISION() external view returns (uint256);
-    function claimAllRewards(address[] memory assets, address to)
+    function claimAllRewards(IERC20[] memory assets, address to)
         external
         returns (address[] memory rewardsList, uint256[] memory claimedAmounts);
     function claimAllRewardsOnBehalf(address[] memory assets, address user, address to)

@@ -7,7 +7,7 @@ contract ExactlyMoneyMarketTest is Test {
 
     using ERC20Lib for *;
 
-    event MarketEntered(IMarket indexed market, address indexed account);
+    event MarketEntered(IExactlyMarket indexed market, address indexed account);
 
     Env internal env;
     ExactlyMoneyMarket internal sut;
@@ -67,7 +67,7 @@ contract ExactlyMoneyMarketTest is Test {
         IERC20 borrowToken = env.token(USDC);
 
         ExactlyMoneyMarket emm = env.deployer().deployExactlyMoneyMarket(env, IContango(contango));
-        IMarket lendMarket = reverseLookup.market(lendToken);
+        IExactlyMarket lendMarket = reverseLookup.market(lendToken);
 
         vm.expectEmit(true, true, true, true);
         emit MarketEntered(lendMarket, address(emm));
@@ -84,7 +84,7 @@ contract ExactlyMoneyMarketTest is Test {
         // setup
         IERC20 lendToken = env.token(WETH);
         IERC20 borrowToken = env.token(USDC);
-        IMarket borrowMarket = reverseLookup.market(borrowToken);
+        IExactlyMarket borrowMarket = reverseLookup.market(borrowToken);
 
         uint256 lendAmount = 10 ether;
         uint256 borrowAmount = 1000e6;
@@ -147,7 +147,7 @@ contract ExactlyMoneyMarketTest is Test {
         // setup
         IERC20 lendToken = env.token(WETH);
         IERC20 borrowToken = env.token(USDC);
-        IMarket borrowMarket = reverseLookup.market(borrowToken);
+        IExactlyMarket borrowMarket = reverseLookup.market(borrowToken);
 
         uint256 lendAmount = 10 ether;
         uint256 borrowAmount = 1000e6;
@@ -196,7 +196,7 @@ contract ExactlyMoneyMarketTest is Test {
         // setup
         IERC20 lendToken = env.token(WETH);
         IERC20 borrowToken = env.token(USDC);
-        IMarket borrowMarket = reverseLookup.market(borrowToken);
+        IExactlyMarket borrowMarket = reverseLookup.market(borrowToken);
 
         uint256 lendAmount = 10 ether;
         uint256 borrowAmount = 1000e6;

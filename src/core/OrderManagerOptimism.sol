@@ -8,7 +8,7 @@ contract OrderManagerOptimism is OrderManager {
 
     GasPriceOracle public constant PRICE_ORACLE = GasPriceOracle(0x420000000000000000000000000000000000000F);
 
-    constructor(IContango _contango, IWETH9 _nativeToken) OrderManager(_contango, _nativeToken) { }
+    constructor(IContango _contango) OrderManager(_contango) { }
 
     function _gasCost() internal view override returns (uint256 gasCost) {
         // solhint-disable-next-line avoid-tx-origin

@@ -76,6 +76,6 @@ interface ICToken is IERC20 {
     function totalSupply() external view returns (uint256);
     function transfer(address dst, uint256 amount) external returns (bool);
     function transferFrom(address src, address dst, uint256 amount) external returns (bool);
-    function underlying() external view returns (address);
+    function underlying() external view returns (IERC20);
 
 }

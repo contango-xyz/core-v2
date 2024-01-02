@@ -6,7 +6,7 @@ import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/ex
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SignedMath.sol";
 
-import "../dependencies/chainlink/AggregatorV2V3Interface.sol";
+import "src/dependencies/Chainlink.sol";
 import "../dependencies/Uniswap.sol";
 
 contract UniswapPoolStub {
@@ -16,7 +16,7 @@ contract UniswapPoolStub {
     using SignedMath for *;
 
     event UniswapPoolStubCreated(
-        IERC20 token0, IERC20 token1, AggregatorV2V3Interface token0Oracle, AggregatorV2V3Interface token1Oracle, bool token0Quoted
+        IERC20 token0, IERC20 token1, IAggregatorV2V3 token0Oracle, IAggregatorV2V3 token1Oracle, bool token0Quoted
     );
 
     event SpreadSet(int256 spread);
@@ -28,19 +28,13 @@ contract UniswapPoolStub {
 
     IERC20 public immutable token0;
     IERC20 public immutable token1;
-    AggregatorV2V3Interface public immutable token0Oracle;
-    AggregatorV2V3Interface public immutable token1Oracle;
+    IAggregatorV2V3 public immutable token0Oracle;
+    IAggregatorV2V3 public immutable token1Oracle;
     bool public immutable token0Quoted;
 
     int256 public absoluteSpread;
 
-    constructor(
-        IERC20 _token0,
-        IERC20 _token1,
-        AggregatorV2V3Interface _token0Oracle,
-        AggregatorV2V3Interface _token1Oracle,
-        bool _token0Quoted
-    ) {
+    constructor(IERC20 _token0, IERC20 _token1, IAggregatorV2V3 _token0Oracle, IAggregatorV2V3 _token1Oracle, bool _token0Quoted) {
         token0 = _token0;
         token1 = _token1;
         token0Oracle = _token0Oracle;
@@ -143,8 +137,8 @@ contract UniswapPoolStub {
     }
 
     function peek() internal view returns (int256 price) {
-        AggregatorV2V3Interface baseOracle = token0Quoted ? token1Oracle : token0Oracle;
-        AggregatorV2V3Interface quoteOracle = token0Quoted ? token0Oracle : token1Oracle;
+        IAggregatorV2V3 baseOracle = token0Quoted ? token1Oracle : token0Oracle;
+        IAggregatorV2V3 quoteOracle = token0Quoted ? token0Oracle : token1Oracle;
 
         int256 baseOraclePrecision = int256(10 ** baseOracle.decimals());
         int256 quoteOraclePrecision = int256(10 ** quoteOracle.decimals());

@@ -8,7 +8,7 @@ import "./TestSetup.t.sol";
 import "./dependencies/Strings2.sol";
 
 import "src/core/Contango.sol";
-import "src/moneymarkets/interfaces/IMoneyMarketView.sol";
+import "src/moneymarkets/ContangoLens.sol";
 
 struct TSQuote {
     TradeParams tradeParams;
@@ -88,17 +88,14 @@ contract TSQuoter {
     Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     Contango internal immutable contango;
+    ContangoLens public immutable contangoLens;
 
-    mapping(MoneyMarketId => IMoneyMarketView) public moneyMarkets;
     IERC7399[] public flashLoanProviders;
     LiquidityBuffer public liquidityBuffer;
 
-    constructor(Contango _contango) {
+    constructor(Contango _contango, ContangoLens _contangoLens) {
         contango = _contango;
-    }
-
-    function setMoneyMarket(IMoneyMarketView moneyMarketView) external {
-        moneyMarkets[moneyMarketView.moneyMarketId()] = moneyMarketView;
+        contangoLens = _contangoLens;
     }
 
     function addFlashLoanProvider(IERC7399 _provider) external {
@@ -137,10 +134,9 @@ contract TSQuoter {
         string memory dex
     ) public returns (TSQuote memory result) {
         Instrument memory instrument;
-        IMoneyMarketView moneyMarketView;
         TSQuoteParams memory tsQuoteParams;
         {
-            (Symbol symbol, MoneyMarketId mm,,) = positionId.decode();
+            (Symbol symbol,,,) = positionId.decode();
             instrument = contango.instrument(symbol);
             tsQuoteParams.meta.instrument = TSInstrument({
                 base: Token({
@@ -159,20 +155,17 @@ contract TSQuoter {
                 }),
                 closingOnly: instrument.closingOnly
             });
-            moneyMarketView = moneyMarkets[mm];
-            require(address(moneyMarketView) != address(0), "no money market view");
-            tsQuoteParams.meta.balances = moneyMarketView.balances(positionId, instrument.base, instrument.quote);
-            tsQuoteParams.meta.prices = moneyMarketView.prices(positionId, instrument.base, instrument.quote);
+            tsQuoteParams.meta.balances = contangoLens.balances(positionId);
+            tsQuoteParams.meta.prices = contangoLens.prices(positionId);
         }
 
         (tsQuoteParams.meta.liquidity.borrowingLiquidity, tsQuoteParams.meta.liquidity.lendingLiquidity) =
-            moneyMarketView.liquidity(positionId, instrument.base, instrument.quote);
+            contangoLens.liquidity(positionId);
 
         IFeeModel feeModel = contango.feeManager().feeModel();
         if (address(feeModel) != address(0)) tsQuoteParams.meta.fee = feeModel.calculateFee(address(0), positionId, 1e18);
 
-        (tsQuoteParams.meta.ltv.ltv, tsQuoteParams.meta.ltv.liquidationThreshold) =
-            moneyMarketView.thresholds(positionId, instrument.base, instrument.quote);
+        (tsQuoteParams.meta.ltv.ltv, tsQuoteParams.meta.ltv.liquidationThreshold) = contangoLens.thresholds(positionId);
         tsQuoteParams.quantity = quantity;
         tsQuoteParams.leverage = leverage;
         tsQuoteParams.cashflow = cashflow;

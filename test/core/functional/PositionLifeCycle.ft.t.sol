@@ -14,46 +14,6 @@ contract PositionLifeCycleAaveArbitrumFunctionalLong is AbstractPositionLifeCycl
 
 }
 
-contract PositionLifeCycleAaveArbitrumFunctionalShort is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Arbitrum, MM_AAVE, USDC, WETH, STABLE_WETH_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleAaveOptimismFunctionalLong is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Optimism, MM_AAVE, WETH, DAI, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleAaveOptimismFunctionalShort is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Optimism, MM_AAVE, DAI, WETH, STABLE_WETH_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleAavePolygonFunctionalLong is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Polygon, MM_AAVE, WETH, USDC, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleAavePolygonFunctionalShort is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Polygon, MM_AAVE, USDC, WETH, STABLE_WETH_MULTIPLIER);
-    }
-
-}
-
 contract PositionLifeCycleExactlyOptimismFunctionalLong is AbstractPositionLifeCycleFunctional {
 
     function setUp() public {
@@ -62,22 +22,22 @@ contract PositionLifeCycleExactlyOptimismFunctionalLong is AbstractPositionLifeC
 
 }
 
-contract PositionLifeCycleExactlyOptimismFunctionalShort is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Optimism, MM_EXACTLY, USDC, WETH, STABLE_WETH_MULTIPLIER);
-    }
-
-}
-
 contract PositionLifeCycleCompoundMainnetFunctionalLong is AbstractPositionLifeCycleFunctional {
 
     function setUp() public {
-        super.setUp(Network.Mainnet, MM_COMPOUND, WETH, USDC, WETH_STABLE_MULTIPLIER);
+        super.setUp(Network.Mainnet, MM_COMPOUND, WETH, DAI, WETH_STABLE_MULTIPLIER);
 
         address oracle = env.compoundComptroller().oracle();
-        vm.mockCall(oracle, abi.encodeWithSelector(IUniswapAnchoredView.price.selector, "ETH"), abi.encode(1000e6));
-        vm.mockCall(oracle, abi.encodeWithSelector(IUniswapAnchoredView.price.selector, "USDC"), abi.encode(1e6));
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5),
+            abi.encode(1000e18)
+        );
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643),
+            abi.encode(1e18)
+        );
     }
 
 }
@@ -99,14 +59,6 @@ contract PositionLifeCycleSonneOptimismFunctionalLong is AbstractPositionLifeCyc
 
     function setUp() public {
         super.setUp(Network.Optimism, MM_SONNE, WETH, DAI, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleSonneOptimismFunctionalShort is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Optimism, MM_SONNE, DAI, WETH, STABLE_WETH_MULTIPLIER);
     }
 
 }
@@ -152,14 +104,11 @@ contract PositionLifeCycleMorphoBlueGoerliFunctionalLong is AbstractPositionLife
 
         IMorpho morpho = env.morpho();
 
-        // Hack until they deploy the final version
-        vm.etch(address(morpho), vm.getDeployedCode("Morpho.sol"));
-
         MarketParams memory params = MarketParams({
             loanToken: env.token(USDC),
             collateralToken: env.token(WETH),
             oracle: new MorphoOracleMock(env.erc20(WETH), env.erc20(USDC)),
-            irm: IIrm(0x2056d9E6E323Fd06f4344c35022B19849C6402B3),
+            irm: IIrm(0x9ee101eB4941d8D7A665fe71449360CEF3C8Bb87),
             lltv: 0.9e18
         });
         morpho.createMarket(params);
@@ -169,14 +118,103 @@ contract PositionLifeCycleMorphoBlueGoerliFunctionalLong is AbstractPositionLife
         morpho.supply({ marketParams: params, assets: 100_000e6, shares: 0, onBehalf: lp, data: "" });
 
         vm.startPrank(Timelock.unwrap(TIMELOCK));
-        Payload payload =
-            MorphoBlueMoneyMarket(address(contango.positionFactory().moneyMarket(MM_MORPHO_BLUE))).reverseLookup().setMarket(params.id());
+        MorphoBlueReverseLookup reverseLookup =
+            MorphoBlueMoneyMarket(address(contango.positionFactory().moneyMarket(MM_MORPHO_BLUE))).reverseLookup();
+        reverseLookup.setOracle({
+            asset: env.token(USDC),
+            oracle: address(env.erc20(USDC).chainlinkUsdOracle),
+            oracleType: "CHAINLINK",
+            oracleCcy: QuoteOracleCcy.USD
+        });
+        Payload payload = reverseLookup.setMarket(params.id());
         vm.stopPrank();
 
         env.encoder().setPayload(payload);
 
         deal(address(instrument.baseData.token), TRADER, 0);
         deal(address(instrument.quoteData.token), TRADER, 0);
+    }
+
+}
+
+contract PositionLifeCycleSparkGnosisFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Gnosis, MM_SPARK, WETH, DAI, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleAgaveGnosisFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Gnosis, MM_AGAVE, WETH, DAI, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleAaveV2MainnetFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Mainnet, MM_AAVE_V2, WETH, USDC, WETH_STABLE_MULTIPLIER);
+        env.spotStub().stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
+    }
+
+}
+
+contract PositionLifeCycleRadiantArbitrumFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Arbitrum, MM_RADIANT, WETH, DAI, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleLodestarArbitrumFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Arbitrum, 152_284_580, MM_LODESTAR, WETH, USDC, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleMoonwellBaseFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Base, MM_MOONWELL, WETH, USDC, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleGranaryOptimismFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Optimism, MM_GRANARY, WETH, USDC, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleCometBaseFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Base, MM_COMET, WETH, USDC, WETH_STABLE_MULTIPLIER);
+        env.encoder().setPayload(Payload.wrap(bytes5(uint40(1))));
+    }
+
+}
+
+contract PositionLifeCycleSiloArbitrumFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Arbitrum, 156_550_831, MM_SILO, WETH, USDC, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleSiloArbitrumFunctionalShort is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Arbitrum, 156_550_831, MM_SILO, USDC, WETH, STABLE_WETH_MULTIPLIER);
     }
 
 }

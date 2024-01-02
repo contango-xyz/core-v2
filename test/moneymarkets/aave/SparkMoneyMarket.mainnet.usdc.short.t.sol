@@ -27,7 +27,7 @@ contract SparkMoneyMarketMainnetUSDCShortTest is Test {
         contango = address(env.contango());
 
         sut = env.deployer().deploySparkMoneyMarket(env, IContango(contango));
-        pool = IPool(sut.ADDRESSES_PROVIDER().getPool());
+        pool = AaveMoneyMarketView(address(sut)).pool();
         psm = sut.psm();
 
         env.createInstrument(env.erc20(USDC), env.erc20(WETH));

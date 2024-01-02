@@ -298,7 +298,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(4);
         inputs.cashflow = _adjustedBaseI(6);
@@ -336,7 +336,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = 0;
         inputs.cashflow = _adjustedBaseI(2);
@@ -446,7 +446,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(4);
         inputs.cashflow = _adjustedQuoteI(6000);
@@ -487,7 +487,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = 0;
         inputs.cashflow = _adjustedQuoteI(2000);
@@ -694,7 +694,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(4);
         inputs.cashflow = 0;
@@ -737,7 +737,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(4);
         inputs.cashflow = _adjustedBaseI(1);
@@ -780,7 +780,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(4);
         inputs.cashflow = _adjustedQuoteI(1000);
@@ -823,7 +823,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(4);
         inputs.cashflow = -int256(1.5e1 * (10 ** (instrument.baseDecimals - 1)));
@@ -869,7 +869,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(1);
         inputs.cashflow = _adjustedBaseI(-1.2e1) / int256(1e1);
@@ -914,7 +914,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(4);
         inputs.cashflow = _adjustedQuoteI(-1500);
@@ -960,7 +960,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(1);
         inputs.cashflow = _adjustedQuoteI(-1200);
@@ -1006,7 +1006,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = type(uint128).max;
         inputs.cashflow = 0;
@@ -1055,7 +1055,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = type(uint128).max;
         inputs.cashflow = 0;
@@ -1104,7 +1104,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = 0;
         inputs.cashflow = _adjustedBaseI(-1);
@@ -1143,7 +1143,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = 0;
         inputs.cashflow = _adjustedQuoteI(-1000);
@@ -1181,7 +1181,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(1);
         inputs.cashflow = _adjustedBaseI(-1);
@@ -1303,7 +1303,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(4);
         inputs.cashflow = _adjustedBaseI(-1);
@@ -1349,7 +1349,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         (TSQuote memory quote, PositionId positionId, Trade memory trade, Balances memory balances) = _initialPosition();
 
         skip(1 seconds);
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
 
         inputs.quantity = _adjustedBase(4);
         inputs.cashflow = _adjustedQuoteI(-1000);
@@ -1399,7 +1399,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         int256 previousSpread = poolStub.absoluteSpread();
         poolStub.setAbsoluteSpread(0);
 
-        (address previousFeeModel, bytes memory previousFeeModelBytecode) = env.etchNoFeeModel();
+        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
+        uint256 prevFee = feeModel.defaultFee();
+        vm.prank(TIMELOCK_ADDRESS);
+        feeModel.setDefaultFee(NO_FEE);
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             symbol: instrument.symbol,
@@ -1411,9 +1414,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         poolStub.setAbsoluteSpread(previousSpread);
 
-        vm.etch(previousFeeModel, previousFeeModelBytecode);
+        vm.prank(TIMELOCK_ADDRESS);
+        feeModel.setDefaultFee(prevFee);
 
-        balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        balances = env.contangoLens().balances(positionId);
     }
 
     function _assertPosition(PositionId positionId, Trade memory trade, Action action) private {
@@ -1460,7 +1464,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         else if (trade.cashflowCcy == Currency.Quote) _assertEqQuote(trade.cashflow, expectedTrade.cashflow, "trade.cashflow");
         else assertEq(trade.cashflow, expectedTrade.cashflow, "trade.cashflow");
 
-        Balances memory balances = env.tsQuoter().moneyMarkets(mm).balances(positionId, instrument.base, instrument.quote);
+        Balances memory balances = env.contangoLens().balances(positionId);
         _assertEqBase(balances.collateral, expectations.collateral, "collateral");
         _assertEqQuote(balances.debt, expectations.debt, "debt");
 

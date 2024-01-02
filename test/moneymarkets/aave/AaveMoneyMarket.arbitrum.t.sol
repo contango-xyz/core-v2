@@ -24,8 +24,7 @@ contract AaveMoneyMarketArbitrumTest is Test {
         contango = address(env.contango());
 
         sut = env.deployer().deployAaveMoneyMarket(env, IContango(contango));
-        pool = IPool(env.aaveAddressProvider().getPool());
-
+        pool = AaveMoneyMarketView(address(sut)).pool();
         env.createInstrument(env.erc20(WETH), env.erc20(USDC));
 
         positionId = env.encoder().encodePositionId(Symbol.wrap("WETHUSDC"), MM_AAVE, PERP, 1);
@@ -460,7 +459,7 @@ contract AaveMoneyMarketArbitrumTest is Test {
             params: ""
         });
 
-        vm.prank(address(sut.POOL()));
+        vm.prank(address(sut.pool()));
         vm.expectRevert(abi.encodeWithSelector(IFlashBorrowProvider.InvalidSenderOrInitiator.selector));
         IFlashLoanReceiver(address(sut)).executeOperation({
             assets: toArray(address(0)),

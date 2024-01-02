@@ -16,19 +16,26 @@ contract FixedFeeModelTest is BaseTest {
     FixedFeeModel private sut;
 
     function testAboveMaxFeeRevert(uint256 _fee) public {
-        _fee = bound(_fee, MAX_FIXED_FEE + 1, type(uint256).max);
+        _fee = bound(_fee, MAX_FIXED_FEE + 1, type(uint256).max - 1);
+        sut = new FixedFeeModel(TIMELOCK);
         vm.expectRevert(abi.encodeWithSelector(AboveMaxFee.selector, _fee));
-        sut = new FixedFeeModel(TIMELOCK, _fee);
+        vm.prank(TIMELOCK_ADDRESS);
+        sut.setDefaultFee(_fee);
     }
 
     function testBelowMinFeeRevert(uint256 _fee) public {
         _fee = bound(_fee, 0, MIN_FIXED_FEE - 1);
+        sut = new FixedFeeModel(TIMELOCK);
         vm.expectRevert(abi.encodeWithSelector(BelowMinFee.selector, _fee));
-        sut = new FixedFeeModel(TIMELOCK, _fee);
+        vm.prank(TIMELOCK_ADDRESS);
+        sut.setDefaultFee(_fee);
     }
 
     function testPermissions() public {
-        sut = new FixedFeeModel(TIMELOCK, 0.001e18);
+        sut = new FixedFeeModel(TIMELOCK);
+
+        expectAccessControl(address(this), DEFAULT_ADMIN_ROLE);
+        sut.setDefaultFee(0.01e18);
 
         expectAccessControl(address(this), DEFAULT_ADMIN_ROLE);
         sut.setFee(WETHUSDC, 0.001e18);
@@ -37,14 +44,12 @@ contract FixedFeeModelTest is BaseTest {
         sut.removeFee(WETHUSDC);
     }
 
-    function testCalculateFees() public {
+    function testCalculateDefaultFees_NoFee(uint256 quantity) public {
         // given
         PositionId positionId = encode(Symbol.wrap(""), MM_AAVE, PERP, 0, 0);
-        uint256 feeRate = 0.0015e18;
-        uint256 quantity = 10_000e18;
-        uint256 expectedFees = 15e18;
+        uint256 expectedFees = 0;
 
-        sut = new FixedFeeModel(TIMELOCK, feeRate);
+        sut = new FixedFeeModel(TIMELOCK);
 
         // when
         uint256 actualFees = sut.calculateFee(address(this), positionId, quantity);
@@ -53,14 +58,60 @@ contract FixedFeeModelTest is BaseTest {
         assertEq(expectedFees, actualFees);
     }
 
-    function testCalculateFeesPerSymbol() public {
+    function testCalculateDefaultFees_SomeFee() public {
+        // given
+        PositionId positionId = encode(Symbol.wrap(""), MM_AAVE, PERP, 0, 0);
+        uint256 feeRate = 0.0015e18;
+        uint256 quantity = 10_000e18;
+        uint256 expectedFees = 15e18;
+
+        sut = new FixedFeeModel(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
+        sut.setDefaultFee(feeRate);
+
+        // when
+        uint256 actualFees = sut.calculateFee(address(this), positionId, quantity);
+
+        // then
+        assertEq(expectedFees, actualFees);
+    }
+
+    function testCalculateFeesPerSymbol_NoFee() public {
+        // given
+        PositionId positionId = encode(WETHUSDC, MM_AAVE, PERP, 0, 0);
+        uint256 quantity = 100e18;
+        uint256 expectedDefaultFees = 0;
+
+        sut = new FixedFeeModel(TIMELOCK);
+
+        // when
+        uint256 symbolFeeRate = 0.0001e18;
+        uint256 expectedSymbolFees = 0.01e18;
+
+        vm.prank(TIMELOCK_ADDRESS);
+        sut.setFee(WETHUSDC, symbolFeeRate);
+
+        uint256 actualSymbolFees = sut.calculateFee(address(this), positionId, quantity);
+
+        vm.prank(TIMELOCK_ADDRESS);
+        sut.removeFee(WETHUSDC);
+        uint256 revertedFees = sut.calculateFee(address(this), positionId, quantity);
+
+        // then
+        assertEq(expectedSymbolFees, actualSymbolFees, "actualSymbolFees");
+        assertEq(expectedDefaultFees, revertedFees, "revertedFees");
+    }
+
+    function testCalculateFeesPerSymbol_SomeFee() public {
         // given
         PositionId positionId = encode(WETHUSDC, MM_AAVE, PERP, 0, 0);
         uint256 defaultFeeRate = 0.0015e18;
         uint256 quantity = 100e18;
         uint256 expectedDefaultFees = 0.15e18;
 
-        sut = new FixedFeeModel(TIMELOCK, defaultFeeRate);
+        sut = new FixedFeeModel(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
+        sut.setDefaultFee(defaultFeeRate);
 
         // when
         uint256 symbolFeeRate = 0.0001e18;
@@ -92,7 +143,9 @@ contract FixedFeeModelTest is BaseTest {
         uint256 quantity = 10_000e6;
         uint256 expectedFees = 15e6;
 
-        sut = new FixedFeeModel(TIMELOCK, feeRate);
+        sut = new FixedFeeModel(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
+        sut.setDefaultFee(feeRate);
 
         // when
         uint256 actualFees = sut.calculateFee(address(this), positionId, quantity);
@@ -115,7 +168,9 @@ contract FixedFeeModelTest is BaseTest {
         vm.assume(quantity != 0);
         vm.assume(defaultFeeRate != symbolFeeRate);
 
-        sut = new FixedFeeModel(TIMELOCK, defaultFeeRate);
+        sut = new FixedFeeModel(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
+        sut.setDefaultFee(defaultFeeRate);
 
         uint256 expectedDefaultFees = uint256(quantity).mulDiv(defaultFeeRate, 1e18, Math.Rounding.Up);
         uint256 expectedSymbolFees = uint256(quantity).mulDiv(symbolFeeRate, 1e18, Math.Rounding.Up);

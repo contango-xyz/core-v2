@@ -31,8 +31,17 @@ contract CompoundMoneyMarketTest is BaseTest {
         sut.initialise(positionId, env.token(WETH), env.token(USDC));
         vm.stopPrank();
 
-        env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
+        address oracle = env.compoundComptroller().oracle();
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5),
+            abi.encode(1000e18)
+        );
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643),
+            abi.encode(1e18)
+        );
     }
 
     function testInitialise_InvalidExpiry() public {

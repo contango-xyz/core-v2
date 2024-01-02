@@ -90,8 +90,19 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
         }
     }
 
-    function _claimRewards(PositionId, IERC20 collateralAsset, IERC20 debtAsset, address to) internal override {
-        comptroller.claimComp(address(this), toArray(address(cToken(collateralAsset)), address(cToken(debtAsset))));
+    function _claimRewards(PositionId, IERC20 collateralAsset, IERC20 debtAsset, address to) internal virtual override {
+        comptroller.claimComp({
+            holders: toArray(address(this)),
+            cTokens: toArray(address(cToken(collateralAsset))),
+            borrowers: false,
+            suppliers: true
+        });
+        comptroller.claimComp({
+            holders: toArray(address(this)),
+            cTokens: toArray(address(cToken(debtAsset))),
+            borrowers: true,
+            suppliers: false
+        });
         IERC20(comptroller.getCompAddress()).transferBalance(to);
     }
 
@@ -103,7 +114,7 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
         return reverseLookup.cToken(asset);
     }
 
-    receive() external payable {
+    receive() external payable virtual {
         // allow native token
     }
 

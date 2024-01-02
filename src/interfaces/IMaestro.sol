@@ -50,9 +50,9 @@ interface IMaestro is IContangoErrors, IOrderManagerErrors, IVaultErrors {
 
     function depositNative() external payable returns (uint256);
 
-    function depositWithPermit(IERC20Permit token, EIP2098Permit calldata permit) external returns (uint256);
+    function depositWithPermit(IERC20Permit token, EIP2098Permit calldata permit, uint256 amount) external returns (uint256);
 
-    function depositWithPermit2(IERC20 token, EIP2098Permit calldata permit) external returns (uint256);
+    function depositWithPermit2(IERC20 token, EIP2098Permit calldata permit, uint256 amount) external returns (uint256);
 
     function withdraw(IERC20 token, uint256 amount, address to) external returns (uint256);
 

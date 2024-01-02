@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.4;
 
+import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+
 /**
  * @title IPriceOracleGetter
  * @author Aave
@@ -13,7 +15,7 @@ interface IPriceOracleGetter {
      * @dev Address 0x0 is reserved for USD as base currency.
      * @return Returns the base currency address.
      */
-    function BASE_CURRENCY() external view returns (address);
+    function BASE_CURRENCY() external view returns (IERC20);
 
     /**
      * @notice Returns the base currency unit
@@ -27,6 +29,6 @@ interface IPriceOracleGetter {
      * @param asset The address of the asset
      * @return The price of the asset
      */
-    function getAssetPrice(address asset) external view returns (uint256);
+    function getAssetPrice(IERC20 asset) external view returns (uint256);
 
 }

@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "@openzeppelin/contracts/governance/TimelockController.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "src/moneymarkets/aave/dependencies/IPoolDataProvider.sol";
+import "src/moneymarkets/exactly/dependencies/IExactlyPreviewer.sol";
 
 // Stubs
 import { ChainlinkAggregatorV2V3Mock } from "test/stub/ChainlinkAggregatorV2V3Mock.sol";

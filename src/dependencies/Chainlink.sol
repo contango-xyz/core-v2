@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-interface AggregatorV2V3Interface {
+interface IAggregatorV2V3 {
 
     event AnswerUpdated(int256 indexed current, uint256 indexed roundId, uint256 updatedAt);
     event NewRound(uint256 indexed roundId, address indexed startedBy, uint256 startedAt);

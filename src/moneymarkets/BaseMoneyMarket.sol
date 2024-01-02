@@ -63,7 +63,9 @@ abstract contract BaseMoneyMarket is IMoneyMarket {
 
     function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal virtual returns (uint256 actualAmount);
 
-    function _claimRewards(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset, address to) internal virtual { }
+    function _claimRewards(PositionId, IERC20, IERC20, address) internal virtual {
+        revert RewardsNotImplemented();
+    }
 
     function _collateralBalance(PositionId positionId, IERC20 asset) internal virtual returns (uint256 balance);
 

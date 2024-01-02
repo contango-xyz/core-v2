@@ -42,17 +42,16 @@ contract UniswapPoolStubETHUSDCTest is UniswapPoolStubTest {
     function setUp() public override {
         super.setUp();
 
-        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
-            .set(1000e8);
-        ChainlinkAggregatorV2V3Mock usdcOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
-            .set(1e8);
+        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8).set(1000e8);
+        ChainlinkAggregatorV2V3Mock usdcOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8).set(1e8);
 
         sut = new UniswapPoolStub({
             _token0: env.token(WETH),
             _token1: env.token(USDC),
             _token0Oracle: ethOracle,
             _token1Oracle: usdcOracle,
-            _token0Quoted: false});
+            _token0Quoted: false
+        });
         sut.setAbsoluteSpread(1e6);
 
         deal(address(env.token(WETH)), address(sut), 100_000 ether);
@@ -90,17 +89,16 @@ contract UniswapPoolStubETHDAITest is UniswapPoolStubTest {
     function setUp() public override {
         super.setUp();
 
-        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
-            .set(1000e8);
-        ChainlinkAggregatorV2V3Mock daiOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
-            .set(1e8);
+        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8).set(1000e8);
+        ChainlinkAggregatorV2V3Mock daiOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8).set(1e8);
 
         sut = new UniswapPoolStub({
             _token0: env.token(WETH),
             _token1: env.token(DAI),
             _token0Oracle: ethOracle,
             _token1Oracle: daiOracle,
-            _token0Quoted: false});
+            _token0Quoted: false
+        });
         sut.setAbsoluteSpread(1e18);
 
         deal(address(env.token(WETH)), address(sut), 100_000 ether);
@@ -138,17 +136,16 @@ contract UniswapPoolStubETHLINKTest is UniswapPoolStubTest {
     function setUp() public override {
         super.setUp();
 
-        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
-            .set(1000e8);
-        ChainlinkAggregatorV2V3Mock linkOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8)
-            .set(5e8);
+        ChainlinkAggregatorV2V3Mock ethOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8).set(1000e8);
+        ChainlinkAggregatorV2V3Mock linkOracle = new ChainlinkAggregatorV2V3Mock().setDecimals(8).set(5e8);
 
         sut = new UniswapPoolStub({
             _token0: env.token(WETH),
             _token1: env.token(LINK),
             _token0Oracle: ethOracle,
             _token1Oracle: linkOracle,
-            _token0Quoted: false});
+            _token0Quoted: false
+        });
         sut.setAbsoluteSpread(1e18); // 199 / 201
 
         deal(address(env.token(WETH)), address(sut), 100_000 ether);

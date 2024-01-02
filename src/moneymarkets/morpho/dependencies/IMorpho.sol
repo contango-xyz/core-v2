@@ -73,7 +73,7 @@ interface IMorpho {
     function feeRecipient() external view returns (address);
 
     /// @notice The state of the position of `user` on the market corresponding to `id`.
-    function position(Id id, address user) external view returns (uint256 supplyShares, uint128 borrowShares, uint128 collateral);
+    function position(Id id, address user) external view returns (Position memory);
 
     /// @notice The state of the market corresponding to `id`.
     function market(Id id) external view returns (Market memory);

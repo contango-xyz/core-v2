@@ -5,7 +5,7 @@ import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/ex
 import "./IAuditor.sol";
 import "./IInterestRateModel.sol";
 
-interface IMarket {
+interface IExactlyMarket {
 
     error Disagreement(); // "0xb06dad04",
     error InsufficientProtocolLiquidity(); // "0x016a0d68",

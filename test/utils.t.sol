@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.20;
 
-import "forge-std/Test.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 function bytes32ToString(bytes32 _bytes32) pure returns (string memory) {
     uint8 i = 0;

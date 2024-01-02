@@ -1,14 +1,13 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.20;
 
-import "../dependencies/chainlink/AggregatorV2V3Interface.sol";
+import "src/dependencies/Chainlink.sol";
 
-contract ChainlinkAggregatorV2V3Mock is AggregatorV2V3Interface {
+contract ChainlinkAggregatorV2V3Mock is IAggregatorV2V3 {
 
     uint8 public override decimals;
     int256 public price;
-    uint256 public timestamp;
-    uint256 private _roundId;
+    uint80 private _roundId;
 
     function setDecimals(uint8 _decimals) external returns (ChainlinkAggregatorV2V3Mock) {
         decimals = _decimals;
@@ -17,9 +16,8 @@ contract ChainlinkAggregatorV2V3Mock is AggregatorV2V3Interface {
 
     function set(int256 _price) external returns (ChainlinkAggregatorV2V3Mock) {
         price = _price;
-        timestamp = block.timestamp;
 
-        emit AnswerUpdated(price, ++_roundId, timestamp);
+        emit AnswerUpdated(price, ++_roundId, block.timestamp);
 
         return ChainlinkAggregatorV2V3Mock(address(this));
     }
@@ -44,7 +42,7 @@ contract ChainlinkAggregatorV2V3Mock is AggregatorV2V3Interface {
         override
         returns (uint80 roundId_, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
     {
-        return (roundId, price, 0, timestamp, 0);
+        return (roundId, price, 0, block.timestamp, 0);
     }
 
     function latestRoundData()
@@ -53,7 +51,7 @@ contract ChainlinkAggregatorV2V3Mock is AggregatorV2V3Interface {
         override
         returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
     {
-        return (0, price, 0, timestamp, 0);
+        return (_roundId, price, block.timestamp, block.timestamp, _roundId);
     }
 
     // V2
@@ -63,7 +61,7 @@ contract ChainlinkAggregatorV2V3Mock is AggregatorV2V3Interface {
     }
 
     function latestTimestamp() external view override returns (uint256) {
-        return timestamp;
+        return block.timestamp;
     }
 
     function latestRound() external view override returns (uint256) {
@@ -75,7 +73,7 @@ contract ChainlinkAggregatorV2V3Mock is AggregatorV2V3Interface {
     }
 
     function getTimestamp(uint256) external view override returns (uint256) {
-        return timestamp;
+        return block.timestamp;
     }
 
 }

@@ -26,8 +26,7 @@ contract SparkMoneyMarketMainnetDAIShortTest is Test {
         contango = address(env.contango());
 
         sut = env.deployer().deploySparkMoneyMarket(env, IContango(contango));
-        pool = IPool(sut.ADDRESSES_PROVIDER().getPool());
-
+        pool = AaveMoneyMarketView(address(sut)).pool();
         env.createInstrument(env.erc20(DAI), env.erc20(WETH));
 
         positionId = env.encoder().encodePositionId(Symbol.wrap("DAIWETH"), MM_SPARK, PERP, 1);
