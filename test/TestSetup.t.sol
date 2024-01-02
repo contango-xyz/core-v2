@@ -36,10 +36,14 @@ import "src/moneymarkets/compound/CompoundMoneyMarketView.sol";
 import "src/moneymarkets/compound/SonneMoneyMarketView.sol";
 import "src/moneymarkets/compound/LodestarMoneyMarket.sol";
 import "src/moneymarkets/compound/LodestarMoneyMarketView.sol";
+import "src/moneymarkets/comet/CometMoneyMarket.sol";
+import "src/moneymarkets/comet/CometMoneyMarketView.sol";
 import "src/moneymarkets/compound/MoonwellMoneyMarket.sol";
 import "src/moneymarkets/compound/MoonwellMoneyMarketView.sol";
 import "src/moneymarkets/morpho/MorphoBlueMoneyMarket.sol";
 import "src/moneymarkets/morpho/MorphoBlueMoneyMarketView.sol";
+import "src/moneymarkets/silo/SiloMoneyMarket.sol";
+import "src/moneymarkets/silo/SiloMoneyMarketView.sol";
 import "src/moneymarkets/ContangoLens.sol";
 import "src/models/FixedFeeModel.sol";
 
@@ -327,6 +331,20 @@ contract Deployer {
         moneyMarket = ExactlyMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
+    function deployCometMoneyMarket(Env env, IContango contango) public returns (CometMoneyMarket moneyMarket) {
+        IComet[] memory comets = new IComet[](1);
+        comets[0] = env.comet();
+        CometReverseLookup reverseLookup = new CometReverseLookup(TIMELOCK, comets);
+        moneyMarket = new CometMoneyMarket({
+            _moneyMarketId: MM_COMET,
+            _contango: contango,
+            _reverseLookup: reverseLookup,
+            _rewards: env.cometRewards()
+        });
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        moneyMarket = CometMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
+    }
+
     function deployCompoundMoneyMarket(Env env, IContango contango) public returns (CompoundMoneyMarket moneyMarket) {
         CompoundReverseLookup reverseLookup = new CompoundReverseLookup(TIMELOCK, env.compoundComptroller(), env.nativeToken());
         reverseLookup.update();
@@ -390,6 +408,13 @@ contract Deployer {
 
         UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
         moneyMarket = MorphoBlueMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
+    }
+
+    function deploySiloMoneyMarket(Env, IContango contango) public returns (SiloMoneyMarket moneyMarket) {
+        moneyMarket = new SiloMoneyMarket({ _contango: contango });
+
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        moneyMarket = SiloMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
     function deployVault(Env env) public returns (Vault vault) {
@@ -590,6 +615,20 @@ contract Deployer {
                 )
             );
         }
+        if (env.marketAvailable(MM_COMET)) {
+            CometMoneyMarket moneyMarket = deployCometMoneyMarket(env, deployment.contango);
+            positionFactory.registerMoneyMarket(moneyMarket);
+            deployment.contangoLens.setMoneyMarketView(
+                new CometMoneyMarketView(
+                    deployment.contango,
+                    env.nativeToken(),
+                    env.nativeUsdOracle(),
+                    moneyMarket.reverseLookup(),
+                    env.cometRewards(),
+                    IAggregatorV2V3(env.compOracle())
+                )
+            );
+        }
         if (env.marketAvailable(MM_GRANARY)) {
             positionFactory.registerMoneyMarket(deployGranaryMoneyMarket(env, deployment.contango));
 
@@ -602,6 +641,13 @@ contract Deployer {
                     env.nativeToken(),
                     env.nativeUsdOracle()
                 )
+            );
+        }
+        if (env.marketAvailable(MM_SILO)) {
+            positionFactory.registerMoneyMarket(deploySiloMoneyMarket(env, deployment.contango));
+
+            deployment.contangoLens.setMoneyMarketView(
+                new SiloMoneyMarketView(deployment.contango, env.nativeToken(), env.nativeUsdOracle())
             );
         }
 
@@ -703,6 +749,9 @@ abstract contract Env is StdAssertions, StdCheats {
     address public sonneOracle;
     // Lodestar
     address public lodestarOracle;
+    // Comet
+    IComet public comet;
+    ICometRewards public cometRewards;
     // Moonwell
     IComptroller public moonwellComptroller;
     address public moonwellOracle;
@@ -1039,6 +1088,7 @@ contract ArbitrumEnv is Env {
         _moneyMarkets.push(MM_AAVE);
         _moneyMarkets.push(MM_RADIANT);
         _moneyMarkets.push(MM_LODESTAR);
+        _moneyMarkets.push(MM_SILO);
 
         _fuzzMoneyMarkets.push(MM_AAVE);
         _fuzzMoneyMarkets.push(MM_RADIANT);
@@ -1524,6 +1574,7 @@ contract BaseEnv is Env {
 
     constructor() Env(Network.Base) {
         _moneyMarkets.push(MM_AAVE);
+        _moneyMarkets.push(MM_COMET);
         _moneyMarkets.push(MM_MOONWELL);
 
         // chainlink addresses for Base - https://docs.chain.link/data-feeds/price-feeds/addresses?network=Base-chain&page=1
@@ -1559,6 +1610,8 @@ contract BaseEnv is Env {
         uniswapRouter = SwapRouter02(uniswap);
         balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
         aaveAddressProvider = IPoolAddressesProvider(0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D);
+        comet = IComet(0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf);
+        cometRewards = ICometRewards(0x123964802e6ABabBE1Bc9547D72Ef1B69B00A6b1);
         compOracle = 0x9DDa783DE64A9d1A60c49ca761EbE528C35BA428;
         moonwellComptroller = IComptroller(0xfBb21d0380beE3312B33c4353c8936a0F13EF26C);
         moonwellOracle = 0xffA3F8737C39e36dec4300B162c2153c67c8352f;

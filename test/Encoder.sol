@@ -5,7 +5,7 @@ import "src/moneymarkets/aave/dependencies/IPoolDataProvider.sol";
 
 import { IContango, IERC20, Instrument } from "src/interfaces/IContango.sol";
 import { PositionId, Payload, Symbol, MoneyMarketId, InvalidExpiry, InvalidUInt32, InvalidUInt48 } from "src/libraries/DataTypes.sol";
-import { MM_AAVE, MM_SPARK, MM_MORPHO_BLUE } from "script/constants.sol";
+import { MM_AAVE, MM_SPARK, MM_MORPHO_BLUE, MM_COMET } from "script/constants.sol";
 import { E_MODE, ISOLATION_MODE } from "src/moneymarkets/aave/AaveMoneyMarket.sol";
 import { InvalidUInt8 } from "src/libraries/BitFlags.sol";
 
@@ -45,6 +45,7 @@ contract Encoder {
         if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_AAVE)) flags = _aaveFlags(aaveDataProvider, symbol);
         if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_SPARK)) flags = _aaveFlags(sparkDataProvider, symbol);
         if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_MORPHO_BLUE)) return encode(symbol, mm, expiry, number, payload);
+        if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_COMET)) return encode(symbol, mm, expiry, number, payload);
 
         return encode(symbol, mm, expiry, number, flags);
     }

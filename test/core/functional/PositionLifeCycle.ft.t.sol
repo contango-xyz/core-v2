@@ -193,3 +193,28 @@ contract PositionLifeCycleGranaryOptimismFunctionalLong is AbstractPositionLifeC
     }
 
 }
+
+contract PositionLifeCycleCometBaseFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Base, MM_COMET, WETH, USDC, WETH_STABLE_MULTIPLIER);
+        env.encoder().setPayload(Payload.wrap(bytes5(uint40(1))));
+    }
+
+}
+
+contract PositionLifeCycleSiloArbitrumFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Arbitrum, 156_550_831, MM_SILO, WETH, USDC, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleSiloArbitrumFunctionalShort is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Arbitrum, 156_550_831, MM_SILO, USDC, WETH, STABLE_WETH_MULTIPLIER);
+    }
+
+}
