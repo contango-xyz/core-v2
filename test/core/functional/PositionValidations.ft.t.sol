@@ -39,7 +39,9 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors {
             uniswapFee: 500
         });
 
-        env.etchNoFeeModel();
+        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
+        vm.prank(TIMELOCK_ADDRESS);
+        feeModel.setDefaultFee(NO_FEE);
 
         poolStub = UniswapPoolStub(poolAddress);
 

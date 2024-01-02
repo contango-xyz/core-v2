@@ -75,7 +75,7 @@ contract MaestroTest is BaseTest {
         assertEq(vault.balanceOf(weth, TRADER), 10 ether, "trader vault balance");
     }
 
-    function testDepositWithPermit() public {
+    function testDepositWithPermit_PermitAmount() public {
         EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, 10_000e6, address(vault));
 
         vm.prank(TRADER);
@@ -84,13 +84,31 @@ contract MaestroTest is BaseTest {
         assertEq(vault.balanceOf(usdc, TRADER), 10_000e6, "trader vault balance");
     }
 
-    function testDepositWithPermit2() public {
+    function testDepositWithPermit_LessThanPermitAmount() public {
+        EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, 10_000e6, address(vault));
+
+        vm.prank(TRADER);
+        maestro.depositWithPermit(IERC20Permit(address(usdc)), signedPermit, 9000e6);
+
+        assertEq(vault.balanceOf(usdc, TRADER), 9000e6, "trader vault balance");
+    }
+
+    function testDepositWithPermit2_PermitAmount() public {
         EIP2098Permit memory signedPermit = env.dealAndPermit2(usdc, TRADER, TRADER_PK, 10_000e6, address(maestro));
 
         vm.prank(TRADER);
         maestro.depositWithPermit2(usdc, signedPermit);
 
         assertEq(vault.balanceOf(usdc, TRADER), 10_000e6, "trader vault balance");
+    }
+
+    function testDepositWithPermit2_LessThanPermitAmount() public {
+        EIP2098Permit memory signedPermit = env.dealAndPermit2(usdc, TRADER, TRADER_PK, 10_000e6, address(maestro));
+
+        vm.prank(TRADER);
+        maestro.depositWithPermit2(usdc, signedPermit, 9000e6);
+
+        assertEq(vault.balanceOf(usdc, TRADER), 9000e6, "trader vault balance");
     }
 
     function _swap(IERC20 from, IERC20 to, uint256 amount, address recipient) internal view returns (SwapData memory) {
@@ -172,15 +190,15 @@ contract MaestroTest is BaseTest {
         EIP2098Permit memory signedPermit = env.dealAndPermit(arb, TRADER, TRADER_PK, 10_000e18, address(vault));
         vm.expectRevert(abi.encodeWithSelector(IVaultErrors.UnsupportedToken.selector, arb));
         vm.prank(TRADER);
-        maestro.depositWithPermit(IERC20Permit(address(arb)), signedPermit);
+        maestro.depositWithPermit(IERC20Permit(address(arb)), signedPermit, 0);
 
         signedPermit = env.dealAndPermit2(arb, TRADER, TRADER_PK, 10_000e18, address(maestro));
         vm.expectRevert(abi.encodeWithSelector(IVaultErrors.UnsupportedToken.selector, arb));
         vm.prank(TRADER);
-        maestro.depositWithPermit2(arb, signedPermit);
+        maestro.depositWithPermit2(arb, signedPermit, 0);
     }
 
-    function testWithdraw() public {
+    function testWithdraw_ExactAmount() public {
         env.dealAndApprove(usdc, TRADER, 10_000e6, address(vault));
         vm.prank(TRADER);
         maestro.deposit(usdc, 10_000e6);
@@ -192,13 +210,61 @@ contract MaestroTest is BaseTest {
         assertEq(usdc.balanceOf(TRADER), 10_000e6, "trader balance");
     }
 
-    function testWithdrawNative() public {
+    function testWithdraw_PartialAmount() public {
+        env.dealAndApprove(usdc, TRADER, 10_000e6, address(vault));
+        vm.prank(TRADER);
+        maestro.deposit(usdc, 10_000e6);
+
+        vm.prank(TRADER);
+        maestro.withdraw(usdc, 5000e6, TRADER);
+
+        assertEq(vault.balanceOf(usdc, TRADER), 5000e6, "trader vault balance");
+        assertEq(usdc.balanceOf(TRADER), 5000e6, "trader balance");
+    }
+
+    function testWithdraw_All() public {
+        env.dealAndApprove(usdc, TRADER, 10_000e6, address(vault));
+        vm.prank(TRADER);
+        maestro.deposit(usdc, 10_000e6);
+
+        vm.prank(TRADER);
+        maestro.withdraw(usdc, 0, TRADER);
+
+        assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
+        assertEq(usdc.balanceOf(TRADER), 10_000e6, "trader balance");
+    }
+
+    function testWithdrawNative_ExactAmount() public {
         vm.deal(TRADER, 10 ether);
         vm.prank(TRADER);
         maestro.depositNative{ value: 10 ether }();
 
         vm.prank(TRADER);
         maestro.withdrawNative(10 ether, TRADER);
+
+        assertEq(vault.balanceOf(weth, TRADER), 0, "trader vault balance");
+        assertEq(TRADER.balance, 10 ether, "trader balance");
+    }
+
+    function testWithdrawNative_PartialAmount() public {
+        vm.deal(TRADER, 10 ether);
+        vm.prank(TRADER);
+        maestro.depositNative{ value: 10 ether }();
+
+        vm.prank(TRADER);
+        maestro.withdrawNative(5 ether, TRADER);
+
+        assertEq(vault.balanceOf(weth, TRADER), 5 ether, "trader vault balance");
+        assertEq(TRADER.balance, 5 ether, "trader balance");
+    }
+
+    function testWithdrawNative_All() public {
+        vm.deal(TRADER, 10 ether);
+        vm.prank(TRADER);
+        maestro.depositNative{ value: 10 ether }();
+
+        vm.prank(TRADER);
+        maestro.withdrawNative(0, TRADER);
 
         assertEq(vault.balanceOf(weth, TRADER), 0, "trader vault balance");
         assertEq(TRADER.balance, 10 ether, "trader balance");

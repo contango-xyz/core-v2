@@ -33,6 +33,12 @@ MoneyMarketId constant MM_EXACTLY = MoneyMarketId.wrap(4);
 MoneyMarketId constant MM_SONNE = MoneyMarketId.wrap(5);
 MoneyMarketId constant MM_SPARK = MoneyMarketId.wrap(7);
 MoneyMarketId constant MM_MORPHO_BLUE = MoneyMarketId.wrap(8);
+MoneyMarketId constant MM_AGAVE = MoneyMarketId.wrap(9);
+MoneyMarketId constant MM_AAVE_V2 = MoneyMarketId.wrap(10);
+MoneyMarketId constant MM_RADIANT = MoneyMarketId.wrap(11);
+MoneyMarketId constant MM_LODESTAR = MoneyMarketId.wrap(12);
+MoneyMarketId constant MM_MOONWELL = MoneyMarketId.wrap(13);
+MoneyMarketId constant MM_GRANARY = MoneyMarketId.wrap(15);
 
 uint32 constant PERP = type(uint32).max;
 uint256 constant DEFAULT_SLIPPAGE_TOLERANCE = 0.001e4;

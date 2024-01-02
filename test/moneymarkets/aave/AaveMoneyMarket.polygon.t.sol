@@ -26,8 +26,7 @@ contract AaveMoneyMarketPolygonTest is Test {
         contango = address(env.contango());
 
         sut = env.deployer().deployAaveMoneyMarket(env, env.contango());
-        pool = IPool(env.aaveAddressProvider().getPool());
-
+        pool = AaveMoneyMarketView(address(sut)).pool();
         positionId = env.encoder().encodePositionId(Symbol.wrap("USDCWMATIC"), MM_AAVE, PERP, 1);
         vm.startPrank(contango);
         sut.initialise(positionId, env.token(USDC), env.token(WMATIC));

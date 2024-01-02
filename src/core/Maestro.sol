@@ -26,6 +26,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
     using { validateCreatePositionPermissions, validateModifyPositionPermissions } for PositionNFT;
 
     bytes32 public constant UPPER_BIT_MASK = (0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+    uint256 public constant ALL = 0; // used to indicate that the full amount should be used, 0 is cheaper on calldata than type(uint256).max
 
     Timelock public immutable timelock;
     IContango public immutable contango;
@@ -75,12 +76,17 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
         });
     }
 
-    function depositWithPermit(IERC20Permit token, EIP2098Permit calldata permit) public override returns (uint256) {
-        applyPermit(token, permit, address(vault));
-        return deposit(IERC20(address(token)), permit.amount);
+    // delete in next upgrade
+    function depositWithPermit(IERC20Permit token, EIP2098Permit calldata permit) public returns (uint256) {
+        return depositWithPermit(token, permit, ALL);
     }
 
-    function usePermit2(IERC20 token, EIP2098Permit calldata permit, address to) public {
+    function depositWithPermit(IERC20Permit token, EIP2098Permit calldata permit, uint256 amount) public override returns (uint256) {
+        applyPermit(token, permit, address(vault));
+        return deposit(IERC20(address(token)), amount == ALL ? permit.amount : amount);
+    }
+
+    function usePermit2(IERC20 token, EIP2098Permit calldata permit, uint256 amount, address to) public {
         address sender = msg.sender;
         permit2.permitTransferFrom({
             permit: IPermit2.PermitTransferFrom({
@@ -88,15 +94,21 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
                 nonce: uint256(keccak256(abi.encode(sender, token, permit.amount, permit.deadline))),
                 deadline: permit.deadline
             }),
-            transferDetails: IPermit2.SignatureTransferDetails({ to: to, requestedAmount: permit.amount }),
+            transferDetails: IPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount }),
             owner: sender,
             signature: abi.encodePacked(permit.r, permit.vs)
         });
     }
 
-    function depositWithPermit2(IERC20 token, EIP2098Permit calldata permit) public override returns (uint256) {
-        usePermit2(token, permit, address(vault));
-        return deposit(token, permit.amount);
+    // delete in next upgrade
+    function depositWithPermit2(IERC20 token, EIP2098Permit calldata permit) public returns (uint256) {
+        return depositWithPermit2(token, permit, ALL);
+    }
+
+    function depositWithPermit2(IERC20 token, EIP2098Permit calldata permit, uint256 amount) public override returns (uint256) {
+        amount = amount == ALL ? permit.amount : amount;
+        usePermit2(token, permit, amount, address(vault));
+        return deposit(token, amount);
     }
 
     function _swapAndDeposit(address payer, IERC20 tokenToSell, IERC20 tokenToDeposit, SwapData calldata swapData)
@@ -140,16 +152,16 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
         override
         returns (uint256)
     {
-        usePermit2(tokenToSell, permit, address(spotExecutor));
+        usePermit2(tokenToSell, permit, swapData.amountIn, address(spotExecutor));
         return _swapAndDeposit(address(0), tokenToSell, tokenToDeposit, swapData);
     }
 
     function withdraw(IERC20 token, uint256 amount, address to) public override returns (uint256) {
-        return vault.withdraw(token, msg.sender, amount, to);
+        return vault.withdraw(token, msg.sender, amount == ALL ? vault.balanceOf(token, msg.sender) : amount, to);
     }
 
     function withdrawNative(uint256 amount, address to) public override returns (uint256) {
-        return vault.withdrawNative(msg.sender, amount, to);
+        return vault.withdrawNative(msg.sender, amount == ALL ? vault.balanceOf(nativeToken, msg.sender) : amount, to);
     }
 
     function swapAndWithdraw(IERC20 tokenToSell, IERC20 tokenToReceive, SwapData calldata swapData, address to) public returns (uint256) {
@@ -204,7 +216,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
         returns (PositionId, Trade memory)
     {
         _validatePermitAmount(tradeParams.cashflow, permit);
-        depositWithPermit(IERC20Permit(address(_cashflowToken(tradeParams))), permit);
+        depositWithPermit(IERC20Permit(address(_cashflowToken(tradeParams))), permit, tradeParams.cashflow.toUint256());
         return trade(tradeParams, execParams);
     }
 
@@ -357,7 +369,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, Multicall {
         Instrument memory instrument = contango.instrument(params.positionId.getSymbol());
         IERC20Permit cashflowToken = IERC20Permit(address(params.cashflowCcy == Currency.Base ? instrument.base : instrument.quote));
 
-        depositWithPermit(cashflowToken, permit);
+        depositWithPermit(cashflowToken, permit, params.cashflow.toUint256());
         return place(params);
     }
 

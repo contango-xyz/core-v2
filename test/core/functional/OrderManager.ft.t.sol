@@ -49,7 +49,9 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
             uniswapFee: 500
         });
 
-        env.etchNoFeeModel();
+        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
+        vm.prank(TIMELOCK_ADDRESS);
+        feeModel.setDefaultFee(NO_FEE);
 
         deal(address(instrument.baseData.token), poolAddress, type(uint96).max);
         deal(address(instrument.quoteData.token), poolAddress, type(uint96).max);
@@ -88,7 +90,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         assertEq(uint64(slot0 >> 128), 3e4, "gasMultiplier");
         assertEq(uint64(slot0 >> 192), 3e9, "gasTip");
 
-        assertEq(su.read_address(bytes32(uint256(GAP + 1))), address(env.oracle()), "oracle");
+        assertEq(su.read_address(bytes32(uint256(GAP + 1))), address(env.contangoLens()), "oracle");
 
         // ================ Order storage ==================
 

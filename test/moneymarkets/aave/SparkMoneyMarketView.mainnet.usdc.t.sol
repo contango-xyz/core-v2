@@ -10,7 +10,7 @@ contract SparkMoneyMarketViewUSDCTest is Test {
     using ERC20Lib for *;
 
     Env internal env;
-    SparkMoneyMarketView internal sut;
+    IMoneyMarketView internal sut;
     PositionId internal positionId;
     Contango internal contango;
     IPool internal pool;
@@ -27,10 +27,8 @@ contract SparkMoneyMarketViewUSDCTest is Test {
 
         contango = env.contango();
 
-        sut =
-        new SparkMoneyMarketView(MM_SPARK, env.sparkAddressProvider(), contango.positionFactory(),env.token(DAI), ISDAI(address(env.token(SDAI))), env.token(USDC));
-        pool = IPool(env.sparkAddressProvider().getPool());
-
+        sut = env.contangoLens().moneyMarketView(mm);
+        pool = AaveMoneyMarketView(address(sut)).pool();
         instrument = env.createInstrument(env.erc20(WETH), env.erc20(USDC));
 
         env.spotStub().stubPrice({
@@ -48,12 +46,12 @@ contract SparkMoneyMarketViewUSDCTest is Test {
             quoteUsdPrice: 1e8,
             uniswapFee: 500
         });
+
+        positionId = env.encoder().encodePositionId(instrument.symbol, MM_SPARK, PERP, 0);
     }
 
     function testBalances_NewPosition() public {
-        positionId = env.encoder().encodePositionId(instrument.symbol, MM_SPARK, PERP, 0);
-
-        Balances memory balances = sut.balances(positionId, instrument.base, instrument.quote);
+        Balances memory balances = sut.balances(positionId);
         assertEqDecimal(balances.collateral, 0, instrument.baseDecimals, "Collateral balance");
         assertEqDecimal(balances.debt, 0, instrument.quoteDecimals, "Debt balance");
     }
@@ -67,7 +65,7 @@ contract SparkMoneyMarketViewUSDCTest is Test {
             cashflowCcy: Currency.Quote
         });
 
-        Balances memory balances = sut.balances(positionId, instrument.base, instrument.quote);
+        Balances memory balances = sut.balances(positionId);
 
         assertApproxEqRelDecimal(balances.collateral, 10 ether, TOLERANCE, instrument.baseDecimals, "Collateral balance");
         assertApproxEqRelDecimal(balances.debt, 6000e6, TOLERANCE, instrument.quoteDecimals, "Debt balance");
@@ -84,22 +82,37 @@ contract SparkMoneyMarketViewUSDCTest is Test {
             cashflowCcy: Currency.Quote
         });
 
-        Balances memory balances = sut.balances(positionId, instrument.base, instrument.quote);
+        Balances memory balances = sut.balances(positionId);
 
         assertApproxEqRelDecimal(balances.collateral, 10_000e6, TOLERANCE, instrument.baseDecimals, "Collateral balance");
         assertApproxEqRelDecimal(balances.debt, 6 ether, TOLERANCE, instrument.quoteDecimals, "Debt balance");
     }
 
     function testPrices() public {
-        Prices memory prices = sut.prices(positionId, instrument.base, instrument.quote);
+        Prices memory prices = sut.prices(positionId);
 
         assertEqDecimal(prices.collateral, 1000e8, instrument.baseDecimals, "Collateral price");
         assertEqDecimal(prices.debt, 1e8, instrument.quoteDecimals, "Debt price");
         assertEq(prices.unit, 1e8, "Oracle Unit");
     }
 
+    function testBaseQuoteRate() public {
+        uint256 baseQuoteRate = sut.baseQuoteRate(positionId);
+        assertEqDecimal(baseQuoteRate, 1000e6, instrument.quoteDecimals, "Base quote rate");
+    }
+
+    function testPriceInNativeToken() public {
+        assertEqDecimal(sut.priceInNativeToken(instrument.base), 1e18, 18, "Base price in native token");
+        assertEqDecimal(sut.priceInNativeToken(instrument.quote), 0.001e18, 18, "Quote price in native token");
+    }
+
+    function testPriceInUSD() public {
+        assertEqDecimal(sut.priceInUSD(instrument.base), 1000e18, 18, "Base price in USD");
+        assertEqDecimal(sut.priceInUSD(instrument.quote), 1e18, 18, "Quote price in USD");
+    }
+
     function testBorrowingLiquidity() public {
-        (uint256 beforePosition,) = sut.liquidity(positionId, instrument.base, instrument.quote);
+        (uint256 beforePosition,) = sut.liquidity(positionId);
 
         (, positionId,) = env.positionActions().openPosition({
             symbol: instrument.symbol,
@@ -109,16 +122,19 @@ contract SparkMoneyMarketViewUSDCTest is Test {
             cashflowCcy: Currency.Quote
         });
 
-        (uint256 afterPosition,) = sut.liquidity(positionId, instrument.base, instrument.quote);
+        (uint256 afterPosition,) = sut.liquidity(positionId);
 
         assertEqDecimal(beforePosition, 32_003_291.597896e6, instrument.quoteDecimals, "Borrowing liquidity");
         assertApproxEqRelDecimal(beforePosition - afterPosition, 6000e6, TOLERANCE, instrument.quoteDecimals, "Borrowing liquidity delta");
     }
 
     function testBorrowingLiquidity_IsolationMode() public {
-        (uint256 normalLiquidity,) = sut.liquidity(positionId, env.token(WETH), env.token(USDC));
-        (uint256 isolationModeCappedLiquidity,) = sut.liquidity(positionId, env.token(GNO), env.token(USDC));
-        // (uint256 isolationModeUncappedLiquidity,) = sut.liquidity(positionId, env.token(ARB), env.token(USDC));
+        (,, positionId) = env.createInstrumentAndPositionId(env.token(WETH), env.token(USDC), mm);
+        (uint256 normalLiquidity,) = sut.liquidity(positionId);
+        (,, positionId) = env.createInstrumentAndPositionId(env.token(GNO), env.token(USDC), mm);
+        (uint256 isolationModeCappedLiquidity,) = sut.liquidity(positionId);
+        // (,,positionId) = env.createInstrumentAndPositionId(env.token(ARB), env.token(USDC), mm);
+        // (uint256 isolationModeUncappedLiquidity,) = sut.liquidity(positionId);
 
         assertEqDecimal(normalLiquidity, 32_003_291.597896e6, 6, "Normal liquidity");
         assertEqDecimal(isolationModeCappedLiquidity, 2_502_375.66e6, 6, "Isolation mode capped liquidity");
@@ -126,7 +142,7 @@ contract SparkMoneyMarketViewUSDCTest is Test {
     }
 
     function testLendingLiquidity() public {
-        (, uint256 liquidity) = sut.liquidity(positionId, instrument.base, instrument.quote);
+        (, uint256 liquidity) = sut.liquidity(positionId);
         assertEqDecimal(liquidity, type(uint256).max, instrument.baseDecimals, "Lending liquidity");
     }
 
@@ -139,7 +155,7 @@ contract SparkMoneyMarketViewUSDCTest is Test {
     function testThresholds_NewPosition() public {
         positionId = env.encoder().encodePositionId(instrument.symbol, MM_SPARK, PERP, 0);
 
-        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId, instrument.base, instrument.quote);
+        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
 
         assertEqDecimal(ltv, 0.8e18, 18, "LTV");
         assertEqDecimal(liquidationThreshold, 0.825e18, 18, "Liquidation threshold");
@@ -154,7 +170,7 @@ contract SparkMoneyMarketViewUSDCTest is Test {
             cashflowCcy: Currency.Quote
         });
 
-        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId, instrument.base, instrument.quote);
+        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
 
         assertEqDecimal(ltv, 0.8e18, 18, "LTV");
         assertEqDecimal(liquidationThreshold, 0.825e18, 18, "Liquidation threshold");
@@ -164,7 +180,7 @@ contract SparkMoneyMarketViewUSDCTest is Test {
         instrument = env.createInstrument(env.erc20(WETH), env.erc20(RETH));
         positionId = env.encoder().encodePositionId(instrument.symbol, MM_SPARK, PERP, 0);
 
-        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId, instrument.base, instrument.quote);
+        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
 
         assertEqDecimal(ltv, 0.9e18, 18, "LTV");
         assertEqDecimal(liquidationThreshold, 0.93e18, 18, "Liquidation threshold");
@@ -181,19 +197,21 @@ contract SparkMoneyMarketViewUSDCTest is Test {
             cashflowCcy: Currency.Quote
         });
 
-        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId, instrument.base, instrument.quote);
+        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
 
         assertEqDecimal(ltv, 0.9e18, 18, "LTV");
         assertEqDecimal(liquidationThreshold, 0.93e18, 18, "Liquidation threshold");
     }
 
     function testRates() public {
-        (uint256 borrowingRate, uint256 lendingRate) = sut.rates(positionId, env.token(WETH), env.token(USDC));
+        (,, positionId) = env.createInstrumentAndPositionId(env.token(WETH), env.token(USDC), mm);
+        (uint256 borrowingRate, uint256 lendingRate) = sut.rates(positionId);
 
         assertEqDecimal(borrowingRate, 0.053790164207174267e18, 18, "Borrowing rate");
         assertEqDecimal(lendingRate, 0.016037973502695556e18, 18, "Lending rate");
 
-        (borrowingRate, lendingRate) = sut.rates(positionId, env.token(USDC), env.token(WETH));
+        (,, positionId) = env.createInstrumentAndPositionId(env.token(USDC), env.token(WETH), mm);
+        (borrowingRate, lendingRate) = sut.rates(positionId);
 
         assertEqDecimal(borrowingRate, 0.028456772686872275e18, 18, "Borrowing rate");
         assertEqDecimal(lendingRate, 0.05e18, 18, "Lending rate");

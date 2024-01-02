@@ -7,14 +7,12 @@ import "../../TestSetup.t.sol";
 import { MarketParamsLib } from "src/moneymarkets/morpho/dependencies/MarketParamsLib.sol";
 import "../../stub/MorphoOracleMock.sol";
 
-import { Morpho } from "@morpho-blue/Morpho.sol"; // Import so the compiler knows about it
-
 contract MorphoBlueMoneyMarketGoerliTest is Test {
 
     using Address for *;
     using ERC20Lib for *;
     using MarketParamsLib for MarketParams;
-    using SharesMathLib for uint256;
+    using SharesMathLib for *;
 
     Env internal env;
     MorphoBlueMoneyMarket internal sut;
@@ -38,15 +36,12 @@ contract MorphoBlueMoneyMarketGoerliTest is Test {
         morpho = sut.morpho();
         reverseLookup = sut.reverseLookup();
 
-        // Hack until they deploy the final version
-        vm.etch(address(morpho), vm.getDeployedCode("Morpho.sol"));
-
         MorphoOracleMock oracle = new MorphoOracleMock(env.erc20(WETH), env.erc20(USDC));
         MarketParams memory params = MarketParams({
             loanToken: env.token(USDC),
             collateralToken: env.token(WETH),
             oracle: oracle,
-            irm: IIrm(0x2056d9E6E323Fd06f4344c35022B19849C6402B3),
+            irm: IIrm(0x9ee101eB4941d8D7A665fe71449360CEF3C8Bb87),
             lltv: 0.9e18
         });
         morpho.createMarket(params);
@@ -55,8 +50,15 @@ contract MorphoBlueMoneyMarketGoerliTest is Test {
         vm.prank(lp);
         morpho.supply({ marketParams: params, assets: 100_000e6, shares: 0, onBehalf: lp, data: "" });
 
-        vm.prank(Timelock.unwrap(TIMELOCK));
+        vm.startPrank(Timelock.unwrap(TIMELOCK));
+        reverseLookup.setOracle({
+            asset: env.token(USDC),
+            oracle: address(env.erc20(USDC).chainlinkUsdOracle),
+            oracleType: "CHAINLINK",
+            oracleCcy: QuoteOracleCcy.USD
+        });
         Payload payload = reverseLookup.setMarket(params.id());
+        vm.stopPrank();
 
         env.createInstrument(env.erc20(WETH), env.erc20(USDC));
 
@@ -239,8 +241,7 @@ contract MorphoBlueMoneyMarketGoerliTest is Test {
         MarketParams memory marketParams = morpho.idToMarketParams(marketId);
         morpho.accrueInterest(marketParams); // Accrue interest before before loading the market state
         Market memory market = morpho.market(marketId);
-        (, debt,) = morpho.position(marketId, address(sut));
-        debt = debt.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
+        debt = morpho.position(marketId, address(sut)).borrowShares.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
 }

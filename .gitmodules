@@ -13,6 +13,6 @@
 [submodule "lib/erc7399-wrappers"]
 	path = lib/erc7399-wrappers
 	url = https://github.com/alcueca/erc7399-wrappers
-[submodule "lib/morpho-blue"]
-	path = lib/morpho-blue
-	url = git@github.com:contango-xyz/morpho-blue
+[submodule "lib/prb-math"]
+	path = lib/prb-math
+	url = https://github.com/paulrberg/prb-math

@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "./IMarket.sol";
+import "./IExactlyMarket.sol";
 
 interface IAuditor {
 
@@ -35,12 +35,12 @@ interface IAuditor {
     function BASE_FEED() external view returns (address);
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
     function TARGET_HEALTH() external view returns (uint256);
-    function accountLiquidity(address account, IMarket marketToSimulate, uint256 withdrawAmount)
+    function accountLiquidity(address account, IExactlyMarket marketToSimulate, uint256 withdrawAmount)
         external
         view
         returns (uint256 sumCollateral, uint256 sumDebtPlusEffects);
     function accountMarkets(address) external view returns (uint256);
-    function allMarkets() external view returns (IMarket[] memory);
+    function allMarkets() external view returns (IExactlyMarket[] memory);
     function assetPrice(address priceFeed) external view returns (uint256);
     function calculateSeize(address repayMarket, address seizeMarket, address borrower, uint256 actualRepayAssets)
         external
@@ -51,11 +51,11 @@ interface IAuditor {
         external
         view
         returns (uint256 maxRepayAssets);
-    function checkSeize(IMarket repayMarket, IMarket seizeMarket) external view;
-    function checkShortfall(IMarket market, address account, uint256 amount) external view;
-    function enableMarket(IMarket market, address priceFeed, uint128 adjustFactor) external;
-    function enterMarket(IMarket market) external;
-    function exitMarket(IMarket market) external;
+    function checkSeize(IExactlyMarket repayMarket, IExactlyMarket seizeMarket) external view;
+    function checkShortfall(IExactlyMarket market, address account, uint256 amount) external view;
+    function enableMarket(IExactlyMarket market, address priceFeed, uint128 adjustFactor) external;
+    function enterMarket(IExactlyMarket market) external;
+    function exitMarket(IExactlyMarket market) external;
     function getRoleAdmin(bytes32 role) external view returns (bytes32);
     function grantRole(bytes32 role, address account) external;
     function handleBadDebt(address account) external;
@@ -63,7 +63,10 @@ interface IAuditor {
     function initialize(LiquidationIncentive memory liquidationIncentive_) external;
     function liquidationIncentive() external view returns (uint128 liquidator, uint128 lenders);
     function marketList(uint256) external view returns (address);
-    function markets(IMarket) external view returns (uint128 adjustFactor, uint8 decimals, uint8 index, bool isListed, address priceFeed);
+    function markets(IExactlyMarket)
+        external
+        view
+        returns (uint128 adjustFactor, uint8 decimals, uint8 index, bool isListed, address priceFeed);
     function priceDecimals() external view returns (uint256);
     function renounceRole(bytes32 role, address account) external;
     function revokeRole(bytes32 role, address account) external;

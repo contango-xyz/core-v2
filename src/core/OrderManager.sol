@@ -14,7 +14,7 @@ import "../libraries/Validations.sol";
 import "../interfaces/IOrderManager.sol";
 import "../interfaces/IContango.sol";
 import "../interfaces/IVault.sol";
-import "../interfaces/IOracle.sol";
+import "../interfaces/IContangoOracle.sol";
 
 uint256 constant TOLERANCE_UNIT = 1e4;
 
@@ -51,7 +51,6 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     IContango public immutable contango;
     PositionNFT public immutable positionNFT;
     IWETH9 public immutable nativeToken;
-    uint256 public immutable nativeTokenUnit;
     IVault public immutable vault;
     IUnderlyingPositionFactory public immutable positionFactory;
 
@@ -67,20 +66,19 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     uint128 public gasStart;
     uint64 public gasMultiplier; // multiplier in 1e4, e.g. 2.5e4 -> 25000 -> 2.5x
     uint64 public gasTip;
-    IOracle public oracle;
+    IContangoOracle public oracle;
 
     mapping(OrderId id => OrderStorage order) private _orders;
 
-    constructor(IContango _contango, IWETH9 _nativeToken) {
+    constructor(IContango _contango) {
         contango = _contango;
         positionNFT = _contango.positionNFT();
         vault = _contango.vault();
         positionFactory = _contango.positionFactory();
-        nativeToken = _nativeToken;
-        nativeTokenUnit = 10 ** _nativeToken.decimals();
+        nativeToken = _contango.vault().nativeToken();
     }
 
-    function initialize(Timelock timelock, uint64 _gasMultiplier, uint64 _gasTip, IOracle _oracle) public initializer {
+    function initialize(Timelock timelock, uint64 _gasMultiplier, uint64 _gasTip, IContangoOracle _oracle) public initializer {
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
         _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
@@ -107,6 +105,11 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     function setGasTip(uint64 _gasTip) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         gasTip = _gasTip;
         emit GasTipSet(_gasTip);
+    }
+
+    function setOracle(IContangoOracle _oracle) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        oracle = _oracle;
+        emit OracleSet(_oracle);
     }
 
     function orders(OrderId orderId) external view returns (Order memory order) {
@@ -198,7 +201,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         (positionId, trade_) = order.quantity > 0 ? _open(order, execParams) : _close(order, execParams);
 
         delete _orders[orderId];
-        keeperReward = _keeperReward(cashflowToken);
+        keeperReward = _keeperReward(order.positionId, cashflowToken);
 
         emit OrderExecuted(orderId, positionId, keeperReward);
 
@@ -277,13 +280,18 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         gasStart = INITIAL_GAS_START;
     }
 
-    function _keeperReward(IERC20 cashflowToken) internal view returns (uint256 keeperReward) {
-        uint256 rate = cashflowToken != nativeToken ? oracle.rate(nativeToken, cashflowToken) : 0;
+    function _keeperReward(PositionId positionId, IERC20 cashflowToken) internal view returns (uint256 keeperReward) {
+        uint256 rate;
+        uint256 unit;
+        if (cashflowToken != nativeToken) {
+            rate = oracle.priceInNativeToken(positionId, cashflowToken);
+            unit = 10 ** cashflowToken.decimals();
+        }
 
         // Keeper receives a multiplier of the gas cost
         keeperReward = _gasCost() * gasMultiplier / PERCENTAGE_UNIT;
 
-        keeperReward = rate > 0 ? keeperReward.mulDiv(rate, nativeTokenUnit) : keeperReward;
+        keeperReward = rate > 0 ? keeperReward.mulDiv(unit, rate) : keeperReward;
     }
 
     // Gas cost for L1 EVMs, this should be overridden for L2 EVMs
