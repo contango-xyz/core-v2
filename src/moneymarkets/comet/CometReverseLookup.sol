@@ -28,19 +28,21 @@ contract CometReverseLookup is CometReverseLookupEvents, CometReverseLookupError
 
     constructor(Timelock timelock, IComet[] memory comets) {
         _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
+        uint40 payload = nextPayload;
         for (uint256 i; i < comets.length; i++) {
-            _setComet(comets[i]);
+            _setComet(comets[i], payload++);
         }
+        nextPayload = payload;
     }
 
     function setComet(IComet _comet) external onlyRole(DEFAULT_ADMIN_ROLE) returns (Payload payload) {
-        return _setComet(_comet);
+        return _setComet(_comet, nextPayload++);
     }
 
-    function _setComet(IComet _comet) internal returns (Payload payload) {
+    function _setComet(IComet _comet, uint40 _payload) internal returns (Payload payload) {
         if (Payload.unwrap(_payloads[_comet]) != bytes5(0)) revert CometAlreadySet(_comet, _payloads[_comet]);
 
-        payload = Payload.wrap(bytes5(nextPayload++));
+        payload = Payload.wrap(bytes5(_payload));
         _comets[payload] = _comet;
         _payloads[_comet] = payload;
         emit CometSet(payload, _comet);
