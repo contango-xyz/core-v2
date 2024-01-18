@@ -9,7 +9,7 @@ import "./dependencies/IComet.sol";
 
 interface CometReverseLookupEvents {
 
-    event CometSet(Payload payload, IComet comet);
+    event CometSet(IComet indexed comet, Payload payload);
 
 }
 
@@ -45,7 +45,7 @@ contract CometReverseLookup is CometReverseLookupEvents, CometReverseLookupError
         payload = Payload.wrap(bytes5(_payload));
         _comets[payload] = _comet;
         _payloads[_comet] = payload;
-        emit CometSet(payload, _comet);
+        emit CometSet(_comet, payload);
     }
 
     function comet(Payload payload) external view returns (IComet comet_) {
