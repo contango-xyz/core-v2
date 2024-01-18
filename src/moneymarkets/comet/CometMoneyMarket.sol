@@ -34,7 +34,8 @@ contract CometMoneyMarket is BaseMoneyMarket {
     }
 
     function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
-        reverseLookup.comet(positionId.getPayload()).supply(asset, actualAmount = asset.transferOut(payer, address(this), amount));
+        actualAmount = asset.transferOut(payer, address(this), amount);
+        reverseLookup.comet(positionId.getPayload()).supply(asset, actualAmount);
     }
 
     function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
@@ -44,12 +45,14 @@ contract CometMoneyMarket is BaseMoneyMarket {
     }
 
     function _borrow(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
-        reverseLookup.comet(positionId.getPayload()).withdrawTo(to, asset, actualAmount = amount);
+        actualAmount = amount;
+        reverseLookup.comet(positionId.getPayload()).withdrawTo(to, asset, actualAmount);
     }
 
     function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
         IComet comet = reverseLookup.comet(positionId.getPayload());
-        comet.supply(asset, actualAmount = asset.transferOut(payer, address(this), Math.min(amount, comet.borrowBalanceOf(address(this)))));
+        actualAmount = asset.transferOut(payer, address(this), Math.min(amount, comet.borrowBalanceOf(address(this))));
+        comet.supply(asset, actualAmount);
     }
 
     function _claimRewards(PositionId positionId, IERC20, IERC20, address to) internal virtual override {
