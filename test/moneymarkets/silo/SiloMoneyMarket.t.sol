@@ -16,6 +16,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
     ISiloLens internal siloLens;
 
     IERC20 internal arb;
+    IERC20 internal wstETH = IERC20(0x5979D7b546E38E414F7E9822514be443A4800529);
 
     uint256 chainlinkDecimals = 8;
 
@@ -67,7 +68,15 @@ contract SiloMoneyMarketArbitrumTest is Test {
         sut.initialise(positionId, lendToken, borrowToken);
     }
 
-    function testInitialise() public {
+    function testGetSilo() public {
+        assertEq(address(sut.getSilo(env.token(WETH), env.token(USDC)).siloAsset()), address(wstETH), "WETH/USDC silo");
+        assertEq(address(sut.getSilo(env.token(USDC), env.token(WETH)).siloAsset()), address(wstETH), "USDC/WETH silo");
+
+        assertEq(address(sut.getSilo(env.token(WBTC), env.token(USDC)).siloAsset()), address(env.token(WBTC)), "WBTC/USDC silo");
+        assertEq(address(sut.getSilo(env.token(USDC), env.token(WBTC)).siloAsset()), address(env.token(WBTC)), "USDC/WBTC silo");
+    }
+
+    function testInitialise_WBTCUSDC() public {
         IERC20 lendToken = env.token(WBTC);
         IERC20 borrowToken = env.token(USDC);
 
@@ -76,6 +85,21 @@ contract SiloMoneyMarketArbitrumTest is Test {
         vm.prank(contango);
         sut.initialise(positionId, lendToken, borrowToken);
 
+        assertEq(address(sut.silo().siloAsset()), address(env.token(WBTC)), "Selected silo");
+        assertEq(lendToken.allowance(address(sut), address(silo)), type(uint256).max, "lendToken allowance");
+        assertEq(borrowToken.allowance(address(sut), address(silo)), type(uint256).max, "borrowToken allowance");
+    }
+
+    function testInitialise_USDCWBTC() public {
+        IERC20 lendToken = env.token(USDC);
+        IERC20 borrowToken = env.token(WBTC);
+
+        sut = env.deployer().deploySiloMoneyMarket(env, IContango(contango));
+
+        vm.prank(contango);
+        sut.initialise(positionId, lendToken, borrowToken);
+
+        assertEq(address(sut.silo().siloAsset()), address(env.token(WBTC)), "Selected silo");
         assertEq(lendToken.allowance(address(sut), address(silo)), type(uint256).max, "lendToken allowance");
         assertEq(borrowToken.allowance(address(sut), address(silo)), type(uint256).max, "borrowToken allowance");
     }
@@ -184,6 +208,13 @@ contract SiloMoneyMarketArbitrumTest is Test {
         assertEq(withdrew, collateral, "withdrew all collateral");
         assertEqDecimal(sut.collateralBalance(positionId, lendToken), 0, lendToken.decimals(), "collateral is zero");
         assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
+    }
+
+    function testRepayEmptyPosition() public {
+        IERC20 borrowToken = env.token(USDC);
+        env.dealAndApprove(borrowToken, contango, 10e6, address(sut));
+        vm.prank(contango);
+        sut.repay(positionId, borrowToken, 10e6);
     }
 
     function testLifeCycle_PartialRepayWithdraw() public {

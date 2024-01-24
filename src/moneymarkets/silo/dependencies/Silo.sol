@@ -162,7 +162,8 @@ interface ISilo {
     function isSolvent(address _user) external view returns (bool);
     function liquidity(IERC20 asset) external view returns (uint256);
     function repay(IERC20 asset, uint256 _amount) external returns (uint256 repaidAmount, uint256 repaidShare);
-    function siloAsset() external view returns (address);
+    function repayFor(address _asset, address _borrower, uint256 _amount) external returns (uint256 repaidAmount, uint256 repaidShare);
+    function siloAsset() external view returns (IERC20);
     function siloRepository() external view returns (ISiloRepository);
     function syncBridgeAssets() external;
     function utilizationData(IERC20 asset) external view returns (UtilizationData memory data);

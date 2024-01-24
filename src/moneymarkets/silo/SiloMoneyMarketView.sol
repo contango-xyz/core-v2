@@ -6,23 +6,16 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../../dependencies/Chainlink.sol";
 import "../../libraries/Arrays.sol";
 
-import "./Silo.sol";
+import "./SiloBase.sol";
 import "../BaseMoneyMarketView.sol";
 import { MM_SILO } from "script/constants.sol";
 
-contract SiloMoneyMarketView is BaseMoneyMarketView {
+contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
 
     error OracleBaseCurrencyNotUSD();
 
     using Math for *;
 
-    ISiloLens public constant LENS = ISiloLens(0x07b94eB6AaD663c4eaf083fBb52928ff9A15BE47);
-    ISiloIncentivesController public constant INCENTIVES_CONTROLLER = ISiloIncentivesController(0xd592F705bDC8C1B439Bd4D665Ed99C4FaAd5A680);
-    ISilo public constant WSTETH_SILO = ISilo(0xA8897b4552c075e884BDB8e7b704eB10DB29BF0D);
-    IERC20 public constant WETH = IERC20(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
-    IERC20 public constant USDC = IERC20(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
-
-    ISiloRepository public immutable repository = LENS.siloRepository();
     ISiloPriceProvidersRepository public immutable priceProvidersRepository;
 
     constructor(IContango _contango, IWETH9 _nativeToken, IAggregatorV2V3 _nativeUsdOracle)
@@ -40,7 +33,7 @@ contract SiloMoneyMarketView is BaseMoneyMarketView {
         returns (Balances memory balances_)
     {
         address account = _account(positionId);
-        ISilo silo = _silo(collateralAsset);
+        ISilo silo = getSilo(collateralAsset, debtAsset);
         silo.accrueInterest(collateralAsset);
         silo.accrueInterest(debtAsset);
         balances_.collateral = LENS.collateralBalanceOfUnderlying(silo, collateralAsset, account);
@@ -55,14 +48,18 @@ contract SiloMoneyMarketView is BaseMoneyMarketView {
         return priceProvidersRepository.getPrice(asset);
     }
 
-    function _thresholds(PositionId, IERC20 collateralAsset, IERC20)
+    function priceInNativeToken(IERC20 asset) public view virtual override returns (uint256 price_) {
+        return _oraclePrice(asset);
+    }
+
+    function _thresholds(PositionId, IERC20 collateralAsset, IERC20 debtAsset)
         internal
         view
         virtual
         override
         returns (uint256 ltv, uint256 liquidationThreshold)
     {
-        ISiloRepository.AssetConfig memory assetConfig = repository.assetConfigs(_silo(collateralAsset), collateralAsset);
+        ISiloRepository.AssetConfig memory assetConfig = repository.assetConfigs(getSilo(collateralAsset, debtAsset), collateralAsset);
         ltv = assetConfig.maxLoanToValue;
         liquidationThreshold = assetConfig.liquidationThreshold;
     }
@@ -74,7 +71,7 @@ contract SiloMoneyMarketView is BaseMoneyMarketView {
         override
         returns (uint256 borrowing, uint256 lending)
     {
-        ISilo silo = _silo(collateralAsset);
+        ISilo silo = getSilo(collateralAsset, debtAsset);
         borrowing = LENS.liquidity(silo, debtAsset);
 
         uint256 maxDepositValue = repository.getMaxSiloDepositsValue(silo, collateralAsset);
@@ -98,7 +95,7 @@ contract SiloMoneyMarketView is BaseMoneyMarketView {
         override
         returns (uint256 borrowing, uint256 lending)
     {
-        ISilo silo = _silo(collateralAsset);
+        ISilo silo = getSilo(collateralAsset, debtAsset);
         borrowing = LENS.borrowAPY(silo, debtAsset);
         lending = LENS.depositAPY(silo, collateralAsset);
     }
@@ -110,14 +107,9 @@ contract SiloMoneyMarketView is BaseMoneyMarketView {
         override
         returns (Reward[] memory borrowing, Reward[] memory lending)
     {
-        ISilo silo = _silo(collateralAsset);
+        ISilo silo = getSilo(collateralAsset, debtAsset);
         borrowing = _asRewards({ positionId: positionId, silo: silo, asset: debtAsset, lending: false });
         lending = _asRewards({ positionId: positionId, silo: silo, asset: collateralAsset, lending: true });
-    }
-
-    function priceInUSD(IERC20 asset) public view override returns (uint256 price_) {
-        if (asset == nativeToken) return uint256(nativeUsdOracle.latestAnswer()) * 1e10;
-        return _oraclePrice(asset) * uint256(nativeUsdOracle.latestAnswer()) / 1e8;
     }
 
     // ===== Internal Helper Functions =====
@@ -156,10 +148,6 @@ contract SiloMoneyMarketView is BaseMoneyMarketView {
         }
 
         rewards_[0] = reward;
-    }
-
-    function _silo(IERC20 asset) internal view returns (ISilo silo) {
-        silo = (asset == WETH || asset == USDC) ? WSTETH_SILO : repository.getSilo(asset);
     }
 
 }

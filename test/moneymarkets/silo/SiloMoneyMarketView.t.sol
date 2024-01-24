@@ -35,13 +35,10 @@ contract SiloMoneyMarketViewTest is Test {
         env.spotStub().stubPrice({
             base: instrument.baseData,
             quote: instrument.quoteData,
-            baseUsdPrice: 1e8,
+            baseUsdPrice: 1000e8,
             quoteUsdPrice: 1e8,
             uniswapFee: 500
         });
-
-        // Silo's oracle is ETH based, so we need a live ETH price
-        env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
 
         env.spotStub().stubChainlinkPrice(1.1e8, address(env.erc20(ARB).chainlinkUsdOracle));
 
