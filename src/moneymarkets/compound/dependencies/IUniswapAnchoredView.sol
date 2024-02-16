@@ -5,13 +5,6 @@ import "./ICToken.sol";
 
 interface IUniswapAnchoredView {
 
-    event FailoverActivated(bytes32 indexed symbolHash);
-    event FailoverDeactivated(bytes32 indexed symbolHash);
-    event OwnershipTransferRequested(address indexed from, address indexed to);
-    event OwnershipTransferred(address indexed from, address indexed to);
-    event PriceGuarded(bytes32 indexed symbolHash, uint256 reporterPrice, uint256 anchorPrice);
-    event PriceUpdated(bytes32 indexed symbolHash, uint256 price);
-
     struct TokenConfig {
         ICToken cToken;
         address underlying;
@@ -34,12 +27,12 @@ interface IUniswapAnchoredView {
     function anchorPeriod() external view returns (uint32);
     function deactivateFailover(bytes32 symbolHash) external;
     function getTokenConfig(uint256 i) external view returns (TokenConfig memory);
-    function getTokenConfigByCToken(address cToken) external view returns (TokenConfig memory);
+    function getTokenConfigByCToken(ICToken cToken) external view returns (TokenConfig memory);
     function getTokenConfigByReporter(address reporter) external view returns (TokenConfig memory);
     function getTokenConfigBySymbol(string memory symbol) external view returns (TokenConfig memory);
     function getTokenConfigBySymbolHash(bytes32 symbolHash) external view returns (TokenConfig memory);
     function getTokenConfigByUnderlying(address underlying) external view returns (TokenConfig memory);
-    function getUnderlyingPrice(address cToken) external view returns (uint256);
+    function getUnderlyingPrice(ICToken cToken) external view returns (uint256);
     function lowerBoundAnchorRatio() external view returns (uint256);
     function numTokens() external view returns (uint256);
     function owner() external view returns (address);

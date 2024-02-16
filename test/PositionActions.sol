@@ -16,7 +16,6 @@ import "script/constants.sol";
 
 import "./dependencies/Uniswap.sol";
 import "./dependencies/Strings2.sol";
-import "./TestHelper.sol";
 import "./TestSetup.t.sol";
 import "./TSQuoter.sol";
 
@@ -38,7 +37,6 @@ contract PositionActions {
     // Ignore this contract for size verification
     bool public constant IS_TEST = true;
 
-    TestHelper private immutable helper;
     Env private immutable env;
     address private immutable trader;
     uint256 private immutable traderPk;
@@ -49,8 +47,7 @@ contract PositionActions {
     uint32 expiry = PERP;
     Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
-    constructor(TestHelper _helper, Env _env, address _trader, uint256 _traderPk) {
-        helper = _helper;
+    constructor(Env _env, address _trader, uint256 _traderPk) {
         env = _env;
         trader = _trader;
         traderPk = _traderPk;

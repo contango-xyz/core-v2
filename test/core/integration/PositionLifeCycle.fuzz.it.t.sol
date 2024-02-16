@@ -75,8 +75,8 @@ contract PositionLifeCycleIntegration is BaseTest {
 
         assertApproxEqRelDecimal(trade.quantity, quote.quantity, TOLERANCE, instrument.baseDecimals, "trade.quantity");
 
-        IMoneyMarketView mmv = env.tsQuoter().moneyMarkets(mm);
-        Balances memory balances = mmv.balances(positionId, instrument.base, instrument.quote);
+        IMoneyMarketView mmv = env.contangoLens().moneyMarketView(mm);
+        Balances memory balances = mmv.balances(positionId);
         assertApproxEqRelDecimal(balances.collateral, quote.quantity.toUint256(), TOLERANCE, instrument.baseDecimals, "variable collateral");
         assertApproxEqRelDecimal(
             balances.debt,
@@ -115,9 +115,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         cashflowCcy = b.cashflowInQuote ? Currency.Quote : Currency.Base;
 
         instrument = env.createInstrument({ baseData: baseCcy, quoteData: quoteCcy });
-        (, uint256 lendingLiquidity) = env.tsQuoter().moneyMarkets(mm).liquidity(
-            env.encoder().encodePositionId(instrument.symbol, mm, PERP, 0), baseCcy.token, quoteCcy.token
-        );
+        (, uint256 lendingLiquidity) = env.contangoLens().liquidity(env.encoder().encodePositionId(instrument.symbol, mm, PERP, 0));
         quantity = bound(quantity, env.bounds(baseCcy.symbol).min, lendingLiquidity / 2);
         uint256 openLeverage = _boundLeverage(leverage);
         console.log("quantity %s, leverage %s, cashflowCcy %s", quantity, openLeverage, toString(cashflowCcy));
@@ -129,7 +127,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         (TSQuote memory openQuote, PositionId positionId, Trade memory trade) =
             env.positionActions().openPosition(instrument.symbol, mm, quantity, openLeverage, cashflowCcy);
 
-        IMoneyMarketView mmv = env.tsQuoter().moneyMarkets(mm);
+        IMoneyMarketView mmv = env.contangoLens().moneyMarketView(mm);
         uint256 actualOpenLeverage = _assertLeverage(mmv, positionId, openLeverage);
 
         skip(1 days);
@@ -154,7 +152,7 @@ contract PositionLifeCycleIntegration is BaseTest {
             "trade.quantity"
         );
 
-        Balances memory balances = mmv.balances(positionId, instrument.base, instrument.quote);
+        Balances memory balances = mmv.balances(positionId);
         assertApproxEqRelDecimal(
             balances.collateral,
             (openQuote.quantity + increaseQuote.quantity).toUint256(),
@@ -204,8 +202,8 @@ contract PositionLifeCycleIntegration is BaseTest {
         (TSQuote memory openQuote, PositionId positionId, Trade memory trade) =
             env.positionActions().openPosition(instrument.symbol, mm, quantity, leverage, cashflowCcy);
 
-        IMoneyMarketView mmv = env.tsQuoter().moneyMarkets(mm);
-        Balances memory balances = mmv.balances(positionId, instrument.base, instrument.quote);
+        IMoneyMarketView mmv = env.contangoLens().moneyMarketView(mm);
+        Balances memory balances = mmv.balances(positionId);
         _assertLeverage(mmv, positionId, leverage);
 
         skip(1 days);
@@ -213,7 +211,7 @@ contract PositionLifeCycleIntegration is BaseTest {
 
         decreaseQuantity = bound(decreaseQuantity, env.bounds(baseCcy.symbol).min / 50, balances.collateral - balances.collateral / 10);
         vm.assume(decreaseQuantity < quantity);
-        balances = mmv.balances(positionId, instrument.base, instrument.quote);
+        balances = mmv.balances(positionId);
 
         leverage = _boundLeverage(leverage * 10);
         console.log("decrease quantity %s, leverage %s, cashflowCcy %s", decreaseQuantity, leverage, toString(cashflowCcy));
@@ -229,7 +227,7 @@ contract PositionLifeCycleIntegration is BaseTest {
 
         assertApproxEqRelDecimal(trade.quantity, decreaseQuote.quantity, TOLERANCE, instrument.baseDecimals, "trade.quantity");
 
-        balances = mmv.balances(positionId, instrument.base, instrument.quote);
+        balances = mmv.balances(positionId);
         if (balances.collateral > 0) {
             assertApproxEqRelDecimal(balances.collateral, totalQty, TOLERANCE, instrument.baseDecimals, "variable collateral");
             _assertLeverage(mmv, positionId, leverage);
@@ -279,7 +277,7 @@ contract PositionLifeCycleIntegration is BaseTest {
 
         skip(1 days);
 
-        IMoneyMarketView mmv = env.tsQuoter().moneyMarkets(mm);
+        IMoneyMarketView mmv = env.contangoLens().moneyMarketView(mm);
         _movePrice(positionId, mmv, marketMovement);
 
         (quote, trade) = env.positionActions().closePosition({
@@ -291,7 +289,7 @@ contract PositionLifeCycleIntegration is BaseTest {
 
         assertFalse(env.contango().positionNFT().exists(positionId), "position exists");
 
-        Balances memory balances = mmv.balances(positionId, instrument.base, instrument.quote);
+        Balances memory balances = mmv.balances(positionId);
         assertApproxEqAbsDecimal(balances.collateral, 0, env.bounds(baseCcy.symbol).dust, instrument.baseDecimals, "variable collateral");
         assertApproxEqAbsDecimal(balances.debt, 0, env.bounds(quoteCcy.symbol).dust, instrument.quoteDecimals, "variable debt");
 
@@ -306,9 +304,9 @@ contract PositionLifeCycleIntegration is BaseTest {
 
     function _movePrice(PositionId positionId, IMoneyMarketView mmv, int256 marketMovement) private {
         // ensure any decrease in collateral will not put position into liquidation
-        (uint256 ltv,) = mmv.thresholds(positionId, instrument.base, instrument.quote);
-        Prices memory prices = mmv.prices(positionId, instrument.base, instrument.quote);
-        Balances memory balances = mmv.balances(positionId, instrument.base, instrument.quote);
+        (uint256 ltv,) = mmv.thresholds(positionId);
+        Prices memory prices = mmv.prices(positionId);
+        Balances memory balances = mmv.balances(positionId);
 
         int256 maxDecrease = MAX_PRICE_DECREASE;
         if (balances.debt > 0) {
@@ -337,7 +335,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         Network network = Network(bound(networkId, uint8(Network.Arbitrum), uint8(Network.Optimism)));
         env_ = provider(network);
 
-        MoneyMarketId[] memory mms = env_.moneyMarkets();
+        MoneyMarketId[] memory mms = env_.fuzzMoneyMarkets();
         mm_ = mms[bound(mmId, 0, mms.length - 1)];
 
         ERC20Data[] memory tokens = env_.erc20s(mm_);
@@ -367,8 +365,8 @@ contract PositionLifeCycleIntegration is BaseTest {
     }
 
     function _assertLeverage(IMoneyMarketView mmv, PositionId positionId, uint256 expected) internal returns (uint256 leverage) {
-        Prices memory prices = mmv.prices(positionId, instrument.base, instrument.quote);
-        Balances memory balances = mmv.balances(positionId, instrument.base, instrument.quote);
+        Prices memory prices = mmv.prices(positionId);
+        Balances memory balances = mmv.balances(positionId);
 
         uint256 normalisedCollateral = balances.collateral.mulDiv(prices.collateral, instrument.baseUnit);
         uint256 normalisedDebt = balances.debt.mulDiv(prices.debt, instrument.quoteUnit);

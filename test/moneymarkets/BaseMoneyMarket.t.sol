@@ -18,7 +18,7 @@ contract BaseMoneyMarketTest is Test {
 
         contango = address(env.contango());
 
-        sut = new FooMoneyMarket( MoneyMarketId.wrap(0), env.contango());
+        sut = new FooMoneyMarket(MoneyMarketId.wrap(0), env.contango());
 
         positionId = env.encoder().encodePositionId(Symbol.wrap("WETHUSDC"), MM_EXACTLY, PERP, 1);
     }

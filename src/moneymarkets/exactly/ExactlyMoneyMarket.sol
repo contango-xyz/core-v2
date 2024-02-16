@@ -57,7 +57,7 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
     }
 
     function _repay(PositionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
-        IMarket market = reverseLookup.market(asset);
+        IExactlyMarket market = reverseLookup.market(asset);
         uint256 debt = market.previewDebt(address(this));
         if (debt == 0 || market.previewRepay(amount) == 0) return 0;
         asset.transferOut(payer, address(this), Math.min(amount, debt));
@@ -70,7 +70,7 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
     }
 
     function _collateralBalance(PositionId, IERC20 asset) internal view override returns (uint256 balance) {
-        IMarket collateralMarket = reverseLookup.market(asset);
+        IExactlyMarket collateralMarket = reverseLookup.market(asset);
         return collateralMarket.convertToAssets(collateralMarket.balanceOf(address(this)));
     }
 

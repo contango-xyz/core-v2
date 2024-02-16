@@ -17,21 +17,28 @@ contract FixedFeeModel is IFeeModel, AccessControl {
 
     using Math for *;
 
+    event DefaultFeeSet(uint256 fee);
     event FeeSet(Symbol indexed symbol, uint256 fee);
     event FeeRemoved(Symbol indexed symbol);
 
     mapping(Symbol symbol => uint256 fee) public symbolFee;
-    uint256 public immutable defaultFee; // fee percentage in wad, e.g. 0.0015e18 -> 0.15%
+    uint256 public defaultFee = NO_FEE; // fee percentage in wad, e.g. 0.0015e18 -> 0.15%
 
-    constructor(Timelock timelock, uint256 _defaultFee) {
+    constructor(Timelock timelock) {
         _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
-        defaultFee = _validateFee(_defaultFee);
     }
 
     /// @inheritdoc IFeeModel
     function calculateFee(address, PositionId positionId, uint256 quantity) external view override returns (uint256 calculatedFee) {
         uint256 fee = symbolFee[positionId.getSymbol()];
-        if (fee != NO_FEE) calculatedFee = quantity.mulDiv(fee > 0 ? fee : defaultFee, WAD, Math.Rounding.Up);
+        fee = fee > 0 ? fee : defaultFee;
+
+        if (fee != NO_FEE) calculatedFee = quantity.mulDiv(fee, WAD, Math.Rounding.Up);
+    }
+
+    function setDefaultFee(uint256 fee) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        defaultFee = fee == NO_FEE ? fee : _validateFee(fee);
+        emit DefaultFeeSet(fee);
     }
 
     function setFee(Symbol symbol, uint256 fee) external onlyRole(DEFAULT_ADMIN_ROLE) {

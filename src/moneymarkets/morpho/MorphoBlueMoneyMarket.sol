@@ -38,7 +38,7 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
     }
 
     function _collateralBalance(PositionId positionId, IERC20) internal view virtual override returns (uint256 balance) {
-        (,, balance) = morpho.position(reverseLookup.marketId(positionId.getPayload()), address(this));
+        balance = morpho.position(reverseLookup.marketId(positionId.getPayload()), address(this)).collateral;
     }
 
     function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer)
@@ -77,7 +77,7 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
         morpho.accrueInterest(marketParams); // Accrue interest before loading the market state
         Market memory market = morpho.market(marketId);
 
-        (, uint256 borrowShares,) = morpho.position(marketId, address(this));
+        uint256 borrowShares = morpho.position(marketId, address(this)).borrowShares;
         uint256 actualShares = Math.min(amount.toSharesDown(market.totalBorrowAssets, market.totalBorrowShares), borrowShares);
 
         if (actualShares > 0) {

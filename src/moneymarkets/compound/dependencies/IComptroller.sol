@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "./IUniswapAnchoredView.sol";
+import "./ICToken.sol";
 import "./ComptrollerErrorReporter.sol";
 
 interface IComptroller {
@@ -28,6 +28,13 @@ interface IComptroller {
     event NewPauseGuardian(address oldPauseGuardian, address newPauseGuardian);
     event NewPriceOracle(address oldPriceOracle, address newPriceOracle);
 
+    struct CompMarketState {
+        // The market's last updated compBorrowIndex or compSupplyIndex
+        uint224 index;
+        // The block number the index was last updated at
+        uint32 block;
+    }
+
     function _become(address unitroller) external;
     function _borrowGuardianPaused() external view returns (bool);
     function _grantComp(address recipient, uint256 amount) external;
@@ -51,7 +58,7 @@ interface IComptroller {
     function allMarkets(uint256) external view returns (address);
     function borrowAllowed(address cToken, address borrower, uint256 borrowAmount) external returns (uint256);
     function borrowCapGuardian() external view returns (address);
-    function borrowCaps(address) external view returns (uint256);
+    function borrowCaps(ICToken) external view returns (uint256);
     function borrowGuardianPaused(address) external view returns (bool);
     function borrowVerify(address cToken, address borrower, uint256 borrowAmount) external;
     function checkMembership(address account, address cToken) external view returns (bool);
@@ -60,26 +67,26 @@ interface IComptroller {
     function claimComp(address holder) external;
     function closeFactorMantissa() external view returns (uint256);
     function compAccrued(address) external view returns (uint256);
-    function compBorrowSpeeds(address) external view returns (uint256);
-    function compBorrowState(address) external view returns (uint224 index, uint32 block);
-    function compBorrowerIndex(address, address) external view returns (uint256);
+    function compBorrowSpeeds(ICToken) external view returns (uint256);
+    function compBorrowState(ICToken) external view returns (CompMarketState memory state);
+    function compBorrowerIndex(ICToken, address) external view returns (uint256);
     function compContributorSpeeds(address) external view returns (uint256);
     function compInitialIndex() external view returns (uint224);
     function compRate() external view returns (uint256);
     function compReceivable(address) external view returns (uint256);
     function compSpeeds(address) external view returns (uint256);
-    function compSupplierIndex(address, address) external view returns (uint256);
-    function compSupplySpeeds(address) external view returns (uint256);
-    function compSupplyState(address) external view returns (uint224 index, uint32 block);
+    function compSupplierIndex(ICToken, address) external view returns (uint256);
+    function compSupplySpeeds(ICToken) external view returns (uint256);
+    function compSupplyState(ICToken) external view returns (CompMarketState memory state);
     function comptrollerImplementation() external view returns (address);
     function enterMarkets(address[] memory cTokens) external returns (Error[] memory);
     function exitMarket(address cTokenAddress) external returns (uint256);
     function fixBadAccruals(address[] memory affectedUsers, uint256[] memory amounts) external;
     function getAccountLiquidity(address account) external view returns (uint256, uint256, uint256);
-    function getAllMarkets() external view returns (address[] memory);
+    function getAllMarkets() external view returns (ICToken[] memory);
     function getAssetsIn(address account) external view returns (address[] memory);
     function getBlockNumber() external view returns (uint256);
-    function getCompAddress() external view returns (address);
+    function getCompAddress() external view returns (IERC20);
     function getHypotheticalAccountLiquidity(address account, address cTokenModify, uint256 redeemTokens, uint256 borrowAmount)
         external
         view

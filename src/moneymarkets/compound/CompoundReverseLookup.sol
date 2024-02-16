@@ -26,7 +26,6 @@ contract CompoundReverseLookup is CompoundReverseLookupEvents, AccessControl {
         comptroller = _comptroller;
         nativeToken = _nativeToken;
         _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
-        _update(_comptroller);
     }
 
     function update() external {
@@ -35,17 +34,17 @@ contract CompoundReverseLookup is CompoundReverseLookupEvents, AccessControl {
 
     function _update(IComptroller _comptroller) private {
         if (address(_comptroller) != address(0)) {
-            address[] memory allMarkets = comptroller.getAllMarkets();
+            ICToken[] memory allMarkets = comptroller.getAllMarkets();
             for (uint256 i = 0; i < allMarkets.length; i++) {
-                ICToken _cToken = ICToken(allMarkets[i]);
-                try _cToken.underlying() returns (address token) {
-                    _cTokens[IERC20(token)] = _cToken;
-                    emit CTokenSet(IERC20(token), _cToken);
+                ICToken _cToken = allMarkets[i];
+                try _cToken.underlying() returns (IERC20 token) {
+                    _cTokens[token] = _cToken;
+                    emit CTokenSet(token, _cToken);
                 } catch {
                     // fails for native token, e.g. mainnet cETH
                     if (address(nativeToken) != address(0)) {
                         _cTokens[nativeToken] = _cToken;
-                        emit CTokenSet(IERC20(nativeToken), _cToken);
+                        emit CTokenSet(nativeToken, _cToken);
                     }
                 }
             }

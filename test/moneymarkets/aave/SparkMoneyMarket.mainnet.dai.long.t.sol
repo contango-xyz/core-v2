@@ -24,8 +24,7 @@ contract SparkMoneyMarketMainnetDAILongTest is Test {
         contango = address(env.contango());
 
         sut = env.deployer().deploySparkMoneyMarket(env, IContango(contango));
-        pool = IPool(sut.ADDRESSES_PROVIDER().getPool());
-
+        pool = AaveMoneyMarketView(address(sut)).pool();
         env.createInstrument(env.erc20(WETH), env.erc20(DAI));
 
         positionId = env.encoder().encodePositionId(Symbol.wrap("WETHDAI"), MM_SPARK, PERP, 1);
@@ -281,7 +280,7 @@ contract SparkMoneyMarketMainnetDAILongTest is Test {
             params: ""
         });
 
-        vm.prank(address(sut.POOL()));
+        vm.prank(address(sut.pool()));
         vm.expectRevert(abi.encodeWithSelector(IFlashBorrowProvider.InvalidSenderOrInitiator.selector));
         IFlashLoanReceiver(address(sut)).executeOperation({
             assets: toArray(address(0)),

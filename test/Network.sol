@@ -12,7 +12,10 @@ enum Network {
     Arbitrum,
     Optimism,
     Polygon,
-    Goerli
+    Goerli,
+    PolygonZK,
+    Gnosis,
+    Base
 }
 
 function toString(Network network) pure returns (string memory) {
@@ -21,6 +24,9 @@ function toString(Network network) pure returns (string memory) {
     if (network == Network.Polygon) return "matic";
     if (network == Network.Mainnet) return "mainnet";
     if (network == Network.Goerli) return "goerli";
+    if (network == Network.PolygonZK) return "polygon-zk";
+    if (network == Network.Gnosis) return "gnosis";
+    if (network == Network.Base) return "base";
     if (network == Network.LocalhostArbitrum) return "localhost-arbitrum";
     if (network == Network.LocalhostOptimism) return "localhost-optimism";
     if (network == Network.LocalhostPolygon) return "localhost-matic";
@@ -44,12 +50,24 @@ function isMainnet(Network network) pure returns (bool) {
     return network == Network.Mainnet || network == Network.LocalhostMainnet;
 }
 
+function isGnosis(Network network) pure returns (bool) {
+    return network == Network.Gnosis;
+}
+
+function isBase(Network network) pure returns (bool) {
+    return network == Network.Base;
+}
+
+function isPolygonZK(Network network) pure returns (bool) {
+    return network == Network.PolygonZK;
+}
+
 function isLocalhost(Network network) pure returns (bool) {
     return network == Network.LocalhostArbitrum || network == Network.LocalhostOptimism || network == Network.LocalhostPolygon
         || network == Network.LocalhostMainnet;
 }
 
-using { toString, isOptimism, isArbitrum, isLocalhost, isPolygon, isMainnet } for Network global;
+using { toString, isOptimism, isArbitrum, isLocalhost, isPolygon, isMainnet, isGnosis, isBase, isPolygonZK } for Network global;
 
 function currentNetwork() view returns (Network) {
     if (block.chainid == 1) return Network.Mainnet;
@@ -57,6 +75,9 @@ function currentNetwork() view returns (Network) {
     if (block.chainid == 137) return Network.Polygon;
     if (block.chainid == 42_161) return Network.Arbitrum;
     if (block.chainid == 5) return Network.Goerli;
+    if (block.chainid == 1101) return Network.PolygonZK;
+    if (block.chainid == 100) return Network.Gnosis;
+    if (block.chainid == 8453) return Network.Base;
     if (block.chainid == 31_337) return Network.LocalhostArbitrum;
     if (block.chainid == 31_338) return Network.LocalhostOptimism;
     if (block.chainid == 31_339) return Network.LocalhostMainnet;

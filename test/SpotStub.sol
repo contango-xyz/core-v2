@@ -2,6 +2,7 @@
 pragma solidity 0.8.20;
 
 import "forge-std/console.sol";
+import "forge-std/StdCheats.sol";
 
 import "@openzeppelin/contracts/utils/math/SignedMath.sol";
 
@@ -10,7 +11,7 @@ import "./stub/UniswapPoolStub.sol";
 
 import "./TestSetup.t.sol";
 
-contract SpotStub {
+contract SpotStub is StdCheats {
 
     using SignedMath for int256;
 
@@ -18,8 +19,8 @@ contract SpotStub {
         address poolAddress;
         IERC20 token0;
         IERC20 token1;
-        AggregatorV2V3Interface token0Oracle;
-        AggregatorV2V3Interface token1Oracle;
+        IAggregatorV2V3 token0Oracle;
+        IAggregatorV2V3 token1Oracle;
         bool token0Quoted;
         int256 spread;
     }
@@ -62,7 +63,7 @@ contract SpotStub {
             chainlinkAggregator.call(abi.encodeWithSelector(ChainlinkAggregatorV2V3Mock(chainlinkAggregator).decimals.selector));
         // defaults to 8 if v3 interface is not supported
         uint8 decimals = success ? abi.decode(returndata, (uint8)) : 8;
-        VM.etch(chainlinkAggregator, VM.getDeployedCode("ChainlinkAggregatorV2V3Mock.sol"));
+        deployCodeTo("ChainlinkAggregatorV2V3Mock.sol:ChainlinkAggregatorV2V3Mock", chainlinkAggregator);
         oracle = ChainlinkAggregatorV2V3Mock(chainlinkAggregator).setDecimals(decimals).set(price);
     }
 
@@ -84,8 +85,8 @@ contract SpotStub {
         IERC20 token0 = IERC20(poolKey.token0);
         IERC20 token1 = IERC20(poolKey.token1);
 
-        AggregatorV2V3Interface token0Oracle = base.token == token0 ? base.chainlinkUsdOracle : quote.chainlinkUsdOracle;
-        AggregatorV2V3Interface token1Oracle = base.token == token1 ? base.chainlinkUsdOracle : quote.chainlinkUsdOracle;
+        IAggregatorV2V3 token0Oracle = base.token == token0 ? base.chainlinkUsdOracle : quote.chainlinkUsdOracle;
+        IAggregatorV2V3 token1Oracle = base.token == token1 ? base.chainlinkUsdOracle : quote.chainlinkUsdOracle;
 
         poolAddress = PoolAddress.computeAddress(uniswapFactory, poolKey);
 
@@ -103,16 +104,10 @@ contract SpotStub {
     }
 
     function _stubUniswapPool(StubUniswapPoolParams memory params) private {
-        VM.etch(
-            params.poolAddress,
-            address(
-                new UniswapPoolStub({
-                        _token0: params.token0,
-                        _token1: params.token1,
-                        _token0Oracle: params.token0Oracle,
-                        _token1Oracle: params.token1Oracle,
-                        _token0Quoted: params.token0Quoted})
-            ).code
+        deployCodeTo(
+            "UniswapPoolStub.sol:UniswapPoolStub",
+            abi.encode(params.token0, params.token1, params.token0Oracle, params.token1Oracle, params.token0Quoted),
+            params.poolAddress
         );
         VM.label(params.poolAddress, "UniswapPoolStub");
         UniswapPoolStub(params.poolAddress).setAbsoluteSpread(params.spread);

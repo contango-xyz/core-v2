@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import "../libraries/DataTypes.sol";
 import "./IContango.sol";
+import "./IContangoOracle.sol";
 
 enum OrderType {
     Limit,
@@ -54,6 +55,7 @@ interface IOrderManagerEvents {
 
     event GasMultiplierSet(uint256 gasMultiplier);
     event GasTipSet(uint256 gasTip);
+    event OracleSet(IContangoOracle oracle);
 
 }
 
@@ -98,5 +100,6 @@ interface IOrderManager is IOrderManagerEvents, IOrderManagerErrors, IContangoEr
 
     function setGasMultiplier(uint64 gasMultiplier) external;
     function setGasTip(uint64 gasTip) external;
+    function setOracle(IContangoOracle _oracle) external;
 
 }
