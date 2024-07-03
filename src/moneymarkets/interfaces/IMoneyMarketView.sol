@@ -31,6 +31,22 @@ struct Reward {
     uint256 usdPrice;
 }
 
+enum AvailableActions {
+    Lend,
+    Withdraw,
+    Borrow,
+    Repay
+}
+
+struct Limits {
+    uint256 minBorrowing;
+    uint256 maxBorrowing;
+    uint256 minBorrowingForRewards;
+    uint256 minLending;
+    uint256 maxLending;
+    uint256 minLendingForRewards;
+}
+
 interface IMoneyMarketView {
 
     error UnsupportedAsset(IERC20 asset);
@@ -40,6 +56,8 @@ interface IMoneyMarketView {
     function moneyMarketName() external view returns (string memory);
 
     function balances(PositionId positionId) external returns (Balances memory balances_);
+
+    function balancesUSD(PositionId positionId) external returns (Balances memory balances_);
 
     function prices(PositionId positionId) external view returns (Prices memory prices_);
 
@@ -55,14 +73,12 @@ interface IMoneyMarketView {
 
     function rates(PositionId positionId) external view returns (uint256 borrowing, uint256 lending);
 
+    function irmRaw(PositionId positionId) external view returns (bytes memory data);
+
     function rewards(PositionId positionId) external returns (Reward[] memory borrowing, Reward[] memory lending);
 
-}
+    function availableActions(PositionId positionId) external returns (AvailableActions[] memory available);
 
-function asTokenData(IERC20 token) view returns (TokenData memory tokenData_) {
-    tokenData_.token = token;
-    tokenData_.name = token.name();
-    tokenData_.symbol = token.symbol();
-    tokenData_.decimals = token.decimals();
-    tokenData_.unit = 10 ** token.decimals();
+    function limits(PositionId positionId) external view returns (Limits memory limits_);
+
 }

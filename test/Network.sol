@@ -12,7 +12,6 @@ enum Network {
     Arbitrum,
     Optimism,
     Polygon,
-    Goerli,
     PolygonZK,
     Gnosis,
     Base
@@ -23,7 +22,6 @@ function toString(Network network) pure returns (string memory) {
     if (network == Network.Optimism) return "optimism";
     if (network == Network.Polygon) return "matic";
     if (network == Network.Mainnet) return "mainnet";
-    if (network == Network.Goerli) return "goerli";
     if (network == Network.PolygonZK) return "polygon-zk";
     if (network == Network.Gnosis) return "gnosis";
     if (network == Network.Base) return "base";
@@ -74,7 +72,6 @@ function currentNetwork() view returns (Network) {
     if (block.chainid == 10) return Network.Optimism;
     if (block.chainid == 137) return Network.Polygon;
     if (block.chainid == 42_161) return Network.Arbitrum;
-    if (block.chainid == 5) return Network.Goerli;
     if (block.chainid == 1101) return Network.PolygonZK;
     if (block.chainid == 100) return Network.Gnosis;
     if (block.chainid == 8453) return Network.Base;

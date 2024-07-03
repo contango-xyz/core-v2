@@ -30,6 +30,14 @@ contract LodestarMoneyMarketView is CompoundMoneyMarketView {
         return price;
     }
 
+    function priceInNativeToken(IERC20 asset) public view virtual override returns (uint256 price_) {
+        return _oraclePrice(asset);
+    }
+
+    function priceInUSD(IERC20 asset) public view virtual override returns (uint256 price_) {
+        return _derivePriceInUSD(asset);
+    }
+
     function _oracleUnit() internal view virtual override returns (uint256) {
         return WAD;
     }
@@ -59,49 +67,32 @@ contract LodestarMoneyMarketView is CompoundMoneyMarketView {
         returns (Reward[] memory borrowing, Reward[] memory lending)
     {
         Reward memory reward;
-        Reward memory arbRewards = _arbRewards();
+
         uint256 claimable = arbToken.balanceOf(_account(positionId));
-
-        reward = _asRewards(positionId, debtAsset, true);
-        borrowing = reward.rate > 0 ? new Reward[](2) : new Reward[](1);
-        borrowing[0] = arbRewards;
-        borrowing[0].claimable = claimable / 2;
-        if (reward.rate > 0) borrowing[1] = reward;
-
-        reward = _asRewards(positionId, collateralAsset, false);
-        lending = reward.rate > 0 ? new Reward[](2) : new Reward[](1);
-        lending[0] = arbRewards;
-        lending[0].claimable = claimable / 2;
-        if (reward.rate > 0) lending[1] = reward;
-
-        _updateClaimable(positionId, borrowing, lending);
-    }
-
-    function _arbRewards() internal view virtual returns (Reward memory reward) {
-        uint256 ethUsd = uint256(IPriceOracleProxyETH(comptroller.oracle()).ethUsdAggregator().latestAnswer());
-        uint256 arbUsd = uint256(arbOracle.latestAnswer());
-        uint256 arbEth = arbUsd * 1e8 / ethUsd;
-
-        uint256 totalETHValue;
-        ICToken[] memory allMarkets = comptroller.getAllMarkets();
-        for (uint256 i = 0; i < allMarkets.length; i++) {
-            ICToken cToken = allMarkets[i];
-            IERC20 underlying = _cTokenUnderlying(cToken);
-            uint256 ethPrice = _oraclePrice(underlying);
-
-            uint256 unit = 10 ** underlying.decimals();
-            uint256 valueOfAssetsSupplied = ethPrice * (cToken.totalSupply() * cToken.exchangeRateStored() / WAD) / unit;
-            uint256 valueOfAssetsBorrowed = ethPrice * cToken.totalBorrows() / unit;
-
-            totalETHValue += valueOfAssetsSupplied + valueOfAssetsBorrowed;
+        Reward memory arbRewards;
+        if (claimable > 0) {
+            arbRewards.token = _asTokenData(arbToken);
+            arbRewards.usdPrice = uint256(arbOracle.latestAnswer()) * 10 ** (arbToken.decimals() - 8);
+            arbRewards.claimable = claimable;
         }
 
-        reward.token = TokenData(arbToken, arbToken.name(), arbToken.symbol(), arbToken.decimals(), 10 ** arbToken.decimals());
-        reward.usdPrice = arbUsd * 10 ** (arbToken.decimals() - 8);
+        reward = _asRewards(positionId, collateralAsset, false);
+        uint256 length;
+        if (arbRewards.claimable > 0) length++;
+        if (reward.rate > 0) length++;
 
-        uint256 weeklyArbRewardsETH = 52_000e18 * arbEth / 1e8;
-        uint256 yearlyArbRewardsETH = weeklyArbRewardsETH * 52;
-        reward.rate = totalETHValue > 0 ? yearlyArbRewardsETH * WAD / totalETHValue : 0;
+        lending = new Reward[](length);
+        length = 0;
+        if (arbRewards.claimable > 0) lending[length++] = arbRewards;
+        if (reward.rate > 0) lending[length++] = reward;
+
+        reward = _asRewards(positionId, debtAsset, true);
+        if (reward.rate > 0) {
+            borrowing = new Reward[](1);
+            borrowing[0] = reward;
+        }
+
+        _updateClaimable(positionId, borrowing, lending);
     }
 
     function _cTokenUnderlying(ICToken cToken) internal view returns (IERC20) {

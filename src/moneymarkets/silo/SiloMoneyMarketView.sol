@@ -12,14 +12,37 @@ import { MM_SILO } from "script/constants.sol";
 
 contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
 
-    error OracleBaseCurrencyNotUSD();
-
     using Math for *;
+    using { isCollateralOnly } for PositionId;
+
+    struct IRMData {
+        ISilo.UtilizationData utilizationData;
+        IInterestRateModelV2.Config irmConfig;
+        uint256 protocolShareFee;
+    }
+
+    struct PauseStatus {
+        bool global;
+        bool collateral;
+        bool debt;
+    }
+
+    error OracleBaseCurrencyNotUSD();
 
     ISiloPriceProvidersRepository public immutable priceProvidersRepository;
 
-    constructor(IContango _contango, IWETH9 _nativeToken, IAggregatorV2V3 _nativeUsdOracle)
+    constructor(
+        IContango _contango,
+        IWETH9 _nativeToken,
+        IAggregatorV2V3 _nativeUsdOracle,
+        ISiloLens _lens,
+        ISiloIncentivesController _incentivesController,
+        ISilo _wstEthSilo,
+        IERC20 _stablecoin,
+        IERC20 _arb
+    )
         BaseMoneyMarketView(MM_SILO, "Silo", _contango, _nativeToken, _nativeUsdOracle)
+        SiloBase(_lens, _incentivesController, _wstEthSilo, _nativeToken, _stablecoin, _arb)
     {
         priceProvidersRepository = repository.priceProvidersRepository();
     }
@@ -34,10 +57,11 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
     {
         address account = _account(positionId);
         ISilo silo = getSilo(collateralAsset, debtAsset);
-        silo.accrueInterest(collateralAsset);
-        silo.accrueInterest(debtAsset);
-        balances_.collateral = LENS.collateralBalanceOfUnderlying(silo, collateralAsset, account);
-        balances_.debt = LENS.getBorrowAmount(silo, debtAsset, account, block.timestamp);
+        PauseStatus memory pauseStatus = _pauseStatus(silo, collateralAsset, debtAsset);
+        if (!(pauseStatus.global || pauseStatus.collateral)) silo.accrueInterest(collateralAsset);
+        if (!(pauseStatus.global || pauseStatus.debt)) silo.accrueInterest(debtAsset);
+        balances_.collateral = lens.collateralBalanceOfUnderlying(silo, collateralAsset, account);
+        balances_.debt = lens.getBorrowAmount(silo, debtAsset, account, block.timestamp);
     }
 
     function _oracleUnit() internal view virtual override returns (uint256) {
@@ -50,6 +74,10 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
 
     function priceInNativeToken(IERC20 asset) public view virtual override returns (uint256 price_) {
         return _oraclePrice(asset);
+    }
+
+    function priceInUSD(IERC20 asset) public view virtual override returns (uint256 price_) {
+        return _oraclePrice(asset) * uint256(nativeUsdOracle.latestAnswer()) / 1e8;
     }
 
     function _thresholds(PositionId, IERC20 collateralAsset, IERC20 debtAsset)
@@ -72,7 +100,7 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
         returns (uint256 borrowing, uint256 lending)
     {
         ISilo silo = getSilo(collateralAsset, debtAsset);
-        borrowing = LENS.liquidity(silo, debtAsset);
+        borrowing = lens.liquidity(silo, debtAsset);
 
         uint256 maxDepositValue = repository.getMaxSiloDepositsValue(silo, collateralAsset);
         if (maxDepositValue == type(uint256).max) {
@@ -96,8 +124,19 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
         returns (uint256 borrowing, uint256 lending)
     {
         ISilo silo = getSilo(collateralAsset, debtAsset);
-        borrowing = LENS.borrowAPY(silo, debtAsset);
-        lending = LENS.depositAPY(silo, collateralAsset);
+        borrowing = lens.borrowAPY(silo, debtAsset);
+        lending = lens.depositAPY(silo, collateralAsset);
+    }
+
+    function _irmRaw(PositionId, IERC20 collateralAsset, IERC20 debtAsset) internal view virtual override returns (bytes memory data) {
+        ISilo silo = getSilo(collateralAsset, debtAsset);
+        data = abi.encode(_collectIrmData(silo, collateralAsset), _collectIrmData(silo, debtAsset));
+    }
+
+    function _collectIrmData(ISilo silo, IERC20 asset) internal view virtual returns (IRMData memory data) {
+        data.utilizationData = silo.utilizationData(asset);
+        data.irmConfig = repository.getInterestRateModel(silo, asset).getConfig(silo, asset);
+        data.protocolShareFee = repository.protocolShareFee();
     }
 
     function _rewards(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
@@ -109,42 +148,95 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
     {
         ISilo silo = getSilo(collateralAsset, debtAsset);
         borrowing = _asRewards({ positionId: positionId, silo: silo, asset: debtAsset, lending: false });
-        lending = _asRewards({ positionId: positionId, silo: silo, asset: collateralAsset, lending: true });
+
+        Reward[] memory rewards = _asRewards({ positionId: positionId, silo: silo, asset: collateralAsset, lending: true });
+        uint256 claimable = address(arb) != address(0) ? arb.balanceOf(_account(positionId)) : 0;
+        Reward memory arbRewards;
+        if (claimable > 0) {
+            arbRewards.token = _asTokenData(arb);
+            arbRewards.usdPrice = priceInUSD(arb);
+            arbRewards.claimable = claimable;
+        }
+
+        bool hasNativeRewards = rewards.length > 0 && (rewards[0].rate > 0 || rewards[0].claimable > 0);
+        bool hasArbRewards = arbRewards.claimable > 0;
+
+        uint256 lendingLength;
+        if (hasNativeRewards) lendingLength++;
+        if (hasArbRewards) lendingLength++;
+
+        lending = new Reward[](lendingLength);
+        lendingLength = 0;
+        if (hasNativeRewards) lending[lendingLength++] = rewards[0];
+        if (hasArbRewards) lending[lendingLength++] = arbRewards;
+    }
+
+    function _availableActions(PositionId, IERC20 collateralAsset, IERC20 debtAsset)
+        internal
+        view
+        override
+        returns (AvailableActions[] memory available)
+    {
+        ISilo silo = getSilo(collateralAsset, debtAsset);
+
+        available = new AvailableActions[](ACTIONS);
+        uint256 count;
+
+        PauseStatus memory pauseStatus = _pauseStatus(silo, collateralAsset, debtAsset);
+        if (!pauseStatus.global) {
+            if (!pauseStatus.collateral && silo.interestData(collateralAsset).status == ISilo.AssetStatus.Active) {
+                available[count++] = AvailableActions.Lend;
+                available[count++] = AvailableActions.Withdraw;
+            }
+
+            if (!pauseStatus.debt && silo.interestData(debtAsset).status == ISilo.AssetStatus.Active) {
+                available[count++] = AvailableActions.Borrow;
+                available[count++] = AvailableActions.Repay;
+            }
+        }
+
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            mstore(available, count)
+        }
     }
 
     // ===== Internal Helper Functions =====
 
+    function _pauseStatus(ISilo silo, IERC20 collateralAsset, IERC20 debtAsset) internal view returns (PauseStatus memory pauseStatus) {
+        pauseStatus.global = repository.isPaused();
+        pauseStatus.collateral = repository.isSiloPaused(silo, collateralAsset);
+        pauseStatus.debt = repository.isSiloPaused(silo, debtAsset);
+    }
+
     function _asRewards(PositionId positionId, ISilo silo, IERC20 asset, bool lending) internal view returns (Reward[] memory rewards_) {
-        IERC20 siloAsset = lending ? silo.assetStorage(asset).collateralToken : silo.assetStorage(asset).debtToken;
-        uint256 emissionPerSecond = INCENTIVES_CONTROLLER.getAssetData(siloAsset).emissionPerSecond;
-        if (emissionPerSecond == 0) return new Reward[](0);
+        IERC20 siloAsset = lending
+            ? positionId.isCollateralOnly() ? silo.assetStorage(asset).collateralOnlyToken : silo.assetStorage(asset).collateralToken
+            : silo.assetStorage(asset).debtToken;
+
+        uint256 claimable = incentivesController.getRewardsBalance(toArray(siloAsset), _account(positionId));
+        uint256 emissionPerSecond = incentivesController.getAssetData(siloAsset).emissionPerSecond;
+
+        if (emissionPerSecond == 0 && claimable == 0) return new Reward[](0);
+
         rewards_ = new Reward[](1);
         Reward memory reward;
 
-        IERC20 rewardsToken = INCENTIVES_CONTROLLER.REWARD_TOKEN();
+        IERC20 rewardsToken = incentivesController.REWARD_TOKEN();
 
         reward.usdPrice = priceInUSD(rewardsToken);
-        reward.token = TokenData({
-            token: rewardsToken,
-            name: rewardsToken.name(),
-            symbol: rewardsToken.symbol(),
-            decimals: rewardsToken.decimals(),
-            unit: 10 ** rewardsToken.decimals()
-        });
-
-        uint256 valueOfEmissions = (emissionPerSecond * 365 days) * reward.usdPrice / 1e18;
-        uint256 assetPrice = priceInUSD(asset);
+        reward.token = _asTokenData(rewardsToken);
+        reward.claimable = claimable;
 
         if (lending) {
-            uint256 assetSupplied = silo.assetStorage(asset).totalDeposits;
+            uint256 valueOfEmissions = emissionPerSecond * reward.usdPrice / WAD;
+            uint256 assetPrice = priceInUSD(asset);
+
+            uint256 assetSupplied =
+                positionId.isCollateralOnly() ? silo.assetStorage(asset).collateralOnlyDeposits : silo.assetStorage(asset).totalDeposits;
             uint256 valueOfAssetsSupplied = assetPrice * assetSupplied / 10 ** asset.decimals();
 
-            reward.rate = valueOfEmissions * 1e18 / valueOfAssetsSupplied;
-
-            if (reward.rate > 0 && positionId.getNumber() > 0) {
-                address account = _account(positionId);
-                reward.claimable = INCENTIVES_CONTROLLER.getRewardsBalance(toArray(siloAsset), account);
-            }
+            reward.rate = _apy({ rate: valueOfEmissions * WAD / valueOfAssetsSupplied, perSeconds: 1 });
         }
 
         rewards_[0] = reward;

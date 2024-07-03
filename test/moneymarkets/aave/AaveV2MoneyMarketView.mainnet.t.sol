@@ -1,72 +1,34 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
-import "../../Mock.sol";
-import "../../TestSetup.t.sol";
+import "./IPoolConfiguratorV2.sol";
 
-contract AaveV2MoneyMarketViewMainnetTest is Test {
+import "../AbstractMMV.t.sol";
+
+contract AaveV2MoneyMarketViewTest is AbstractMarketViewTest {
 
     using Address for *;
     using ERC20Lib for *;
+    using { enabled } for AvailableActions[];
 
-    Env internal env;
-    IMoneyMarketView internal sut;
-    PositionId internal positionId;
-    Contango internal contango;
     IPool internal pool;
-    TestInstrument internal instrument;
+    IPoolConfiguratorV2 internal poolConfigurator;
 
-    MoneyMarketId internal constant mm = MM_AAVE_V2;
-
-    // Fees are 0.1% so the numbers are slightly off
-    uint256 internal constant TOLERANCE = 0.002e18;
+    constructor() AbstractMarketViewTest(MM_AAVE_V2) { }
 
     function setUp() public {
-        env = provider(Network.Mainnet);
-        env.init();
+        super.setUp(Network.Mainnet);
 
-        contango = env.contango();
-
-        sut = env.contangoLens().moneyMarketView(mm);
         pool = AaveMoneyMarketView(address(sut)).pool();
+        poolConfigurator = IPoolConfiguratorV2(env.aaveV2AddressProvider().getLendingPoolConfigurator());
 
-        instrument = env.createInstrument(env.erc20(WETH), env.erc20(USDC));
-
-        env.spotStub().stubPrice({
-            base: instrument.baseData,
-            quote: instrument.quoteData,
-            baseUsdPrice: 1000e8,
-            quoteUsdPrice: 1e8,
-            uniswapFee: 500
-        });
+        vm.mockCall(address(env.aaveV2AddressProvider()), abi.encodeWithSignature("getPoolAdmin()"), abi.encode(address(this)));
+        vm.mockCall(address(env.aaveV2AddressProvider()), abi.encodeWithSignature("getEmergencyAdmin()"), abi.encode(address(this)));
 
         env.spotStub().stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
-
-        positionId = env.encoder().encodePositionId(instrument.symbol, mm, PERP, 0);
     }
 
-    function testBalances_NewPosition() public {
-        Balances memory balances = sut.balances(positionId);
-        assertEqDecimal(balances.collateral, 0, instrument.baseDecimals, "Collateral balance");
-        assertEqDecimal(balances.debt, 0, instrument.quoteDecimals, "Debt balance");
-    }
-
-    function testBalances_ExistingPosition() public {
-        (, positionId,) = env.positionActions().openPosition({
-            symbol: instrument.symbol,
-            mm: mm,
-            quantity: 10 ether,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
-
-        Balances memory balances = sut.balances(positionId);
-
-        assertApproxEqRelDecimal(balances.collateral, 10 ether, TOLERANCE, instrument.baseDecimals, "Collateral balance");
-        assertApproxEqRelDecimal(balances.debt, 6000e6, TOLERANCE, instrument.quoteDecimals, "Debt balance");
-    }
-
-    function testPrices() public {
+    function testPrices() public view override {
         Prices memory prices = sut.prices(positionId);
 
         // V2 common ccy is ETH
@@ -75,19 +37,9 @@ contract AaveV2MoneyMarketViewMainnetTest is Test {
         assertEq(prices.unit, 1e18, "Oracle Unit");
     }
 
-    function testBaseQuoteRate() public {
-        uint256 baseQuoteRate = sut.baseQuoteRate(positionId);
-        assertEqDecimal(baseQuoteRate, 1000e6, instrument.quoteDecimals, "Base quote rate");
-    }
-
-    function testPriceInNativeToken() public {
+    function testPriceInNativeToken() public view {
         assertEqDecimal(sut.priceInNativeToken(instrument.base), 1e18, 18, "Base price in native token");
         assertEqDecimal(sut.priceInNativeToken(instrument.quote), 0.001e18, 18, "Quote price in native token");
-    }
-
-    function testPriceInUSD() public {
-        assertEqDecimal(sut.priceInUSD(instrument.base), 1000e18, 18, "Base price in USD");
-        assertEqDecimal(sut.priceInUSD(instrument.quote), 1e18, 18, "Quote price in USD");
     }
 
     function testBorrowingLiquidity() public {
@@ -107,16 +59,10 @@ contract AaveV2MoneyMarketViewMainnetTest is Test {
         assertApproxEqRelDecimal(beforePosition - afterPosition, 6000e6, TOLERANCE, instrument.quoteDecimals, "Borrowing liquidity delta");
     }
 
-    function testLendingLiquidity() public {
+    function testLendingLiquidity() public view {
         (, uint256 liquidity) = sut.liquidity(positionId);
 
         assertEqDecimal(liquidity, 3_261_199.605417499593638528e18, instrument.baseDecimals, "Lending liquidity");
-    }
-
-    function testLendingLiquidity_AssetNotAllowedAsCollateral() public {
-        (,, positionId) = env.createInstrumentAndPositionId(IERC20(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0), env.token(USDC), mm);
-        (, uint256 lendingLiquidity) = sut.liquidity(positionId);
-        assertEqDecimal(lendingLiquidity, 0, 18, "No lending liquidity");
     }
 
     function testThresholds_NewPosition() public {
@@ -143,11 +89,69 @@ contract AaveV2MoneyMarketViewMainnetTest is Test {
         assertEqDecimal(liquidationThreshold, 0.86e18, 18, "Liquidation threshold");
     }
 
-    function testRates() public {
+    function testRates() public view {
         (uint256 borrowingRate, uint256 lendingRate) = sut.rates(positionId);
 
-        assertEqDecimal(borrowingRate, 0.03943948765157956e18, 18, "Borrowing rate");
-        assertEqDecimal(lendingRate, 0.012681120210013493e18, 18, "Lending rate");
+        assertEqDecimal(borrowingRate, 0.040225334016594398e18, 18, "Borrowing rate");
+        assertEqDecimal(lendingRate, 0.012761643445808913e18, 18, "Lending rate");
+    }
+
+    function testAvailableActions_BaseFrozen() public {
+        poolConfigurator.freezeReserve(instrument.base);
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertFalse(availableActions.enabled(AvailableActions.Lend), "Lend should be disabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Borrow), "Borrow should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
+    }
+
+    function testAvailableActions_QuoteFrozen() public {
+        poolConfigurator.freezeReserve(instrument.quote);
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertFalse(availableActions.enabled(AvailableActions.Borrow), "Borrow should be disabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
+    }
+
+    function testAvailableActions_BothFrozen() public {
+        poolConfigurator.freezeReserve(instrument.base);
+        poolConfigurator.freezeReserve(instrument.quote);
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertFalse(availableActions.enabled(AvailableActions.Lend), "Lend should be disabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertFalse(availableActions.enabled(AvailableActions.Borrow), "Borrow should be disabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
+    }
+
+    function testAvailableActions_PoolPaused() public {
+        poolConfigurator.setPoolPause(true);
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertEq(availableActions.length, 0, "No available actions");
+    }
+
+    function testAvailableActions_BaseCollateralDisabled() public {
+        (,, positionId) = env.createInstrumentAndPositionId(IERC20(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0), env.token(USDC), mm);
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertFalse(availableActions.enabled(AvailableActions.Lend), "Lend should be disabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Borrow), "Borrow should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
+    }
+
+    function testAvailableActions_QuoteBorrowingDisabled() public {
+        poolConfigurator.disableBorrowingOnReserve(instrument.quote);
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertFalse(availableActions.enabled(AvailableActions.Borrow), "Borrow should be disabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
     }
 
 }

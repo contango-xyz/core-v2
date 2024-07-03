@@ -32,7 +32,7 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
     }
 
     function testPermissions() public {
-        expectAccessControl(hacker, DEFAULT_ADMIN_ROLE);
+        expectAccessControl(hacker, OPERATOR_ROLE);
         contango.createInstrument(Symbol.wrap(""), IERC20(address(0)), IERC20(address(0)));
 
         expectAccessControl(hacker, OPERATOR_ROLE);
@@ -119,12 +119,18 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
         vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
         contango.claimRewards(positionId, address(this));
 
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        contango.donatePosition(positionId, address(0xb0b));
+
         // after full close
         skip(1 seconds);
         env.positionActions().closePosition({ positionId: positionId, quantity: type(uint128).max, cashflow: 0, cashflowCcy: Currency.Quote });
 
         vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
         contango.claimRewards(positionId, address(this));
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        contango.donatePosition(positionId, address(0xb0b));
     }
 
     function testCallbackPermissions() public {
@@ -208,6 +214,9 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
 
         vm.expectRevert("Pausable: paused");
         contango.tradeOnBehalfOf(tradeParams, execParams, address(0));
+
+        vm.expectRevert("Pausable: paused");
+        contango.donatePosition(PositionId.wrap(0), address(0));
     }
 
 }

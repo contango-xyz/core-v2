@@ -25,6 +25,10 @@ contract SonneMoneyMarketView is CompoundMoneyMarketView {
         return 1 days;
     }
 
+    function _rateFrequency() internal pure virtual override returns (uint256) {
+        return 1;
+    }
+
     function _rewardsTokenUSDPrice() internal view virtual override returns (uint256) {
         return ISolidlyPool(rewardsTokenOracle).getAmountOut(WAD, comptroller.getCompAddress()) * 1e12;
     }
@@ -34,16 +38,8 @@ contract SonneMoneyMarketView is CompoundMoneyMarketView {
         return block.timestamp;
     }
 
-    function _borrowingLiquidity(IERC20 asset) internal view virtual override returns (uint256) {
-        ICToken cToken = _cToken(asset);
-        uint256 cap = comptroller.borrowCaps(cToken);
-        uint256 available = asset.balanceOf(address(cToken)) * 0.95e18 / WAD;
-        if (cap == 0) return available;
-
-        uint256 borrowed = cToken.totalBorrows();
-        if (borrowed > cap) return 0;
-
-        return Math.min(cap - borrowed, available);
+    function _cTokenBalance(IERC20 asset, ICToken cToken) internal view virtual override returns (uint256) {
+        return asset.balanceOf(address(cToken));
     }
 
 }

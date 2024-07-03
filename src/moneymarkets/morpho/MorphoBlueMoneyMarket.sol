@@ -20,12 +20,14 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
 
     IMorpho public immutable morpho;
     MorphoBlueReverseLookup public immutable reverseLookup;
+    IERC20 public immutable ena;
 
-    constructor(MoneyMarketId _moneyMarketId, IContango _contango, IMorpho _morpho, MorphoBlueReverseLookup _reverseLookup)
+    constructor(MoneyMarketId _moneyMarketId, IContango _contango, IMorpho _morpho, MorphoBlueReverseLookup _reverseLookup, IERC20 _ena)
         BaseMoneyMarket(_moneyMarketId, _contango)
     {
         morpho = _morpho;
         reverseLookup = _reverseLookup;
+        ena = _ena;
     }
 
     // ====== IMoneyMarket =======
@@ -71,7 +73,7 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
         override
         returns (uint256 actualAmount)
     {
-        Id marketId = reverseLookup.marketId(positionId.getPayload());
+        MorphoMarketId marketId = reverseLookup.marketId(positionId.getPayload());
         MarketParams memory marketParams = morpho.idToMarketParams(marketId);
 
         morpho.accrueInterest(marketParams); // Accrue interest before loading the market state
@@ -109,6 +111,10 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
             onBehalf: address(this),
             receiver: to
         });
+    }
+
+    function _claimRewards(PositionId, IERC20, IERC20, address to) internal virtual override {
+        if (address(ena) != address(0)) ena.transferBalance(to);
     }
 
 }

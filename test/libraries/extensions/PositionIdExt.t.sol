@@ -10,7 +10,7 @@ import "src/libraries/DataTypes.sol";
 
 contract PositionIdExtTest is Test {
 
-    function testEncodeDecode(Symbol s, uint8 mmId, uint32 e, uint48 n, bytes1 flags) public {
+    function testEncodeDecode(Symbol s, uint8 mmId, uint32 e, uint48 n, bytes1 flags) public pure {
         vm.assume(e != 0);
         MoneyMarketId m = MoneyMarketId.wrap(mmId);
 
@@ -31,7 +31,7 @@ contract PositionIdExtTest is Test {
         assertEq(flags, positionId.getFlags(), "flags");
     }
 
-    function testEncodeBoundaries() public {
+    function testEncodeBoundaries() public pure {
         Symbol s = Symbol.wrap(0xffffffffffffffffffffffffffffffff);
         MoneyMarketId m = MM_COMPOUND;
         uint32 e = type(uint32).max;
@@ -59,7 +59,7 @@ contract PositionIdExtTest is Test {
         encode(Symbol.wrap(""), MM_COMPOUND, e, 0, 0);
     }
 
-    function testPartialEncoding(Symbol s, uint8 mmId, uint32 e, uint48 n) public {
+    function testPartialEncoding(Symbol s, uint8 mmId, uint32 e, uint48 n) public pure {
         vm.assume(e != 0);
         MoneyMarketId m = MoneyMarketId.wrap(mmId);
 

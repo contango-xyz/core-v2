@@ -192,6 +192,13 @@ contract ExactlyMoneyMarketTest is Test {
         assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
     }
 
+    function testRepayEmptyPosition() public {
+        IERC20 borrowToken = env.token(USDC);
+        env.dealAndApprove(borrowToken, contango, 10e6, address(sut));
+        vm.prank(contango);
+        sut.repay(positionId, borrowToken, 10e6);
+    }
+
     function testLifeCycle_PartialRepayWithdraw() public {
         // setup
         IERC20 lendToken = env.token(WETH);
@@ -243,7 +250,7 @@ contract ExactlyMoneyMarketTest is Test {
         assertEqDecimal(lendToken.balanceOf(address(this)), collateral / 4, lendToken.decimals(), "withdrawn balance");
     }
 
-    function testIERC165() public {
+    function testIERC165() public view {
         assertTrue(sut.supportsInterface(type(IMoneyMarket).interfaceId), "IMoneyMarket");
         assertFalse(sut.supportsInterface(type(IFlashBorrowProvider).interfaceId), "IFlashBorrowProvider");
     }

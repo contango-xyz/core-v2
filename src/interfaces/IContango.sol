@@ -68,6 +68,7 @@ interface IContangoEvents {
     event ClosingOnlySet(Symbol indexed symbol, bool closingOnly);
     event InstrumentCreated(Symbol indexed symbol, IERC20 base, IERC20 quote);
     event MoneyMarketRegistered(MoneyMarketId indexed id, IMoneyMarket moneyMarket);
+    event PositionDonated(PositionId indexed positionId, address indexed from, address indexed to);
     event RewardsClaimed(PositionId indexed positionId, address indexed to);
 
 }
@@ -76,7 +77,6 @@ interface IContangoErrors {
 
     error CashflowCcyRequired(); // 0x2bed762a
     error ClosingOnly(); // 0x1dacbd6f
-    error ExcessiveInputQuote(uint256 limit, uint256 actual); // 0x937d5fee
     error InsufficientBaseOnOpen(uint256 expected, int256 actual); // 0x49cb41d9
     error InsufficientBaseCashflow(int256 expected, int256 actual); // 0x0ef42287
     error InstrumentAlreadyExists(Symbol symbol); // 0x6170624c
@@ -104,6 +104,8 @@ interface IContango is IContangoEvents, IContangoErrors {
         returns (PositionId positionId, Trade memory trade);
 
     function claimRewards(PositionId positionId, address to) external;
+
+    function donatePosition(PositionId positionId, address to) external;
 
     // ======== View ========
 

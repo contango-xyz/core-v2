@@ -97,7 +97,7 @@ interface IComet {
     function baseBorrowMin() external view returns (uint256);
     function baseMinForRewards() external view returns (uint256);
     function baseScale() external view returns (uint256);
-    function baseToken() external view returns (address);
+    function baseToken() external view returns (IERC20);
     function baseTokenPriceFeed() external view returns (address);
     function baseTrackingBorrowSpeed() external view returns (uint256);
     function baseTrackingSupplySpeed() external view returns (uint256);

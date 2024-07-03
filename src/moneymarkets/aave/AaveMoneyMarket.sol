@@ -112,11 +112,11 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
     }
 
     function _aToken(IERC20 asset) internal view virtual returns (IERC20 aToken) {
-        aToken = IERC20(pool.getReserveData(address(asset)).aTokenAddress);
+        aToken = IERC20(pool.getReserveData(asset).aTokenAddress);
     }
 
     function _vToken(IERC20 asset) internal view virtual returns (IERC20 vToken) {
-        vToken = IERC20(pool.getReserveData(address(asset)).variableDebtTokenAddress);
+        vToken = IERC20(pool.getReserveData(asset).variableDebtTokenAddress);
     }
 
     // ===== IFlashBorrowProvider =====
@@ -158,7 +158,7 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         uint256[] calldata,
         address initiator,
         bytes calldata metaParams
-    ) public override returns (bool) {
+    ) public virtual override returns (bool) {
         if (msg.sender != address(pool) || initiator != address(this)) revert InvalidSenderOrInitiator();
 
         (
@@ -192,7 +192,7 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         params = metaParams.params;
     }
 
-    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public pure virtual override returns (bool) {
         return interfaceId == type(IMoneyMarket).interfaceId || interfaceId == type(IFlashBorrowProvider).interfaceId;
     }
 

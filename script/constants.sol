@@ -6,6 +6,7 @@ import "src/libraries/DataTypes.sol";
 address constant EGILL = 0x02f73B54ccfBA5c91bf432087D60e4b3a781E497;
 address constant ULTRASECRETH = 0x05950b4e68f103d5aBEf20364dE219a247e59C23;
 address constant ALFREDO = 0x81FaCe447BF931eB0C7d1e9fFd6C7407cd2aE5a6;
+address constant KEEPER = 0x49391E880EA21fC1c3706EB14704ee3944d00bD8;
 
 bytes32 constant INITIAL_SALT = keccak256("Contango V2");
 
@@ -33,9 +34,10 @@ MoneyMarketId constant MM_COMPOUND = MoneyMarketId.wrap(2);
 // MoneyMarketId constant MM_YIELD = MoneyMarketId.wrap(3); // discontinued
 MoneyMarketId constant MM_EXACTLY = MoneyMarketId.wrap(4);
 MoneyMarketId constant MM_SONNE = MoneyMarketId.wrap(5);
+// MoneyMarketId constant MM_MAKER = MoneyMarketId.wrap(6); // not gonna happen
 MoneyMarketId constant MM_SPARK = MoneyMarketId.wrap(7);
 MoneyMarketId constant MM_MORPHO_BLUE = MoneyMarketId.wrap(8);
-MoneyMarketId constant MM_AGAVE = MoneyMarketId.wrap(9);
+MoneyMarketId constant MM_AGAVE = MoneyMarketId.wrap(9); // discontinued
 MoneyMarketId constant MM_AAVE_V2 = MoneyMarketId.wrap(10);
 MoneyMarketId constant MM_RADIANT = MoneyMarketId.wrap(11);
 MoneyMarketId constant MM_LODESTAR = MoneyMarketId.wrap(12);
@@ -43,6 +45,7 @@ MoneyMarketId constant MM_MOONWELL = MoneyMarketId.wrap(13);
 MoneyMarketId constant MM_COMET = MoneyMarketId.wrap(14);
 MoneyMarketId constant MM_GRANARY = MoneyMarketId.wrap(15);
 MoneyMarketId constant MM_SILO = MoneyMarketId.wrap(16);
+MoneyMarketId constant MM_DOLOMITE = MoneyMarketId.wrap(17);
 
 uint32 constant PERP = type(uint32).max;
 uint256 constant DEFAULT_SLIPPAGE_TOLERANCE = 0.001e4;

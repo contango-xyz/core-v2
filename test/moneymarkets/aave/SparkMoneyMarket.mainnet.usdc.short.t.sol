@@ -41,16 +41,6 @@ contract SparkMoneyMarketMainnetUSDCShortTest is Test {
         env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(DAI).chainlinkUsdOracle));
     }
 
-    function testMoneyMarketPermissions() public {
-        address hacker = address(0x666);
-
-        IERC20 borrowToken = env.token(WETH);
-
-        vm.prank(hacker);
-        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, hacker));
-        sut.flashBorrow(borrowToken, 0, "", Contango(contango).completeOpenFromFlashBorrow);
-    }
-
     function testInitialise_InvalidExpiry() public {
         IERC20 lendToken = env.token(USDC);
         IERC20 borrowToken = env.token(WETH);
@@ -244,7 +234,7 @@ contract SparkMoneyMarketMainnetUSDCShortTest is Test {
     }
 
     function debtBalance(IERC20 asset, address account) internal view returns (uint256) {
-        return IERC20(pool.getReserveData(address(asset)).variableDebtTokenAddress).balanceOf(account);
+        return pool.getReserveData(asset).variableDebtTokenAddress.balanceOf(account);
     }
 
 }

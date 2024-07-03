@@ -1061,6 +1061,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         inputs.cashflow = 0;
         inputs.cashflowCcy = Currency.Quote;
 
+        env.positionActions().setTestName(
+            string.concat("testScenario24 MM=", vm.toString(MoneyMarketId.unwrap(mm)), " Chain=", currentNetwork().toString())
+        );
+
         (quote, trade) = env.positionActions().closePosition({
             positionId: positionId,
             quantity: inputs.quantity,
@@ -1390,6 +1394,63 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         );
     }
 
+    // Close 1x position
+    function testScenario32() public {
+        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
+        uint256 prevFee = feeModel.defaultFee();
+        vm.prank(TIMELOCK_ADDRESS);
+        feeModel.setDefaultFee(NO_FEE);
+
+        (TSQuote memory quote, PositionId positionId, Trade memory trade) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: mm,
+            quantity: _adjustedBase(10),
+            cashflow: _adjustedBaseI(10),
+            cashflowCcy: Currency.Base
+        });
+
+        vm.prank(TIMELOCK_ADDRESS);
+        feeModel.setDefaultFee(prevFee);
+
+        skip(1 seconds);
+        Balances memory balances = env.contangoLens().balances(positionId);
+
+        inputs.quantity = type(uint128).max;
+        inputs.cashflow = -1;
+        inputs.cashflowCcy = Currency.Base;
+
+        (quote, trade) = env.positionActions().closePosition({
+            positionId: positionId,
+            quantity: inputs.quantity,
+            cashflow: inputs.cashflow,
+            cashflowCcy: inputs.cashflowCcy
+        });
+
+        expectations.quantity = balances.collateral;
+        expectations.estimatedFee = tradingFee(expectations.quantity, DEFAULT_TRADING_FEE);
+        expectations.feeCcy = Currency.Base;
+        expectations.fee = expectations.estimatedFee;
+        expectations.tradeCashflow = -int256(expectations.quantity) + int256(expectations.fee);
+
+        expectations.flashLoanAmount = 0;
+
+        expectations.price = 0;
+        expectations.swapInputCcy = Currency.None;
+        expectations.swapInput = 0;
+        expectations.swapOutput = 0;
+
+        expectations.collateral = 0;
+        expectations.debt = 0;
+
+        _assertPosition(positionId, trade, Action.Close);
+        _assertTreasuryBalance(expectations.fee);
+
+        _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
+        assertEqDecimal(instrument.quote.balanceOf(TRADER), 0, instrument.quoteDecimals, "trader quote balance");
+
+        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+    }
+
     // ============================ HELPERS ============================
 
     function _initialPosition()
@@ -1473,7 +1534,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         }
     }
 
-    function _assertTreasuryBalance(uint256 _totalFee) private {
+    function _assertTreasuryBalance(uint256 _totalFee) private view {
         uint256 protocolFee;
 
         if (address(env.feeManager().referralManager()) != address(0)) {
@@ -1482,19 +1543,19 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(vault.balanceOf(instrument.base, TREASURY), protocolFee, "treasury vault base balance");
     }
 
-    function _assertEqBase(int256 left, int256 right, string memory message) private {
+    function _assertEqBase(int256 left, int256 right, string memory message) private view {
         assertApproxEqAbsDecimal(left, right, env.bounds(instrument.baseData.symbol).dust, instrument.baseDecimals, message);
     }
 
-    function _assertEqBase(uint256 left, uint256 right, string memory message) private {
+    function _assertEqBase(uint256 left, uint256 right, string memory message) private view {
         assertApproxEqAbsDecimal(left, right, env.bounds(instrument.baseData.symbol).dust, instrument.baseDecimals, message);
     }
 
-    function _assertEqQuote(int256 left, int256 right, string memory message) private {
+    function _assertEqQuote(int256 left, int256 right, string memory message) private view {
         assertApproxEqAbsDecimal(left, right, env.bounds(instrument.quoteData.symbol).dust, instrument.quoteDecimals, message);
     }
 
-    function _assertEqQuote(uint256 left, uint256 right, string memory message) private {
+    function _assertEqQuote(uint256 left, uint256 right, string memory message) private view {
         assertApproxEqAbsDecimal(left, right, env.bounds(instrument.quoteData.symbol).dust, instrument.quoteDecimals, message);
     }
 

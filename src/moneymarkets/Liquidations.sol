@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.4;
 
+import "./dolomite/dependencies/IDolomiteMargin.sol";
+
 interface Liquidations {
 
     // ====================== Aave ======================
 
-    // Aave V3
+    // Aave V2/V3
     event LiquidationCall(
         address indexed collateralAsset,
         address indexed debtAsset,
@@ -18,7 +20,7 @@ interface Liquidations {
 
     function ADDRESSES_PROVIDER() external view returns (address);
 
-    // Aave V2
+    // Agave
     event LiquidationCall(
         address indexed collateralAsset,
         address indexed debtAsset,
@@ -63,5 +65,44 @@ interface Liquidations {
     // ====================== Compound ======================
 
     event LiquidateBorrow(address liquidator, address borrower, uint256 repayAmount, address cTokenCollateral, uint256 seizeTokens);
+
+    // ====================== Morpho Blue ======================
+
+    event Liquidate(
+        bytes32 indexed id,
+        address indexed caller,
+        address indexed borrower,
+        uint256 repaidAssets,
+        uint256 repaidShares,
+        uint256 seizedAssets,
+        uint256 badDebtAssets,
+        uint256 badDebtShares
+    );
+
+    // ====================== Silo ======================
+
+    event Liquidate(address indexed asset, address indexed user, uint256 shareAmountRepaid, uint256 seizedCollateral);
+
+    // ====================== Comet ======================
+
+    event AbsorbCollateral(
+        address indexed absorber, address indexed borrower, address indexed asset, uint256 collateralAbsorbed, uint256 usdValue
+    );
+    event AbsorbDebt(address indexed absorber, address indexed borrower, uint256 basePaidOut, uint256 usdValue);
+
+    // Dolomite
+
+    event LogLiquidate(
+        address indexed solidAccountOwner,
+        uint256 solidAccountNumber,
+        address indexed liquidAccountOwner,
+        uint256 liquidAccountNumber,
+        uint256 heldMarket,
+        uint256 owedMarket,
+        IDolomiteMargin.BalanceUpdate solidHeldUpdate,
+        IDolomiteMargin.BalanceUpdate solidOwedUpdate,
+        IDolomiteMargin.BalanceUpdate liquidHeldUpdate,
+        IDolomiteMargin.BalanceUpdate liquidOwedUpdate
+    );
 
 }

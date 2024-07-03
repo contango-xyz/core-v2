@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.4;
 
+import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./IDefaultReserveInterestRateStrategyV2.sol";
+
 interface IPoolV2 {
 
     event Borrow(
@@ -59,7 +62,7 @@ interface IPoolV2 {
         address aTokenAddress;
         address stableDebtTokenAddress;
         address variableDebtTokenAddress;
-        address interestRateStrategyAddress;
+        IDefaultReserveInterestRateStrategyV2 interestRateStrategyAddress;
         uint8 id;
     }
 
@@ -117,7 +120,7 @@ interface IPoolV2 {
         address interestRateStrategyAddress
     ) external;
     function initialize(address provider) external;
-    function liquidationCall(address collateralAsset, address debtAsset, address user, uint256 debtToCover, bool receiveAToken) external;
+    function liquidationCall(IERC20 collateralAsset, IERC20 debtAsset, address user, uint256 debtToCover, bool receiveAToken) external;
     function liquidationCallUsingAgToken(address collateralAsset, address debtAsset, address user, uint256 debtToCover, bool receiveAToken)
         external;
     function paused() external view returns (bool);

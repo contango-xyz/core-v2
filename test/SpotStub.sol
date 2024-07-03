@@ -68,12 +68,16 @@ contract SpotStub is StdCheats {
     }
 
     function movePrice(ERC20Data memory data, int256 percentage) public returns (int256 newPrice) {
-        require(percentage >= -1e18 && percentage <= 10e18, "Invalid percentage");
-        (, int256 currentPrice,,,) = data.chainlinkUsdOracle.latestRoundData();
-        newPrice = currentPrice * (percentage + 1e18) / 1e18;
-        stubChainlinkPrice(newPrice, address(data.chainlinkUsdOracle));
+        return movePrice(address(data.chainlinkUsdOracle), string.concat(data.token.symbol(), "/USD"), percentage);
+    }
 
-        console.log("Moved %s price from %s to %s", data.token.symbol(), currentPrice.abs(), newPrice.abs());
+    function movePrice(address oracle, string memory token, int256 percentage) public returns (int256 newPrice) {
+        require(percentage >= -1e18 && percentage <= 10e18, "Invalid percentage");
+        (, int256 currentPrice,,,) = IAggregatorV2V3(oracle).latestRoundData();
+        newPrice = currentPrice * (percentage + 1e18) / 1e18;
+        stubChainlinkPrice(newPrice, oracle);
+
+        console.log("Moved %s price from %s to %s", token, currentPrice.abs(), newPrice.abs());
     }
 
     function stubUniswapPrice(ERC20Data memory base, ERC20Data memory quote, int256 spread, uint24 uniswapFee)

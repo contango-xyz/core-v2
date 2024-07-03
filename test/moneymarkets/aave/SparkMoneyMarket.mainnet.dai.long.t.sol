@@ -17,9 +17,11 @@ contract SparkMoneyMarketMainnetDAILongTest is Test {
 
     uint256 chainlinkDecimals = 8;
 
+    IERC20 internal wstEth = IERC20(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
+
     function setUp() public {
         env = provider(Network.Mainnet);
-        env.init(18_233_968);
+        env.init(19_189_829);
 
         contango = address(env.contango());
 
@@ -34,16 +36,6 @@ contract SparkMoneyMarketMainnetDAILongTest is Test {
 
         env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
         env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(DAI).chainlinkUsdOracle));
-    }
-
-    function testMoneyMarketPermissions() public {
-        address hacker = address(0x666);
-
-        IERC20 borrowToken = env.token(DAI);
-
-        vm.prank(hacker);
-        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, hacker));
-        sut.flashBorrow(borrowToken, 0, "", Contango(contango).completeOpenFromFlashBorrow);
     }
 
     function testInitialise_InvalidExpiry() public {
@@ -109,7 +101,14 @@ contract SparkMoneyMarketMainnetDAILongTest is Test {
         );
         assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
-        skip(10 days);
+        skip(3 days);
+
+        // Claim rewards without closing position
+        vm.prank(contango);
+        sut.claimRewards(positionId, lendToken, borrowToken, address(this));
+        assertEqDecimal(wstEth.balanceOf(address(this)), 0.000085044331517017e18, wstEth.decimals(), "wstEth.balanceOf");
+
+        skip(20 days);
 
         // repay
         uint256 debt = debtBalance(borrowToken, address(sut));
@@ -128,6 +127,11 @@ contract SparkMoneyMarketMainnetDAILongTest is Test {
         assertEq(withdrew, collateral, "withdrew all collateral");
         assertEqDecimal(sut.collateralBalance(positionId, lendToken), 0, lendToken.decimals(), "collateral is zero");
         assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
+
+        // Claim rewards after closing position
+        vm.prank(contango);
+        sut.claimRewards(positionId, lendToken, borrowToken, address(this));
+        assertEqDecimal(wstEth.balanceOf(address(this)), 0.000102702842019499e18, wstEth.decimals(), "wstEth.balanceOf");
     }
 
     function testLifeCycle_RepayInExcess() public {
@@ -224,64 +228,12 @@ contract SparkMoneyMarketMainnetDAILongTest is Test {
         assertEqDecimal(lendToken.balanceOf(address(this)), collateral / 4, lendToken.decimals(), "withdrawn balance");
     }
 
-    function testLifeCycle_FlashBorrow() public {
-        // setup
-        IERC20 lendToken = env.token(WETH);
-        IERC20 borrowToken = env.token(DAI);
+    function testFlashBorrowNotAvailable() public {
+        IERC20 token = env.token(WETH);
+        vm.expectRevert(UnsupportedOperation.selector);
+        sut.flashBorrow(token, 0, "", this.callback);
 
-        uint256 lendAmount = 10 ether;
-        uint256 borrowAmount = 1000e18;
-
-        // lend
-        env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
-        vm.prank(contango);
-        uint256 lent = sut.lend(positionId, lendToken, lendAmount);
-        assertEqDecimal(lent, lendAmount, lendToken.decimals(), "lent amount");
-
-        // borrow
-        vm.prank(contango);
-        bytes memory result = sut.flashBorrow(borrowToken, borrowAmount, "", this.callback);
-        assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
-        assertEq(result, "Hello world!", "callback result");
-
-        assertEqDecimal(
-            sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
-        );
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
-
-        skip(10 days);
-
-        // repay
-        uint256 debt = debtBalance(borrowToken, address(sut));
-        env.dealAndApprove(borrowToken, contango, debt, address(sut));
-        vm.prank(contango);
-        uint256 repaid = sut.repay(positionId, borrowToken, debt);
-
-        assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
-
-        // withdraw
-        uint256 collateral = sut.collateralBalance(positionId, lendToken);
-        vm.prank(contango);
-        uint256 withdrew = sut.withdraw(positionId, lendToken, collateral, address(this));
-
-        assertEq(withdrew, collateral, "withdrew all collateral");
-        assertEqDecimal(sut.collateralBalance(positionId, lendToken), 0, lendToken.decimals(), "collateral is zero");
-        assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
-    }
-
-    function testFlashLoanCallbackValidations() public {
-        vm.expectRevert(abi.encodeWithSelector(IFlashBorrowProvider.InvalidSenderOrInitiator.selector));
-        IFlashLoanReceiver(address(sut)).executeOperation({
-            assets: toArray(address(0)),
-            amounts: toArray(0),
-            premiums: toArray(0),
-            initiator: address(0),
-            params: ""
-        });
-
-        vm.prank(address(sut.pool()));
-        vm.expectRevert(abi.encodeWithSelector(IFlashBorrowProvider.InvalidSenderOrInitiator.selector));
+        vm.expectRevert(UnsupportedOperation.selector);
         IFlashLoanReceiver(address(sut)).executeOperation({
             assets: toArray(address(0)),
             amounts: toArray(0),
@@ -291,19 +243,15 @@ contract SparkMoneyMarketMainnetDAILongTest is Test {
         });
     }
 
-    function callback(IERC20 asset, uint256 amount, bytes memory) external returns (bytes memory) {
-        assertEqDecimal(asset.balanceOf(address(this)), amount, IERC20(address(asset)).decimals(), "borrowed balance");
-        // Do nothing with the money
-        return "Hello world!";
-    }
+    function callback(IERC20, uint256, bytes memory) external returns (bytes memory) { }
 
-    function testIERC165() public {
+    function testIERC165() public view {
         assertTrue(sut.supportsInterface(type(IMoneyMarket).interfaceId), "IMoneyMarket");
-        assertTrue(sut.supportsInterface(type(IFlashBorrowProvider).interfaceId), "IFlashBorrowProvider");
+        assertFalse(sut.supportsInterface(type(IFlashBorrowProvider).interfaceId), "IFlashBorrowProvider");
     }
 
     function debtBalance(IERC20 asset, address account) internal view returns (uint256) {
-        return IERC20(pool.getReserveData(address(asset)).variableDebtTokenAddress).balanceOf(account);
+        return pool.getReserveData(asset).variableDebtTokenAddress.balanceOf(account);
     }
 
 }

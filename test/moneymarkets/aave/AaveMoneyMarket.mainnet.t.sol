@@ -291,19 +291,19 @@ contract AaveMoneyMarketMainnetTest is Test {
         });
     }
 
-    function callback(IERC20 asset, uint256 amount, bytes memory) external returns (bytes memory) {
+    function callback(IERC20 asset, uint256 amount, bytes memory) external view returns (bytes memory) {
         assertEqDecimal(asset.balanceOf(address(this)), amount, IERC20(address(asset)).decimals(), "borrowed balance");
         // Do nothing with the money
         return "Hello world!";
     }
 
-    function testIERC165() public {
+    function testIERC165() public view {
         assertTrue(sut.supportsInterface(type(IMoneyMarket).interfaceId), "IMoneyMarket");
         assertTrue(sut.supportsInterface(type(IFlashBorrowProvider).interfaceId), "IFlashBorrowProvider");
     }
 
     function debtBalance(IERC20 asset, address account) internal view returns (uint256) {
-        return IERC20(pool.getReserveData(address(asset)).variableDebtTokenAddress).balanceOf(account);
+        return pool.getReserveData(asset).variableDebtTokenAddress.balanceOf(account);
     }
 
 }

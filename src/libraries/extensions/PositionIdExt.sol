@@ -57,3 +57,11 @@ function getFlags(PositionId positionId) pure returns (bytes1) {
 function getPayload(PositionId positionId) pure returns (Payload) {
     return Payload.wrap(bytes5(PositionId.unwrap(positionId) << 168));
 }
+
+function asUint(PositionId positionId) pure returns (uint256) {
+    return uint256(PositionId.unwrap(positionId));
+}
+
+function fromUint(uint256 n) pure returns (PositionId) {
+    return PositionId.wrap(bytes32(n));
+}

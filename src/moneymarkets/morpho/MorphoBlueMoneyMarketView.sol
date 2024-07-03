@@ -11,15 +11,23 @@ import "./MorphoBlueReverseLookup.sol";
 
 contract MorphoBlueMoneyMarketView is BaseMoneyMarketView {
 
-    error OracleNotFound(IERC20 asset);
-
     using Math for *;
     using SharesMathLib for *;
+
+    struct IRMData {
+        uint128 totalSupplyAssets;
+        uint128 totalBorrowAssets;
+        uint128 lastUpdate;
+        int256 rateAtTarget;
+    }
+
+    error OracleNotFound(IERC20 asset);
 
     uint256 public constant ORACLE_PRICE_DECIMALS = 36;
 
     IMorpho public immutable morpho;
     MorphoBlueReverseLookup public immutable reverseLookup;
+    IERC20 public immutable ena;
 
     constructor(
         MoneyMarketId _moneyMarketId,
@@ -28,16 +36,18 @@ contract MorphoBlueMoneyMarketView is BaseMoneyMarketView {
         IMorpho _morpho,
         MorphoBlueReverseLookup _reverseLookup,
         IWETH9 _nativeToken,
-        IAggregatorV2V3 _nativeUsdOracle
+        IAggregatorV2V3 _nativeUsdOracle,
+        IERC20 _ena
     ) BaseMoneyMarketView(_moneyMarketId, _moneyMarketName, _contango, _nativeToken, _nativeUsdOracle) {
         morpho = _morpho;
         reverseLookup = _reverseLookup;
+        ena = _ena;
     }
 
     // ====== IMoneyMarketView =======
 
     function _balances(PositionId positionId, IERC20, IERC20) internal virtual override returns (Balances memory balances_) {
-        Id marketId = reverseLookup.marketId(positionId.getPayload());
+        MorphoMarketId marketId = reverseLookup.marketId(positionId.getPayload());
         MarketParams memory marketParams = morpho.idToMarketParams(marketId);
         morpho.accrueInterest(marketParams); // Accrue interest before before loading the market state
         Market memory market = morpho.market(marketId);
@@ -67,16 +77,18 @@ contract MorphoBlueMoneyMarketView is BaseMoneyMarketView {
         uint256 nativeTokenUnit = 10 ** nativeTokenDecimals;
         if (asset == nativeToken) return nativeTokenUnit;
 
-        Id marketId = reverseLookup.marketId(asset);
-        if (Id.unwrap(marketId) != bytes32(0)) {
+        MorphoMarketId marketId = reverseLookup.assetToMarketId(asset);
+        if (MorphoMarketId.unwrap(marketId) != bytes32(0)) {
             MarketParams memory params = morpho.idToMarketParams(marketId);
             uint256 priceDecimals = ORACLE_PRICE_DECIMALS + params.loanToken.decimals() - params.collateralToken.decimals();
             price_ = params.oracle.price();
-            if (params.loanToken == nativeToken) return price_;
             if (priceDecimals < 18) price_ *= 10 ** (18 - priceDecimals);
+            if (priceDecimals > 18) price_ /= 10 ** (priceDecimals - 18);
+            if (params.loanToken == nativeToken) return price_;
+            asset = params.loanToken;
         }
 
-        QuoteOracle memory quoteOracle = reverseLookup.quoteOracle(asset);
+        QuoteOracle memory quoteOracle = reverseLookup.assetToQuoteOracle(asset);
         if (quoteOracle.oracle == address(0)) revert OracleNotFound(asset);
 
         uint256 oraclePrice;
@@ -90,10 +102,13 @@ contract MorphoBlueMoneyMarketView is BaseMoneyMarketView {
 
         if (quoteOracle.oracleCcy == QuoteOracleCcy.NATIVE) return price_;
 
-        uint256 assetPrice = price_;
         uint256 nativeAssetPrice = uint256(nativeUsdOracle.latestAnswer()) * 1e10;
 
-        price_ = assetPrice * nativeTokenUnit / nativeAssetPrice;
+        price_ = price_ * nativeTokenUnit / nativeAssetPrice;
+    }
+
+    function priceInUSD(IERC20 asset) public view virtual override returns (uint256 price_) {
+        return _derivePriceInUSD(asset);
     }
 
     function _thresholds(PositionId positionId, IERC20, IERC20)
@@ -119,11 +134,45 @@ contract MorphoBlueMoneyMarketView is BaseMoneyMarketView {
     }
 
     function _rates(PositionId positionId, IERC20, IERC20) internal view virtual override returns (uint256 borrowing, uint256 lending) {
-        Id marketId = reverseLookup.marketId(positionId.getPayload());
+        MorphoMarketId marketId = reverseLookup.marketId(positionId.getPayload());
         MarketParams memory params = morpho.idToMarketParams(marketId);
 
-        borrowing = params.irm.borrowRateView(params, morpho.market(marketId));
+        borrowing = _apy({ rate: params.irm.borrowRateView(params, morpho.market(marketId)), perSeconds: 1 });
         lending = 0;
+    }
+
+    function _irmRaw(PositionId positionId, IERC20, IERC20) internal view virtual override returns (bytes memory data) {
+        MorphoMarketId marketId = reverseLookup.marketId(positionId.getPayload());
+        Market memory market = morpho.market(marketId);
+        MarketParams memory params = morpho.idToMarketParams(marketId);
+
+        return abi.encode(
+            IRMData({
+                totalSupplyAssets: market.totalSupplyAssets,
+                totalBorrowAssets: market.totalBorrowAssets,
+                lastUpdate: market.lastUpdate,
+                rateAtTarget: params.irm.rateAtTarget(marketId)
+            })
+        );
+    }
+
+    function _rewards(PositionId positionId, IERC20, IERC20)
+        internal
+        view
+        virtual
+        override
+        returns (Reward[] memory borrowing, Reward[] memory lending)
+    {
+        borrowing = new Reward[](0);
+
+        uint256 claimable = address(ena) != address(0) ? ena.balanceOf(_account(positionId)) : 0;
+        if (claimable > 0) {
+            lending = new Reward[](1);
+            lending[0].token = _asTokenData(ena);
+            lending[0].claimable = claimable;
+        } else {
+            lending = new Reward[](0);
+        }
     }
 
 }

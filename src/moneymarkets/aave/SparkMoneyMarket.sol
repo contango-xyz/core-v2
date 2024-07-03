@@ -1,10 +1,10 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
-import "./AaveMoneyMarket.sol";
+import "./AaveMoneyMarketWithoutFlashBorrow.sol";
 import "./dependencies/Spark.sol";
 
-contract SparkMoneyMarket is AaveMoneyMarket {
+contract SparkMoneyMarket is AaveMoneyMarketWithoutFlashBorrow {
 
     using ERC20Lib for *;
 
@@ -25,7 +25,7 @@ contract SparkMoneyMarket is AaveMoneyMarket {
         ISDAI _sDAI,
         IERC20 _usdc,
         IDssPsm _psm
-    ) AaveMoneyMarket(_moneyMarketId, _contango, _pool, _dataProvider, _rewardsController) {
+    ) AaveMoneyMarketWithoutFlashBorrow(_moneyMarketId, _contango, _pool, _dataProvider, _rewardsController) {
         dai = _dai;
         sDAI = _sDAI;
         usdc = _usdc;
@@ -113,7 +113,7 @@ contract SparkMoneyMarket is AaveMoneyMarket {
             actualAmount = sDAI.redeem({
                 shares: super._withdraw(
                     positionId, sDAI, sDAI.previewWithdraw(asset == usdc ? amount * DAI_USDC_UNIT_DIFF : amount), address(this)
-                    ),
+                ),
                 receiver: asset == usdc ? address(this) : to,
                 owner: address(this)
             });
@@ -125,47 +125,6 @@ contract SparkMoneyMarket is AaveMoneyMarket {
         } else {
             actualAmount = super._withdraw(positionId, asset, amount, to);
         }
-    }
-
-    // ===== IFlashBorrowProvider =====
-
-    struct MetaParamsSpark {
-        bytes params;
-        function(IERC20, uint256, bytes memory) external returns (bytes memory) callback;
-        bool isUsdc;
-    }
-
-    function flashBorrow(
-        IERC20 asset,
-        uint256 amount,
-        bytes calldata params,
-        function(IERC20, uint256, bytes memory) external returns (bytes memory) callback
-    ) public virtual override returns (bytes memory result) {
-        bool isUsdc = asset == usdc;
-        asset = isUsdc ? dai : asset;
-        amount = isUsdc ? amount * DAI_USDC_UNIT_DIFF : amount;
-
-        return _flashBorrow(asset, amount, abi.encode(MetaParamsSpark({ params: params, callback: callback, isUsdc: isUsdc })));
-    }
-
-    function _handleMetaParams(address[] calldata assets, uint256[] calldata amounts, bytes memory metaParamsBytes)
-        internal
-        override
-        returns (
-            IERC20 asset,
-            uint256 amount,
-            function(IERC20, uint256, bytes memory) external returns (bytes memory) callback,
-            bytes memory params
-        )
-    {
-        MetaParamsSpark memory metaParams = abi.decode(metaParamsBytes, (MetaParamsSpark));
-        asset = metaParams.isUsdc ? usdc : IERC20(assets[0]);
-        amount = metaParams.isUsdc ? amounts[0] / DAI_USDC_UNIT_DIFF : amounts[0];
-
-        if (metaParams.isUsdc) psm.buyGem(address(this), amount);
-
-        callback = metaParams.callback;
-        params = metaParams.params;
     }
 
 }

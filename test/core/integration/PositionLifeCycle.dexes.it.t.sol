@@ -92,8 +92,8 @@ contract PositionLifeCycleDexes is BaseTest {
         _usingDex("changelly");
     }
 
-    function testRealMeanFinance() public {
-        _usingDex("mean-finance");
+    function testRealBalmy() public {
+        _usingDex("balmy");
     }
 
     function testRealWido() public {

@@ -21,7 +21,17 @@ type Payload is bytes5;
 type PositionId is bytes32;
 
 using {
-    decode, getSymbol, getNumber, getMoneyMarket, getExpiry, isPerp, isExpired, withNumber, getFlags, getPayload
+    decode,
+    getSymbol,
+    getNumber,
+    getMoneyMarket,
+    getExpiry,
+    isPerp,
+    isExpired,
+    withNumber,
+    getFlags,
+    getPayload,
+    asUint
 } for PositionId global;
 
 type OrderId is bytes32;

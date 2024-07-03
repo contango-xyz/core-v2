@@ -175,6 +175,13 @@ contract AaveV2MoneyMarketMainnetTest is Test {
         assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
     }
 
+    function testRepayEmptyPosition() public {
+        IERC20 borrowToken = env.token(DAI);
+        env.dealAndApprove(borrowToken, contango, 10e18, address(sut));
+        vm.prank(contango);
+        sut.repay(positionId, borrowToken, 10e18);
+    }
+
     function testLifeCycle_PartialRepayWithdraw() public {
         // setup
         IERC20 lendToken = env.token(WETH);
@@ -290,13 +297,13 @@ contract AaveV2MoneyMarketMainnetTest is Test {
         });
     }
 
-    function callback(IERC20 asset, uint256 amount, bytes memory) external returns (bytes memory) {
+    function callback(IERC20 asset, uint256 amount, bytes memory) external view returns (bytes memory) {
         assertEqDecimal(asset.balanceOf(address(this)), amount, IERC20(address(asset)).decimals(), "borrowed balance");
         // Do nothing with the money
         return "Hello world!";
     }
 
-    function testIERC165() public {
+    function testIERC165() public view {
         assertTrue(sut.supportsInterface(type(IMoneyMarket).interfaceId), "IMoneyMarket");
         assertTrue(sut.supportsInterface(type(IFlashBorrowProvider).interfaceId), "IFlashBorrowProvider");
     }

@@ -105,7 +105,7 @@ contract ReferralManagerTest is BaseTest, IReferralManagerEvents {
         sut.setTraderReferralByCode("abc");
     }
 
-    function testDefaultRewards() public {
+    function testDefaultRewards() public view {
         assertEq(sut.referrerRewardPercentage(), 0);
         assertEq(sut.traderRebatePercentage(), 0);
     }

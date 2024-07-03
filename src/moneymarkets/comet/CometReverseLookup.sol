@@ -23,14 +23,15 @@ interface CometReverseLookupErrors {
 contract CometReverseLookup is CometReverseLookupEvents, CometReverseLookupErrors, AccessControl {
 
     uint40 public nextPayload = 1;
-    mapping(Payload payload => IComet comet) private _comets;
-    mapping(IComet comet => Payload payload) private _payloads;
+    mapping(Payload payload => IComet comet) public comets;
+    mapping(IComet comet => Payload payload) public payloads;
+    mapping(IERC20 baseAsset => IComet comet) public cometsByBaseAsset;
 
-    constructor(Timelock timelock, IComet[] memory comets) {
+    constructor(Timelock timelock, IComet[] memory _comets) {
         _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
         uint40 payload = nextPayload;
-        for (uint256 i; i < comets.length; i++) {
-            _setComet(comets[i], payload++);
+        for (uint256 i; i < _comets.length; i++) {
+            _setComet(_comets[i], payload++);
         }
         nextPayload = payload;
     }
@@ -40,16 +41,17 @@ contract CometReverseLookup is CometReverseLookupEvents, CometReverseLookupError
     }
 
     function _setComet(IComet _comet, uint40 _payload) internal returns (Payload payload) {
-        if (Payload.unwrap(_payloads[_comet]) != bytes5(0)) revert CometAlreadySet(_comet, _payloads[_comet]);
+        if (Payload.unwrap(payloads[_comet]) != bytes5(0)) revert CometAlreadySet(_comet, payloads[_comet]);
 
         payload = Payload.wrap(bytes5(_payload));
-        _comets[payload] = _comet;
-        _payloads[_comet] = payload;
+        comets[payload] = _comet;
+        payloads[_comet] = payload;
+        cometsByBaseAsset[_comet.baseToken()] = _comet;
         emit CometSet(_comet, payload);
     }
 
     function comet(Payload payload) external view returns (IComet comet_) {
-        comet_ = _comets[payload];
+        comet_ = comets[payload];
         if (comet_ == IComet(address(0))) revert CometNotFound(payload);
     }
 

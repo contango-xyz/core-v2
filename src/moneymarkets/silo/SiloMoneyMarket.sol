@@ -6,20 +6,28 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./SiloBase.sol";
 import "../BaseMoneyMarket.sol";
 import "../../libraries/ERC20Lib.sol";
-import "../../libraries/Arrays.sol";
+import { toArray } from "../../libraries/Arrays.sol";
 import { MM_SILO } from "script/constants.sol";
 
 contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
 
     using SafeERC20 for *;
     using ERC20Lib for *;
+    using { isCollateralOnly } for PositionId;
 
     bool public constant override NEEDS_ACCOUNT = true;
-    bool public constant COLLATERAL_ONLY = false;
 
     ISilo public silo;
 
-    constructor(IContango _contango) BaseMoneyMarket(MM_SILO, _contango) { }
+    constructor(
+        IContango _contango,
+        ISiloLens _lens,
+        ISiloIncentivesController _incentivesController,
+        ISilo _wstEthSilo,
+        IERC20 _weth,
+        IERC20 _stablecoin,
+        IERC20 _arb
+    ) BaseMoneyMarket(MM_SILO, _contango) SiloBase(_lens, _incentivesController, _wstEthSilo, _weth, _stablecoin, _arb) { }
 
     function _initialise(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal virtual override {
         if (!positionId.isPerp()) revert InvalidExpiry();
@@ -31,16 +39,21 @@ contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
 
     function _collateralBalance(PositionId, IERC20 asset) internal virtual override returns (uint256 balance) {
         silo.accrueInterest(asset);
-        balance = LENS.collateralBalanceOfUnderlying(silo, asset, address(this));
+        balance = lens.collateralBalanceOfUnderlying(silo, asset, address(this));
     }
 
     function _debtBalance(PositionId, IERC20 asset) internal virtual returns (uint256 balance) {
         silo.accrueInterest(asset);
-        balance = LENS.getBorrowAmount(silo, asset, address(this), block.timestamp);
+        balance = lens.getBorrowAmount(silo, asset, address(this), block.timestamp);
     }
 
-    function _lend(PositionId, IERC20 asset, uint256 amount, address payer) internal virtual override returns (uint256 actualAmount) {
-        (actualAmount,) = silo.deposit(asset, asset.transferOut(payer, address(this), amount), COLLATERAL_ONLY);
+    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer)
+        internal
+        virtual
+        override
+        returns (uint256 actualAmount)
+    {
+        (actualAmount,) = silo.deposit(asset, asset.transferOut(payer, address(this), amount), positionId.isCollateralOnly());
     }
 
     function _borrow(PositionId, IERC20 asset, uint256 amount, address to) internal virtual override returns (uint256 actualAmount) {
@@ -65,14 +78,16 @@ contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
         returns (uint256 actualAmount)
     {
         if (amount == _collateralBalance(positionId, asset)) amount = type(uint256).max;
-        (actualAmount,) = silo.withdraw(asset, amount, COLLATERAL_ONLY);
+        (actualAmount,) = silo.withdraw(asset, amount, positionId.isCollateralOnly());
         asset.transferOut(address(this), to, actualAmount);
     }
 
-    function _claimRewards(PositionId, IERC20 collateralAsset, IERC20 debtAsset, address to) internal virtual override {
-        INCENTIVES_CONTROLLER.claimRewards(
-            toArray(silo.assetStorage(collateralAsset).collateralToken, silo.assetStorage(debtAsset).debtToken), type(uint256).max, to
-        );
+    function _claimRewards(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset, address to) internal virtual override {
+        IERC20 collateralToken = positionId.isCollateralOnly()
+            ? silo.assetStorage(collateralAsset).collateralOnlyToken
+            : silo.assetStorage(collateralAsset).collateralToken;
+        incentivesController.claimRewards(toArray(collateralToken, silo.assetStorage(debtAsset).debtToken), type(uint256).max, to);
+        if (address(arb) != address(0)) arb.transferBalance(to);
     }
 
 }

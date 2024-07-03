@@ -128,7 +128,7 @@ contract PositionLifeCycleIntegration is BaseTest {
             env.positionActions().openPosition(instrument.symbol, mm, quantity, openLeverage, cashflowCcy);
 
         IMoneyMarketView mmv = env.contangoLens().moneyMarketView(mm);
-        uint256 actualOpenLeverage = _assertLeverage(mmv, positionId, openLeverage);
+        _assertLeverage(mmv, positionId, openLeverage);
 
         skip(1 days);
         _movePrice(positionId, mmv, marketMovement);
@@ -142,12 +142,10 @@ contract PositionLifeCycleIntegration is BaseTest {
 
         // compensate for fees when trading at the liquidity limit
         uint256 extraTolerance = 0.001e18;
-        int256 quantityAdjustment = _quantityAdjustmentOnIncrease(actualOpenLeverage, increaseLeverage, increaseQuote, trade);
-
-        assertApproxEqRelDecimal(
+        // quantity being higher than expected while leverage being respected is ok
+        assertGeDecimal(
             trade.quantity,
-            increaseQuote.quantity + quantityAdjustment,
-            TOLERANCE + extraTolerance,
+            increaseQuote.quantity - (increaseQuote.quantity.toUint256() * (TOLERANCE + extraTolerance) / WAD).toInt256(),
             instrument.baseDecimals,
             "trade.quantity"
         );
@@ -348,19 +346,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         console.log("Base %s, Quote %s", string(abi.encodePacked((base_.symbol))), string(abi.encodePacked((quote_.symbol))));
     }
 
-    function _quantityAdjustmentOnIncrease(uint256 openLeverage, uint256 increaseLeverage, TSQuote memory increaseQuote, Trade memory trade)
-        private
-        pure
-        returns (int256 adjustment)
-    {
-        // compensate for actual swap price
-        if (
-            increaseLeverage > openLeverage && increaseQuote.tradeParams.cashflowCcy == Currency.Base
-                && increaseQuote.tradeParams.cashflow < 0
-        ) adjustment = trade.swap.output + increaseQuote.tradeParams.cashflow - increaseQuote.quantity - int256(trade.fee);
-    }
-
-    function _boundLeverage(uint256 leverage) private view returns (uint256) {
+    function _boundLeverage(uint256 leverage) private pure returns (uint256) {
         return bound(leverage, 1e2, 20e2) * 1e16; // 1x to 20x, limited to two decimals numbers
     }
 
@@ -384,7 +370,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         if (leverage > expected) assertApproxEqRelDecimal(leverage, expected, LEVERAGE_TOLERANCE, 18, "leverage");
     }
 
-    function _assertCashflowInvariants(TSQuote memory quote) internal {
+    function _assertCashflowInvariants(TSQuote memory quote) internal view {
         if (quote.cashflowUsed < 0) {
             if (cashflowCcy == Currency.Quote) {
                 assertApproxEqRelDecimal(

@@ -9,7 +9,6 @@ interface ICometRewards {
         IERC20 token;
         uint64 rescaleFactor;
         bool shouldUpscale;
-        uint256 multiplier;
     }
 
     struct RewardOwed {

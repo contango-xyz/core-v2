@@ -67,7 +67,7 @@ interface ISiloRepository {
     function entryFee() external view returns (uint256);
     function fees() external view returns (uint64 entryFee, uint64 protocolShareFee, uint64 protocolLiquidationFee);
     function getBridgeAssets() external view returns (address[] memory);
-    function getInterestRateModel(ISilo _silo, IERC20 asset) external view returns (address model);
+    function getInterestRateModel(ISilo _silo, IERC20 asset) external view returns (IInterestRateModelV2 model);
     function getLiquidationThreshold(ISilo _silo, IERC20 asset) external view returns (uint256);
     function getMaxSiloDepositsValue(ISilo _silo, IERC20 asset) external view returns (uint256);
     function getMaximumLTV(ISilo _silo, IERC20 asset) external view returns (uint256);
@@ -276,5 +276,98 @@ interface ISiloIncentivesController {
     function rescueRewards() external;
     function setClaimer(address user, address caller) external;
     function setDistributionEnd(uint256 distributionEnd) external;
+
+}
+
+interface IInterestRateModelV2 {
+
+    // solhint-disable var-name-mixedcase
+
+    struct Config {
+        int256 uopt;
+        int256 ucrit;
+        int256 ulow;
+        int256 ki;
+        int256 kcrit;
+        int256 klow;
+        int256 klin;
+        int256 beta;
+        int256 ri;
+        int256 Tcrit;
+    }
+
+    error InvalidBeta();
+    error InvalidKcrit();
+    error InvalidKi();
+    error InvalidKlin();
+    error InvalidKlow();
+    error InvalidRi();
+    error InvalidTcrit();
+    error InvalidTimestamps();
+    error InvalidUcrit();
+    error InvalidUlow();
+    error InvalidUopt();
+
+    event ConfigUpdate(address indexed silo, address indexed asset, Config config);
+    event OwnershipPending(address indexed newPendingOwner);
+    event OwnershipTransferred(address indexed newOwner);
+
+    function ASSET_DATA_OVERFLOW_LIMIT() external view returns (uint256);
+    function DP() external view returns (uint256);
+    function RCOMP_MAX() external view returns (uint256);
+    function X_MAX() external view returns (int256);
+    function acceptOwnership() external;
+    function calculateCompoundInterestRate(
+        Config memory _c,
+        uint256 _totalDeposits,
+        uint256 _totalBorrowAmount,
+        uint256 _interestRateTimestamp,
+        uint256 _blockTimestamp
+    ) external pure returns (uint256 rcomp, int256 ri, int256 Tcrit);
+    function calculateCompoundInterestRateWithOverflowDetection(
+        Config memory _c,
+        uint256 _totalDeposits,
+        uint256 _totalBorrowAmount,
+        uint256 _interestRateTimestamp,
+        uint256 _blockTimestamp
+    ) external pure returns (uint256 rcomp, int256 ri, int256 Tcrit, bool overflow);
+    function calculateCurrentInterestRate(
+        Config memory _c,
+        uint256 _totalDeposits,
+        uint256 _totalBorrowAmount,
+        uint256 _interestRateTimestamp,
+        uint256 _blockTimestamp
+    ) external pure returns (uint256 rcur);
+    function config(address, address)
+        external
+        view
+        returns (
+            int256 uopt,
+            int256 ucrit,
+            int256 ulow,
+            int256 ki,
+            int256 kcrit,
+            int256 klow,
+            int256 klin,
+            int256 beta,
+            int256 ri,
+            int256 Tcrit
+        );
+    function getCompoundInterestRate(address _silo, address _asset, uint256 _blockTimestamp) external view returns (uint256 rcomp);
+    function getCompoundInterestRateAndUpdate(address _asset, uint256 _blockTimestamp) external returns (uint256 rcomp);
+    function getConfig(ISilo _silo, IERC20 _asset) external view returns (Config memory);
+    function getCurrentInterestRate(address _silo, address _asset, uint256 _blockTimestamp) external view returns (uint256 rcur);
+    function interestRateModelPing() external pure returns (bytes4);
+    function migrationFromV1(address[] memory _silos, address _siloRepository) external;
+    function overflowDetected(address _silo, address _asset, uint256 _blockTimestamp) external view returns (bool overflow);
+    function owner() external view returns (address);
+    function pendingOwner() external view returns (address);
+    function removePendingOwnership() external;
+    function renounceOwnership() external;
+    function setConfig(address _silo, address _asset, Config memory _config) external;
+    function transferOwnership(address newOwner) external;
+    function transferPendingOwnership(address newPendingOwner) external;
+
+    // solhint-enable var-name-mixedcase
 
 }

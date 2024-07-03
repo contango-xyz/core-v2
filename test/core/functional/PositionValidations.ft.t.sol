@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 import "../../BaseTest.sol";
 
-contract PositionValidationsFunctional is BaseTest, IContangoErrors {
+contract PositionValidationsFunctional is BaseTest, IContangoErrors, IContangoEvents {
 
     using SignedMath for *;
     using SafeCast for *;
@@ -51,65 +51,6 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors {
         deal(address(instrument.quoteData.token), env.balancer(), type(uint96).max);
     }
 
-    function testValidation01_base() public {
-        _testValidation01(Currency.Base);
-    }
-
-    function testValidation01_quote() public {
-        _testValidation01(Currency.Quote);
-    }
-
-    // Can't open a position with overspending
-    function _testValidation01(Currency cashflowCcy) internal {
-        PositionId positionId = env.encoder().encodePositionId(instrument.symbol, mm, PERP, 0);
-        instrument = env.instruments(positionId.getSymbol());
-
-        TSQuote memory quote = env.tsQuoter().quote({
-            positionId: positionId,
-            quantity: 10 ether,
-            leverage: 2e18,
-            cashflow: 0,
-            cashflowCcy: cashflowCcy,
-            slippageTolerance: 0
-        });
-
-        uint256 originalSwapAmount = quote.execParams.swapAmount;
-        quote.execParams.swapAmount += 1; // Swap more than what the user wanted
-
-        env.deposit(cashflowCcy == Currency.Quote ? instrument.quote : instrument.base, TRADER, quote.cashflowUsed.toUint256());
-
-        bytes memory swapBytes = abi.encodeWithSelector(
-            SwapRouter02.exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.quote, uint24(500), instrument.base),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.execParams.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
-
-        vm.prank(TRADER);
-        (bool success, bytes memory data) = address(maestro).call(
-            abi.encodeWithSelector(
-                contango.trade.selector,
-                quote.tradeParams,
-                ExecutionParams({
-                    router: uniswap,
-                    spender: uniswap,
-                    swapAmount: quote.execParams.swapAmount,
-                    swapBytes: swapBytes,
-                    flashLoanProvider: quote.execParams.flashLoanProvider
-                })
-            )
-        );
-
-        require(!success, "should have failed");
-        require(bytes4(data) == ExcessiveInputQuote.selector, "error selector not expected");
-        (uint256 limit, uint256 actual) = abi.decode(removeSelector(data), (uint256, uint256));
-        assertApproxEqRelDecimal(limit, quote.execParams.swapAmount, 0.0001e18, instrument.quoteDecimals, "limit");
-        assertGt(actual, originalSwapAmount, "actual");
-    }
-
     function testValidation02_base() public {
         _testValidation02(Currency.Base);
     }
@@ -145,46 +86,6 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors {
         (uint256 limit, uint256 actual) = abi.decode(removeSelector(data), (uint256, uint256));
         assertEqDecimal(limit, quote.price, instrument.quoteDecimals, "limit");
         assertGt(actual, quote.price, "actual");
-    }
-
-    // Can't increase a position with overspending
-    function testValidation03() public {
-        Currency cashflowCcy = Currency.Quote;
-
-        (TSQuote memory quote, PositionId positionId,) = positionActions.openPosition({
-            symbol: instrument.symbol,
-            mm: mm,
-            quantity: 10 ether,
-            leverage: 2e18,
-            cashflowCcy: cashflowCcy
-        });
-
-        instrument = env.instruments(positionId.getSymbol());
-
-        uint256 originalSwapAmount = quote.execParams.swapAmount;
-        quote.execParams.swapAmount = quote.execParams.swapAmount * 1.002e18 / 1e18; // Swap more than what the user wanted
-
-        env.deposit(cashflowCcy == Currency.Quote ? instrument.quote : instrument.base, TRADER, quote.cashflowUsed.toUint256());
-
-        quote.execParams.swapBytes = abi.encodeWithSelector(
-            SwapRouter02.exactInput.selector,
-            SwapRouter02.ExactInputParams({
-                path: abi.encodePacked(instrument.quote, uint24(500), instrument.base),
-                recipient: address(contango.spotExecutor()),
-                amountIn: quote.execParams.swapAmount,
-                amountOutMinimum: 0 // UI's problem
-             })
-        );
-
-        vm.prank(TRADER);
-        (bool success, bytes memory data) =
-            address(maestro).call(abi.encodeWithSelector(contango.trade.selector, quote.tradeParams, quote.execParams));
-
-        require(!success, "should have failed");
-        require(bytes4(data) == ExcessiveInputQuote.selector, "error selector not expected");
-        (uint256 limit, uint256 actual) = abi.decode(removeSelector(data), (uint256, uint256));
-        assertApproxEqRelDecimal(limit, quote.execParams.swapAmount, 0.002e18, instrument.quoteDecimals, "limit");
-        assertGt(actual, originalSwapAmount, "actual");
     }
 
     function testValidation04_base() public {
@@ -618,6 +519,31 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors {
 
         vm.prank(TRADER);
         contango.claimRewards(positionId, TRADER);
+    }
+
+    function testValidation16() public {
+        address to = address(0xb0b);
+
+        (, PositionId positionId,) = positionActions.openPosition({
+            symbol: instrument.symbol,
+            mm: mm,
+            quantity: 10 ether,
+            leverage: 2e18,
+            cashflowCcy: Currency.Base
+        });
+
+        skip(10 days);
+
+        // after closing
+        positionActions.closePosition({ positionId: positionId, quantity: type(uint128).max, cashflow: 0, cashflowCcy: Currency.Base });
+
+        vm.expectEmit(true, true, true, true);
+        emit PositionDonated(positionId, TRADER, to);
+
+        vm.prank(TRADER);
+        contango.donatePosition(positionId, to);
+
+        assertEq(contango.lastOwner(positionId), to, "lastOwner");
     }
 
 }

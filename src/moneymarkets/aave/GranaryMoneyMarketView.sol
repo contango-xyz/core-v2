@@ -3,7 +3,6 @@ pragma solidity 0.8.20;
 
 import "../../dependencies/Solidly.sol";
 import "./dependencies/IPoolV2.sol";
-import "./dependencies/IPoolDataProviderV2.sol";
 
 import "./AaveV2MoneyMarketView.sol";
 import { MM_GRANARY } from "script/constants.sol";
@@ -34,65 +33,64 @@ contract GranaryMoneyMarketView is AaveV2MoneyMarketView {
     {
         IERC20[] memory rewardTokens = REWARDS_CONTROLLER.getRewardsByAsset(_vToken(debtAsset));
 
-        borrowing = new Reward[](rewardTokens.length);
+        borrowing = new Reward[](1);
+        uint256 j;
         for (uint256 i = 0; i < rewardTokens.length; i++) {
             if (rewardTokens[i] != GRAIN) continue;
-            borrowing[i] = _asRewards(positionId, debtAsset, true);
+            borrowing[j++] = _asRewards(positionId, debtAsset, true);
+        }
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            mstore(borrowing, j)
         }
 
         rewardTokens = REWARDS_CONTROLLER.getRewardsByAsset(_aToken(collateralAsset));
 
-        lending = new Reward[](rewardTokens.length);
+        lending = new Reward[](1);
+        j = 0;
         for (uint256 i = 0; i < rewardTokens.length; i++) {
             if (rewardTokens[i] != GRAIN) continue;
-            lending[i] = _asRewards(positionId, collateralAsset, false);
+            lending[j++] = _asRewards(positionId, collateralAsset, false);
+        }
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            mstore(lending, j)
+        }
+
+        _updateClaimable(positionId, borrowing, lending);
+    }
+
+    function _updateClaimable(PositionId positionId, Reward[] memory borrowing, Reward[] memory lending) internal view {
+        uint256 stored = REWARDS_CONTROLLER.getUserUnclaimedRewardsFromStorage(_account(positionId), GRAIN);
+        if (borrowing.length > 0 && lending.length > 0) {
+            // When rewards are already accrued, we can't distinguish between borrowing and lending rewards.
+            uint256 accruedByBorrowing = stored / 2;
+            uint256 accruedByLending = stored - accruedByBorrowing;
+            borrowing[0].claimable -= accruedByBorrowing;
+            lending[0].claimable -= accruedByLending;
         }
     }
 
     function _asRewards(PositionId positionId, IERC20 asset, bool borrowing) internal view virtual returns (Reward memory rewards_) {
         IPoolV2.ReserveData memory reserve = poolV2.getReserveData(address(asset));
         IERC20 aToken = IERC20(borrowing ? reserve.variableDebtTokenAddress : reserve.aTokenAddress);
-        (, uint256 emissionsPerSecond,,) = REWARDS_CONTROLLER.getRewardsData(aToken, GRAIN);
-
-        rewards_.usdPrice = _rewardsTokenUSDPrice();
-
-        rewards_.token = TokenData({
-            token: GRAIN,
-            name: GRAIN.name(),
-            symbol: GRAIN.symbol(),
-            decimals: GRAIN.decimals(),
-            unit: 10 ** GRAIN.decimals()
-        });
-
-        rewards_.rate = _getIncentiveRate({
-            tokenSupply: _getTokenSupply(asset, borrowing),
-            emissionPerSecond: emissionsPerSecond,
-            priceShares: rewards_.usdPrice,
-            tokenPrice: oracle.getAssetPrice(asset),
-            decimals: IERC20(asset).decimals()
-        });
+        IGranaryRewarder.RewardsData memory data = REWARDS_CONTROLLER.getRewardsData(aToken, GRAIN);
 
         rewards_.claimable =
             positionId.getNumber() > 0 ? REWARDS_CONTROLLER.getUserRewardsBalance(toArray(aToken), _account(positionId), GRAIN) : 0;
-    }
+        rewards_.token = _asTokenData(GRAIN);
+        rewards_.usdPrice = _rewardsTokenUSDPrice();
 
-    function _getTokenSupply(IERC20 asset, bool borrowing) internal view returns (uint256 tokenSupply) {
-        (uint256 availableLiquidity,, uint256 totalVariableDebt,,,,,,,) =
-            IPoolDataProviderV2(address(dataProvider)).getReserveData(address(asset));
+        if (block.timestamp > data.distributionEnd) return rewards_;
 
-        tokenSupply = borrowing ? totalVariableDebt : availableLiquidity + totalVariableDebt;
-    }
-
-    function _getIncentiveRate(uint256 tokenSupply, uint256 emissionPerSecond, uint256 priceShares, uint256 tokenPrice, uint8 decimals)
-        public
-        pure
-        returns (uint256)
-    {
-        uint256 emissionPerYear = emissionPerSecond * 365 days;
-        uint256 totalSupplyInDaiWei = tokenSupply * tokenPrice / (10 ** decimals);
-        uint256 apyPerYear = totalSupplyInDaiWei != 0 ? priceShares * emissionPerYear / totalSupplyInDaiWei : 0;
-        // Adjust decimals
-        return apyPerYear / 1e10;
+        rewards_.rate = _getIncentiveRate({
+            tokenSupply: _getTokenSupply(asset, borrowing),
+            emissionsPerSecond: data.emissionsPerSecond,
+            priceShares: rewards_.usdPrice,
+            tokenPrice: oracle.getAssetPrice(asset),
+            decimals: asset.decimals(),
+            precisionAdjustment: 1e10
+        });
     }
 
     function _rewardsTokenUSDPrice() internal view virtual returns (uint256) {
@@ -121,6 +119,13 @@ interface IGranaryRewarder {
         address reward;
     }
 
+    struct RewardsData {
+        uint256 index;
+        uint256 emissionsPerSecond;
+        uint256 indexLastUpdated;
+        uint256 distributionEnd;
+    }
+
     function claimAllRewards(IERC20[] memory assets, address to)
         external
         returns (IERC20[] memory rewardTokens, uint256[] memory claimedAmounts);
@@ -144,7 +149,7 @@ interface IGranaryRewarder {
     function getDistributionEnd(IERC20 asset, IERC20 reward) external view returns (uint256);
     function getRewardTokens() external view returns (address[] memory);
     function getRewardsByAsset(IERC20 asset) external view returns (IERC20[] memory);
-    function getRewardsData(IERC20 asset, IERC20 reward) external view returns (uint256, uint256, uint256, uint256);
+    function getRewardsData(IERC20 asset, IERC20 reward) external view returns (RewardsData memory);
     function getRewardsVault(IERC20 reward) external view returns (address);
     function getUserAssetData(address user, IERC20 asset, IERC20 reward) external view returns (uint256);
     function getUserRewardsBalance(IERC20[] memory assets, address user, IERC20 reward) external view returns (uint256);

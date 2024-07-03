@@ -18,6 +18,19 @@ contract ExactlyMoneyMarketView is BaseMoneyMarketView {
     using Math for uint256;
     using { find } for IExactlyPreviewer.ClaimableReward[];
 
+    struct IRMData {
+        uint256 floatingAssets;
+        uint256 floatingDebt;
+        uint256 floatingBackupBorrowed;
+        uint256 floatingCurveA;
+        int256 floatingCurveB;
+        uint256 floatingMaxUtilization;
+        int256 sigmoidSpeed;
+        int256 growthSpeed;
+        uint256 naturalUtilization;
+        uint256 maxRate;
+    }
+
     ExactlyReverseLookup public immutable reverseLookup;
     IAuditor public immutable auditor;
     IExactlyPreviewer public immutable previewer;
@@ -88,9 +101,12 @@ contract ExactlyMoneyMarketView is BaseMoneyMarketView {
         lending = 0;
 
         IExactlyMarket market = reverseLookup.market(debtAsset);
-        borrowing = market.interestRateModel().floatingRate(
-            market.floatingAssets() > 0 ? Math.min(market.floatingDebt().mulDiv(WAD, market.floatingAssets(), Math.Rounding.Up), WAD) : 0
-        );
+        borrowing = _apy({
+            rate: market.interestRateModel().floatingRate(
+                market.floatingAssets() > 0 ? Math.min(market.floatingDebt().mulDiv(WAD, market.floatingAssets(), Math.Rounding.Up), WAD) : 0
+            ),
+            perSeconds: 365 days
+        });
     }
 
     function _rewards(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
@@ -104,6 +120,46 @@ contract ExactlyMoneyMarketView is BaseMoneyMarketView {
             IExactlyPreviewer.MarketAccount memory marketAccount = data[i];
             if (marketAccount.asset == address(collateralAsset)) borrowing = _asRewards(marketAccount, false);
             if (marketAccount.asset == address(debtAsset)) lending = _asRewards(marketAccount, true);
+        }
+    }
+
+    function _irmRaw(PositionId, IERC20, IERC20 debtAsset) internal view virtual override returns (bytes memory data) {
+        IExactlyMarket market = reverseLookup.market(debtAsset);
+        IInterestRateModel irm = market.interestRateModel();
+
+        data = abi.encode(
+            IRMData({
+                floatingAssets: market.floatingAssets(),
+                floatingDebt: market.floatingDebt(),
+                floatingBackupBorrowed: market.floatingBackupBorrowed(),
+                floatingCurveA: irm.floatingCurveA(),
+                floatingCurveB: irm.floatingCurveB(),
+                floatingMaxUtilization: irm.floatingMaxUtilization(),
+                sigmoidSpeed: irm.sigmoidSpeed(),
+                growthSpeed: irm.growthSpeed(),
+                naturalUtilization: irm.naturalUtilization(),
+                maxRate: irm.maxRate()
+            })
+        );
+    }
+
+    function _availableActions(PositionId, IERC20, IERC20 debtAsset) internal view override returns (AvailableActions[] memory available) {
+        IExactlyMarket debtMarket = reverseLookup.market(debtAsset);
+
+        available = new AvailableActions[](ACTIONS);
+        uint256 count;
+
+        available[count++] = AvailableActions.Lend;
+        available[count++] = AvailableActions.Withdraw;
+
+        if (!debtMarket.paused()) {
+            available[count++] = AvailableActions.Borrow;
+            available[count++] = AvailableActions.Repay;
+        }
+
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            mstore(available, count)
         }
     }
 
@@ -122,13 +178,7 @@ contract ExactlyMoneyMarketView is BaseMoneyMarketView {
             IExactlyPreviewer.RewardRate memory rr = rewardRates[j];
             IERC20 token = IERC20(rr.asset);
             rewards_[j] = Reward({
-                token: TokenData({
-                    token: token,
-                    name: rr.assetName,
-                    symbol: rr.assetSymbol,
-                    decimals: token.decimals(),
-                    unit: 10 ** token.decimals()
-                }),
+                token: _asTokenData(token),
                 rate: borrowing ? rr.borrow : rr.floatingDeposit,
                 claimable: claimableRewards.find(rr.asset),
                 usdPrice: rr.usdPrice

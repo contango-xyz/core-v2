@@ -8,18 +8,27 @@ import { MM_MOONWELL } from "script/constants.sol";
 
 contract MoonwellMoneyMarketView is CompoundMoneyMarketView {
 
-    IERC20 public immutable well;
+    IERC20 public immutable bridgedWell;
+    IERC20 public immutable nativeWell;
     IMoonwellMultiRewardDistributor public immutable rewardsDistributor;
+
+    ISolidlyPool public immutable bridgedWellTokenOracle;
+    ISolidlyPool public immutable nativeWellTokenOracle;
 
     constructor(
         IContango _contango,
         CompoundReverseLookup _reverseLookup,
-        address _rewardsTokenOracle,
-        IERC20 _well,
+        address _bridgedWellTokenOracle,
+        IERC20 _bridgedWell,
+        address _nativeWellTokenOracle,
+        IERC20 _nativeWell,
         IAggregatorV2V3 _nativeUsdOracle
-    ) CompoundMoneyMarketView(MM_MOONWELL, "Moonwell", _contango, _reverseLookup, _rewardsTokenOracle, _nativeUsdOracle) {
-        well = _well;
+    ) CompoundMoneyMarketView(MM_MOONWELL, "Moonwell", _contango, _reverseLookup, _nativeWellTokenOracle, _nativeUsdOracle) {
+        bridgedWell = _bridgedWell;
+        nativeWell = _nativeWell;
         rewardsDistributor = IMoonwellComptroller(address(_reverseLookup.comptroller())).rewardDistributor();
+        bridgedWellTokenOracle = ISolidlyPool(_bridgedWellTokenOracle);
+        nativeWellTokenOracle = ISolidlyPool(_nativeWellTokenOracle);
     }
 
     function _oraclePrice(IERC20 asset) internal view override returns (uint256 price) {
@@ -50,20 +59,12 @@ contract MoonwellMoneyMarketView is CompoundMoneyMarketView {
         override
         returns (uint256 borrowing, uint256 lending)
     {
-        borrowing = _apy(_mToken(debtAsset).borrowRatePerTimestamp());
-        lending = _apy(_mToken(collateralAsset).supplyRatePerTimestamp());
+        borrowing = _apy({ rate: _mToken(debtAsset).borrowRatePerTimestamp(), perSeconds: _rateFrequency() });
+        lending = _apy({ rate: _mToken(collateralAsset).supplyRatePerTimestamp(), perSeconds: _rateFrequency() });
     }
 
-    function _borrowingLiquidity(IERC20 asset) internal view virtual override returns (uint256) {
-        ICToken cToken = _cToken(asset);
-        uint256 cap = comptroller.borrowCaps(cToken);
-        uint256 available = asset.balanceOf(address(cToken)) * 0.95e18 / WAD;
-        if (cap == 0) return available;
-
-        uint256 borrowed = cToken.totalBorrows();
-        if (borrowed > cap) return 0;
-
-        return Math.min(cap - borrowed, available);
+    function _cTokenBalance(IERC20 asset, ICToken cToken) internal view virtual override returns (uint256) {
+        return asset.balanceOf(address(cToken));
     }
 
     function _lendingLiquidity(IERC20 asset) internal view virtual override returns (uint256) {
@@ -87,22 +88,45 @@ contract MoonwellMoneyMarketView is CompoundMoneyMarketView {
         lending = _allRewards(positionId, collateralAsset, false);
     }
 
+    function _interestRateModelIrmData(ICToken cToken)
+        internal
+        view
+        override
+        returns (uint256 baseRatePerBlock, uint256 jumpMultiplierPerBlock, uint256 multiplierPerBlock, uint256 kink)
+    {
+        ILegacyJumpRateModelV2 irm = cToken.interestRateModel();
+        baseRatePerBlock = irm.baseRatePerTimestamp();
+        jumpMultiplierPerBlock = irm.jumpMultiplierPerTimestamp();
+        multiplierPerBlock = irm.multiplierPerTimestamp();
+        kink = irm.kink();
+    }
+
     function _allRewards(PositionId positionId, IERC20 asset, bool borrowing) internal view returns (Reward[] memory rewards_) {
         ICToken cToken = _cToken(asset);
         IMoonwellMultiRewardDistributor.MarketConfig[] memory markets = rewardsDistributor.getAllMarketConfigs(cToken);
 
         Reward[] memory tmp = new Reward[](markets.length);
-        for (uint256 i = 0; i < markets.length; i++) {
-            tmp[i] = _asRewards(positionId, asset, cToken, markets[i], borrowing, i);
-        }
         uint256 count;
-        for (uint256 i = 0; i < tmp.length; i++) {
-            if (tmp[i].rate > 0) count++;
+        for (uint256 i = 0; i < markets.length; i++) {
+            IMoonwellMultiRewardDistributor.MarketConfig memory market = markets[i];
+            Reward memory reward = _asRewards(positionId, asset, cToken, market, borrowing, i);
+
+            if (
+                reward.claimable == 0
+                    && (
+                        market.endTime < block.timestamp || borrowing && market.borrowEmissionsPerSec < 2
+                            || !borrowing && market.supplyEmissionsPerSec < 2
+                    )
+            ) continue;
+
+            tmp[count++] = reward;
         }
+
         rewards_ = new Reward[](count);
         uint256 j;
         for (uint256 i = 0; i < tmp.length; i++) {
-            if (tmp[i].rate > 0) rewards_[j++] = tmp[i];
+            Reward memory reward = tmp[i];
+            if (reward.rate > 1 || reward.claimable > 0) rewards_[j++] = tmp[i];
         }
     }
 
@@ -117,13 +141,7 @@ contract MoonwellMoneyMarketView is CompoundMoneyMarketView {
         IERC20 rewardsToken = config.emissionToken;
 
         rewards_.usdPrice = _rewardsTokenUSDPrice(rewardsToken);
-        rewards_.token = TokenData({
-            token: rewardsToken,
-            name: rewardsToken.name(),
-            symbol: rewardsToken.symbol(),
-            decimals: rewardsToken.decimals(),
-            unit: 10 ** rewardsToken.decimals()
-        });
+        rewards_.token = _asTokenData(rewardsToken);
 
         uint256 assetPrice = priceInUSD(asset);
 
@@ -162,14 +180,13 @@ contract MoonwellMoneyMarketView is CompoundMoneyMarketView {
         }
     }
 
-    function _blocksPerDay() internal pure virtual override returns (uint256) {
-        // Moonwell uses timestamp instead of blocks, so Blocks Per Day is actually Seconds Per Day
-        return 1 days;
-    }
-
     function _rewardsTokenUSDPrice(IERC20 token) internal view virtual returns (uint256) {
-        if (token == well) {
-            uint256 wellEth = ISolidlyPool(rewardsTokenOracle).getAmountOut(WAD, well);
+        if (token == bridgedWell) {
+            uint256 wellEth = bridgedWellTokenOracle.getAmountOut(WAD, bridgedWell);
+            uint256 ethUsd = uint256(nativeUsdOracle.latestAnswer());
+            return wellEth * ethUsd / 1e8;
+        } else if (token == nativeWell) {
+            uint256 wellEth = nativeWellTokenOracle.getAmountOut(WAD, nativeWell);
             uint256 ethUsd = uint256(nativeUsdOracle.latestAnswer());
             return wellEth * ethUsd / 1e8;
         } else {
@@ -184,6 +201,15 @@ contract MoonwellMoneyMarketView is CompoundMoneyMarketView {
 
     function _mToken(IERC20 asset) internal view virtual returns (IMToken) {
         return IMToken(address(reverseLookup.cToken(asset)));
+    }
+
+    function _blocksPerDay() internal pure virtual override returns (uint256) {
+        // Moonwell uses timestamp instead of blocks, so Blocks Per Day is actually Seconds Per Day
+        return 1 days;
+    }
+
+    function _rateFrequency() internal pure virtual override returns (uint256) {
+        return 1;
     }
 
 }

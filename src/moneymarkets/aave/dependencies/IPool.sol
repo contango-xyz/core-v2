@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.4;
 
+import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IPoolAddressesProvider } from "./IPoolAddressesProvider.sol";
-import { AaveDataTypes } from "./AaveDataTypes.sol";
+import { AaveDataTypes, IERC20 } from "./AaveDataTypes.sol";
 
 /**
  * @title IPool
@@ -368,7 +369,7 @@ interface IPool {
      * @param receiveAToken True if the liquidators wants to receive the collateral aTokens, `false` if he wants
      * to receive the underlying collateral asset directly
      */
-    function liquidationCall(address collateralAsset, address debtAsset, address user, uint256 debtToCover, bool receiveAToken) external;
+    function liquidationCall(IERC20 collateralAsset, IERC20 debtAsset, address user, uint256 debtToCover, bool receiveAToken) external;
 
     /**
      * @notice Allows smartcontracts to access the liquidity of the pool within one transaction,
@@ -493,7 +494,7 @@ interface IPool {
      * @param asset The address of the underlying asset of the reserve
      * @return The reserve's normalized income
      */
-    function getReserveNormalizedIncome(address asset) external view returns (uint256);
+    function getReserveNormalizedIncome(IERC20 asset) external view returns (uint256);
 
     /**
      * @notice Returns the normalized variable debt per unit of asset
@@ -514,7 +515,7 @@ interface IPool {
      * @param asset The address of the underlying asset of the reserve
      * @return The state and configuration data of the reserve
      */
-    function getReserveData(address asset) external view returns (AaveDataTypes.ReserveData memory);
+    function getReserveData(IERC20 asset) external view returns (AaveDataTypes.ReserveData memory);
 
     /**
      * @notice Validates and finalizes an aToken transfer

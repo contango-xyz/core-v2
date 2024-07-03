@@ -70,7 +70,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     uint256[4] private __dead; // Storage was replaced on this contract so we kill the slots to avoid dirty reads
     bytes32 private callbackHash;
     bytes32 private tradeHash;
-    mapping(PositionId positionId => address owner) private lastOwner;
+    mapping(PositionId positionId => address owner) public lastOwner;
     mapping(Symbol symbol => InstrumentStorage instrument) private instruments;
 
     constructor(PositionNFT nft, IVault v, IUnderlyingPositionFactory pf, IFeeManager fm, SpotExecutor spot) {
@@ -193,8 +193,6 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             }
             trade_ = validateHashAndDecodeTrade(result);
         }
-
-        _openSlippageCheck(tradeParams, trade_, _instrument);
     }
 
     function _bypassFlashLoanOnOpen(FlashLoanCallback memory cb) private pure returns (bool) {
@@ -268,18 +266,6 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         trade_.forwardPrice = _hasForwardPrice(cb) ? _forwardPriceOnOpen(cb, trade_, quantity, borrowed, repaid) : trade_.swap.price;
     }
 
-    function _openSlippageCheck(TradeParams memory tradeParams, Trade memory _trade, InstrumentStorage memory _instrument) private pure {
-        if (_trade.swap.inputCcy == Currency.Quote) {
-            uint256 expectedBaseOutput = (
-                tradeParams.quantity - (tradeParams.cashflowCcy == Currency.Base ? tradeParams.cashflow : int256(0)) + _trade.fee.toInt256()
-            ).toUint256(); // can never be negative, if it was it would mean no swap was needed
-
-            uint256 maxQuoteInput = expectedBaseOutput.mulDiv(tradeParams.limitPrice, _instrument.baseUnit);
-            uint256 uSwapInput = (-_trade.swap.input).toUint256();
-            if (uSwapInput > maxQuoteInput) revert ExcessiveInputQuote({ limit: maxQuoteInput, actual: uSwapInput });
-        }
-    }
-
     function _close(TradeParams memory tradeParams, ExecutionParams calldata execParams)
         private
         returns (Trade memory trade_, address owner)
@@ -350,7 +336,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     }
 
     function _bypassFlashLoanOnClose(FlashLoanCallback memory cb) private pure returns (bool) {
-        return cb.cashflowCcy == Currency.Base && cb.quantity <= MathLib.absIfNegative(cb.cashflow);
+        return address(cb.ep.flashLoanProvider) == address(0);
     }
 
     function completeClose(address, /* initiator */ address repayTo, address asset, uint256 amount, uint256 fee, bytes calldata params)
@@ -702,9 +688,17 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         emit RewardsClaimed(positionId, to);
     }
 
+    function donatePosition(PositionId positionId, address to) external override {
+        _requireNotPaused();
+        if (lastOwner[positionId] != msg.sender) revert Unauthorised(msg.sender);
+
+        lastOwner[positionId] = to;
+        emit PositionDonated(positionId, msg.sender, to);
+    }
+
     // ============================= Admin =========================
 
-    function createInstrument(Symbol symbol, IERC20 base, IERC20 quote) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function createInstrument(Symbol symbol, IERC20 base, IERC20 quote) external override onlyRole(OPERATOR_ROLE) {
         if (instruments[symbol].base != IERC20(address(0))) revert InstrumentAlreadyExists(symbol);
 
         instruments[symbol].symbol = symbol;
@@ -717,11 +711,6 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         ERC20Lib.approveIfNecessary(quote, address(feeManager));
 
         emit InstrumentCreated(symbol, base, quote);
-    }
-
-    /// @dev temp function to apply permissions to already existent instruments
-    function approveFeeManager(IERC20 token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        ERC20Lib.approveIfNecessary(token, address(feeManager));
     }
 
     function setClosingOnly(Symbol symbol, bool closingOnly) external override onlyRole(OPERATOR_ROLE) {

@@ -15,21 +15,21 @@ contract SiloMoneyMarketArbitrumTest is Test {
     ISilo internal silo;
     ISiloLens internal siloLens;
 
-    IERC20 internal arb;
+    IERC20 internal siloToken;
     IERC20 internal wstETH = IERC20(0x5979D7b546E38E414F7E9822514be443A4800529);
 
     uint256 chainlinkDecimals = 8;
 
     function setUp() public {
         env = provider(Network.Arbitrum);
-        env.init(156_550_831);
+        env.init(195_468_081);
 
         contango = address(env.contango());
 
         sut = env.deployer().deploySiloMoneyMarket(env, IContango(contango));
-        siloLens = sut.LENS();
+        siloLens = sut.lens();
         silo = sut.repository().getSilo(env.token(WBTC));
-        arb = env.token(ARB);
+        siloToken = IERC20(0x0341C0C0ec423328621788d4854119B97f44E391);
 
         env.createInstrument(env.erc20(WBTC), env.erc20(USDC));
 
@@ -68,7 +68,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         sut.initialise(positionId, lendToken, borrowToken);
     }
 
-    function testGetSilo() public {
+    function testGetSilo() public view {
         assertEq(address(sut.getSilo(env.token(WETH), env.token(USDC)).siloAsset()), address(wstETH), "WETH/USDC silo");
         assertEq(address(sut.getSilo(env.token(USDC), env.token(WETH)).siloAsset()), address(wstETH), "USDC/WETH silo");
 
@@ -127,7 +127,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         assertEqDecimal(borrowed, borrowAmount, borrowToken.decimals(), "borrowed amount");
         assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
         assertApproxEqAbsDecimal(
-            debtBalance(borrowToken, address(sut)), borrowAmount, 1, borrowToken.decimals(), "debtBalance after borrow"
+            debtBalance(borrowToken, address(sut)), borrowAmount, 2, borrowToken.decimals(), "debtBalance after borrow"
         );
 
         skip(15 days);
@@ -135,7 +135,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         // Claim rewards without closing position
         vm.prank(contango);
         sut.claimRewards(positionId, lendToken, borrowToken, address(this));
-        assertEqDecimal(arb.balanceOf(address(this)), 18.683167312278374115e18, arb.decimals(), "arb.balanceOf");
+        assertEqDecimal(siloToken.balanceOf(address(this)), 0, siloToken.decimals(), "siloToken.balanceOf");
 
         skip(20 days);
 
@@ -150,6 +150,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
+        assertGt(collateral, lendAmount, "collateral didn't grew");
         vm.prank(contango);
         uint256 withdrew = sut.withdraw(positionId, lendToken, collateral, address(this));
 
@@ -160,16 +161,18 @@ contract SiloMoneyMarketArbitrumTest is Test {
         // Claim rewards after closing position
         vm.prank(contango);
         sut.claimRewards(positionId, lendToken, borrowToken, address(this));
-        assertEqDecimal(arb.balanceOf(address(this)), 43.594057061982872935e18, arb.decimals(), "arb.balanceOf");
+        assertEqDecimal(siloToken.balanceOf(address(this)), 0, siloToken.decimals(), "siloToken.balanceOf");
     }
 
-    function testLifeCycle_RepayInExcess() public {
+    function testLifeCycle_HP_collateralOnly() public {
         // setup
         IERC20 lendToken = env.token(WBTC);
         IERC20 borrowToken = env.token(USDC);
 
         uint256 lendAmount = 1e8;
         uint256 borrowAmount = 5000e6;
+
+        positionId = encode(Symbol.wrap("WBTCUSDC"), MM_SILO, PERP, 1, setBit("", COLLATERAL_ONLY));
 
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
@@ -186,7 +189,67 @@ contract SiloMoneyMarketArbitrumTest is Test {
         assertEqDecimal(borrowed, borrowAmount, borrowToken.decimals(), "borrowed amount");
         assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
         assertApproxEqAbsDecimal(
-            debtBalance(borrowToken, address(sut)), borrowAmount, 1, borrowToken.decimals(), "debtBalance after borrow"
+            debtBalance(borrowToken, address(sut)), borrowAmount, 2, borrowToken.decimals(), "debtBalance after borrow"
+        );
+
+        skip(15 days);
+
+        // Claim rewards without closing position
+        vm.prank(contango);
+        sut.claimRewards(positionId, lendToken, borrowToken, address(this));
+        assertEqDecimal(siloToken.balanceOf(address(this)), 0, siloToken.decimals(), "siloToken.balanceOf");
+
+        skip(20 days);
+
+        // repay
+        uint256 debt = debtBalance(borrowToken, address(sut));
+        env.dealAndApprove(borrowToken, contango, debt, address(sut));
+        vm.prank(contango);
+        uint256 repaid = sut.repay(positionId, borrowToken, debt);
+
+        assertEq(repaid, debt, "repaid all debt");
+        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
+
+        // withdraw
+        uint256 collateral = sut.collateralBalance(positionId, lendToken);
+        assertEq(collateral, lendAmount, "collateral grew");
+        vm.prank(contango);
+        uint256 withdrew = sut.withdraw(positionId, lendToken, collateral, address(this));
+
+        assertEq(withdrew, collateral, "withdrew all collateral");
+        assertEqDecimal(sut.collateralBalance(positionId, lendToken), 0, lendToken.decimals(), "collateral is zero");
+        assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
+
+        // Claim rewards after closing position
+        vm.prank(contango);
+        sut.claimRewards(positionId, lendToken, borrowToken, address(this));
+        assertEqDecimal(siloToken.balanceOf(address(this)), 0, siloToken.decimals(), "siloToken.balanceOf");
+    }
+
+    function testLifeCycle_RepayInExcess() public {
+        // setup
+        IERC20 lendToken = env.token(WBTC);
+        IERC20 borrowToken = env.token(USDC);
+
+        uint256 lendAmount = 1e8;
+        uint256 borrowAmount = 5000e6;
+
+        // lend
+        env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
+        vm.prank(contango);
+        uint256 lent = sut.lend(positionId, lendToken, lendAmount);
+        assertEqDecimal(lent, lendAmount, lendToken.decimals(), "lent amount");
+        assertApproxEqAbsDecimal(
+            sut.collateralBalance(positionId, lendToken), lendAmount, 2, lendToken.decimals(), "collateralBalance after lend "
+        );
+
+        // borrow
+        vm.prank(contango);
+        uint256 borrowed = sut.borrow(positionId, borrowToken, borrowAmount, address(this));
+        assertEqDecimal(borrowed, borrowAmount, borrowToken.decimals(), "borrowed amount");
+        assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
+        assertApproxEqAbsDecimal(
+            debtBalance(borrowToken, address(sut)), borrowAmount, 2, borrowToken.decimals(), "debtBalance after borrow"
         );
 
         skip(10 days);
@@ -197,7 +260,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt * 2);
 
-        assertEq(repaid, 5010.493031e6, "repaid all debt");
+        assertEqDecimal(repaid, 5028.942132e6, borrowToken.decimals(), "repaid all debt");
         assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
@@ -240,7 +303,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         assertEqDecimal(borrowed, borrowAmount, borrowToken.decimals(), "borrowed amount");
         assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
         assertApproxEqAbsDecimal(
-            debtBalance(borrowToken, address(sut)), borrowAmount, 1, borrowToken.decimals(), "debtBalance after borrow"
+            debtBalance(borrowToken, address(sut)), borrowAmount, 2, borrowToken.decimals(), "debtBalance after borrow"
         );
 
         skip(10 days);
@@ -266,7 +329,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         assertEqDecimal(lendToken.balanceOf(address(this)), collateral / 4, lendToken.decimals(), "withdrawn balance");
     }
 
-    function testIERC165() public {
+    function testIERC165() public view {
         assertTrue(sut.supportsInterface(type(IMoneyMarket).interfaceId), "IMoneyMarket");
         assertFalse(sut.supportsInterface(type(IFlashBorrowProvider).interfaceId), "IFlashBorrowProvider");
     }
@@ -281,7 +344,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         IERC20 borrowToken = env.token(USDC);
 
         sut = env.deployer().deploySiloMoneyMarket(env, IContango(contango));
-        silo = sut.WSTETH_SILO();
+        silo = sut.wstEthSilo();
 
         env.createInstrument(env.erc20(WETH), env.erc20(USDC));
 
@@ -316,7 +379,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         // Claim rewards without closing position
         vm.prank(contango);
         sut.claimRewards(positionId, lendToken, borrowToken, address(this));
-        assertEqDecimal(arb.balanceOf(address(this)), 49.672173471918924618e18, arb.decimals(), "arb.balanceOf");
+        assertEqDecimal(siloToken.balanceOf(address(this)), 370.743007939768057968e18, siloToken.decimals(), "siloToken.balanceOf");
 
         skip(20 days);
 
@@ -341,7 +404,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         // Claim rewards after closing position
         vm.prank(contango);
         sut.claimRewards(positionId, lendToken, borrowToken, address(this));
-        assertEqDecimal(arb.balanceOf(address(this)), 115.901738101144157445e18, arb.decimals(), "arb.balanceOf");
+        assertEqDecimal(siloToken.balanceOf(address(this)), 765.352883082794440661e18, siloToken.decimals(), "siloToken.balanceOf");
     }
 
     function testLifeCycle_HP_USDCWETH() public {
@@ -350,7 +413,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         IERC20 borrowToken = env.token(WETH);
 
         sut = env.deployer().deploySiloMoneyMarket(env, IContango(contango));
-        silo = sut.WSTETH_SILO();
+        silo = sut.wstEthSilo();
 
         env.createInstrument(env.erc20(USDC), env.erc20(WETH));
 
@@ -385,7 +448,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         // Claim rewards without closing position
         vm.prank(contango);
         sut.claimRewards(positionId, lendToken, borrowToken, address(this));
-        assertEqDecimal(arb.balanceOf(address(this)), 28.153748214351772757e18, arb.decimals(), "arb.balanceOf");
+        assertEqDecimal(siloToken.balanceOf(address(this)), 202.989121796373565969e18, siloToken.decimals(), "siloToken.balanceOf");
 
         skip(20 days);
 
@@ -410,7 +473,7 @@ contract SiloMoneyMarketArbitrumTest is Test {
         // Claim rewards after closing position
         vm.prank(contango);
         sut.claimRewards(positionId, lendToken, borrowToken, address(this));
-        assertEqDecimal(arb.balanceOf(address(this)), 65.6920791668208031e18, arb.decimals(), "arb.balanceOf");
+        assertEqDecimal(siloToken.balanceOf(address(this)), 419.045824935797473745e18, siloToken.decimals(), "siloToken.balanceOf");
     }
 
 }

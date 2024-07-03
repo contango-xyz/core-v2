@@ -62,7 +62,7 @@ contract PositionNFTTest is BaseTest {
         assertEq(sut.balanceOf(trader2), 1);
     }
 
-    function assertPositionId(PositionId positionId, Symbol symbol, MoneyMarketId mm, uint32 expiry, uint256 number) private {
+    function assertPositionId(PositionId positionId, Symbol symbol, MoneyMarketId mm, uint32 expiry, uint256 number) private pure {
         (Symbol s, MoneyMarketId m, uint32 e, uint256 n) = positionId.decode();
         assertEq(Symbol.unwrap(s), Symbol.unwrap(symbol), "symbol");
         assertEq(MoneyMarketId.unwrap(m), MoneyMarketId.unwrap(mm), "mm");

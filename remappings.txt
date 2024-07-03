@@ -1,6 +1,8 @@
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 forge-std/=lib/forge-std/src/
+forge-gas-snapshot/=lib/forge-gas-snapshot/src/
 erc7399/=lib/erc7399/src/
 erc7399-wrappers/=lib/erc7399-wrappers/src/
 @prb/math/=lib/prb-math/
+@contango/erc721Permit2/=lib/erc721-permit2/src/

@@ -79,7 +79,7 @@ contract MaestroTest is BaseTest {
         EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, 10_000e6, address(vault));
 
         vm.prank(TRADER);
-        maestro.depositWithPermit(IERC20Permit(address(usdc)), signedPermit);
+        maestro.depositWithPermit(IERC20Permit(address(usdc)), signedPermit, 10_000e6);
 
         assertEq(vault.balanceOf(usdc, TRADER), 10_000e6, "trader vault balance");
     }
@@ -111,29 +111,11 @@ contract MaestroTest is BaseTest {
         assertEq(vault.balanceOf(usdc, TRADER), 9000e6, "trader vault balance");
     }
 
-    function _swap(IERC20 from, IERC20 to, uint256 amount, address recipient) internal view returns (SwapData memory) {
-        return SwapData({
-            router: address(router),
-            spender: address(router),
-            amountIn: amount,
-            minAmountOut: 0, // UI's problem
-            swapBytes: abi.encodeWithSelector(
-                router.exactInput.selector,
-                SwapRouter02.ExactInputParams({
-                    path: abi.encodePacked(address(from), uint24(500), address(to)),
-                    recipient: recipient,
-                    amountIn: amount,
-                    amountOutMinimum: 0 // UI's problem
-                 })
-                )
-        });
-    }
-
     function testSwapAndDeposit() public {
         uint256 amount = 10 ether;
         env.dealAndApprove(weth, TRADER, amount, address(maestro));
 
-        SwapData memory swapData = _swap(weth, usdc, amount, spotExecutor);
+        SwapData memory swapData = _swap(router, weth, usdc, amount, spotExecutor);
 
         vm.prank(TRADER);
         maestro.swapAndDeposit(weth, usdc, swapData);
@@ -145,7 +127,7 @@ contract MaestroTest is BaseTest {
         uint256 amount = 10 ether;
         vm.deal(TRADER, amount);
 
-        SwapData memory swapData = _swap(weth, usdc, amount, spotExecutor);
+        SwapData memory swapData = _swap(router, weth, usdc, amount, spotExecutor);
 
         vm.prank(TRADER);
         maestro.swapAndDepositNative{ value: amount }(usdc, swapData);
@@ -156,7 +138,7 @@ contract MaestroTest is BaseTest {
     function testSwapAndDepositWithPermit() public {
         uint256 amount = 10 ether;
 
-        SwapData memory swapData = _swap(weth, usdc, amount, spotExecutor);
+        SwapData memory swapData = _swap(router, weth, usdc, amount, spotExecutor);
 
         EIP2098Permit memory signedPermit = env.dealAndPermit(weth, TRADER, TRADER_PK, amount, address(maestro));
 
@@ -169,7 +151,7 @@ contract MaestroTest is BaseTest {
     function testSwapAndDepositWithPermit2() public {
         uint256 amount = 10 ether;
 
-        SwapData memory swapData = _swap(weth, usdc, amount, spotExecutor);
+        SwapData memory swapData = _swap(router, weth, usdc, amount, spotExecutor);
 
         EIP2098Permit memory signedPermit = env.dealAndPermit2(weth, TRADER, TRADER_PK, amount, address(maestro));
 
@@ -277,7 +259,7 @@ contract MaestroTest is BaseTest {
         vm.prank(TRADER);
         maestro.deposit(usdc, amount);
 
-        SwapData memory swapData = _swap(usdc, weth, amount, spotExecutor);
+        SwapData memory swapData = _swap(router, usdc, weth, amount, spotExecutor);
 
         vm.prank(TRADER);
         maestro.swapAndWithdraw(usdc, weth, swapData, TRADER);
@@ -293,7 +275,7 @@ contract MaestroTest is BaseTest {
         vm.prank(TRADER);
         maestro.deposit(usdc, amount);
 
-        SwapData memory swapData = _swap(usdc, weth, amount, spotExecutor);
+        SwapData memory swapData = _swap(router, usdc, weth, amount, spotExecutor);
 
         vm.prank(TRADER);
         maestro.swapAndWithdrawNative(usdc, swapData, TRADER);
@@ -350,6 +332,24 @@ contract MaestroTest is BaseTest {
 
         vm.prank(TRADER);
         (PositionId positionId,) = maestro.depositAndTrade{ value: 4 ether }(tradeParams, executionParams);
+
+        assertEq(vault.balanceOf(weth, TRADER), 0, "trader vault balance");
+        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
+    }
+
+    function testDepositAndTradeNative_multicallEdition() public {
+        vm.deal(TRADER, 4 ether);
+
+        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Base, 4 ether);
+
+        bytes[] memory data = new bytes[](2);
+        data[0] = abi.encodeWithSelector(IMaestro.depositNative.selector);
+        data[1] = abi.encodeWithSelector(IMaestro.trade.selector, tradeParams, executionParams);
+
+        vm.prank(TRADER);
+        (bytes[] memory results) = maestro.multicall{ value: 4 ether }(data);
+
+        PositionId positionId = abi.decode(results[1], (PositionId));
 
         assertEq(vault.balanceOf(weth, TRADER), 0, "trader vault balance");
         assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");

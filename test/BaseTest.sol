@@ -50,4 +50,26 @@ abstract contract BaseTest is Test {
         vm.roll(block.number + time / 12);
     }
 
+    function _swap(SwapRouter02 router, IERC20 from, IERC20 to, uint256 amount, address recipient)
+        internal
+        pure
+        returns (SwapData memory)
+    {
+        return SwapData({
+            router: address(router),
+            spender: address(router),
+            amountIn: amount,
+            minAmountOut: 0, // UI's problem
+            swapBytes: abi.encodeWithSelector(
+                router.exactInput.selector,
+                SwapRouter02.ExactInputParams({
+                    path: abi.encodePacked(address(from), uint24(500), address(to)),
+                    recipient: recipient,
+                    amountIn: amount,
+                    amountOutMinimum: 0 // UI's problem
+                 })
+            )
+        });
+    }
+
 }

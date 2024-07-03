@@ -530,14 +530,14 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         }
     }
 
-    function _assertPriceAboveLimit(bool success, bytes memory data, TSQuote memory quote) private {
+    function _assertPriceAboveLimit(bool success, bytes memory data, TSQuote memory quote) private view {
         require(!success, "should have failed");
         require(bytes4(data) == PriceAboveLimit.selector, "error selector not expected");
         (uint256 limit,) = abi.decode(removeSelector(data), (uint256, uint256));
         assertEqDecimal(limit, quote.price, instrument.quoteDecimals, "limit");
     }
 
-    function _assertPriceBelowLimit(bool success, bytes memory data, TSQuote memory quote) private {
+    function _assertPriceBelowLimit(bool success, bytes memory data, TSQuote memory quote) private view {
         require(!success, "should have failed");
         require(bytes4(data) == PriceBelowLimit.selector, "error selector not expected");
         (uint256 limit,) = abi.decode(removeSelector(data), (uint256, uint256));

@@ -4,17 +4,15 @@ pragma solidity 0.8.20;
 import "forge-std/StdJson.sol";
 import "forge-std/Vm.sol";
 
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { GasSnapshot } from "forge-gas-snapshot/GasSnapshot.sol";
+
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/math/SignedMath.sol";
 
 import "src/core/Maestro.sol";
-import "src/interfaces/IContango.sol";
-import "src/interfaces/IVault.sol";
 
 import "script/constants.sol";
 
-import "./dependencies/Uniswap.sol";
 import "./dependencies/Strings2.sol";
 import "./TestSetup.t.sol";
 import "./TSQuoter.sol";
@@ -27,7 +25,7 @@ struct OpenQuote {
     int256 cashflowUsed;
 }
 
-contract PositionActions {
+contract PositionActions is GasSnapshot {
 
     using stdJson for string;
     using SafeCast for *;
@@ -38,19 +36,24 @@ contract PositionActions {
     bool public constant IS_TEST = true;
 
     Env private immutable env;
-    address private immutable trader;
-    uint256 private immutable traderPk;
+    address public immutable trader;
+    uint256 public immutable traderPk;
     uint256 globalSlippageTolerance = DEFAULT_SLIPPAGE_TOLERANCE * 1e14;
     IERC20 nativeTokenWrapper;
     bool usePermit;
     EIP2098Permit signedPermit;
     uint32 expiry = PERP;
-    Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+
+    string public testName = "";
 
     constructor(Env _env, address _trader, uint256 _traderPk) {
         env = _env;
         trader = _trader;
         traderPk = _traderPk;
+    }
+
+    function setTestName(string memory _testName) public {
+        testName = _testName;
     }
 
     function setSlippageTolerance(uint256 _slippageTolerance) public {
@@ -306,21 +309,28 @@ contract PositionActions {
         if (env.canPrank()) VM.startPrank(trader);
         else VM.startBroadcast(trader);
 
+        IMaestro maestro = env.maestro();
+
+        string memory _testName = testName;
+        if (bytes(testName).length > 0) snapStart(_testName);
+
         if (params.cashflow > 0) {
-            if (signedPermit.amount != 0) {
-                (positionId_, trade) = env.maestro().depositAndTradeWithPermit(params, executionParams, signedPermit);
-            } else {
-                (positionId_, trade) = env.maestro().depositAndTrade{ value: value }(params, executionParams);
-            }
+            if (signedPermit.amount != 0) (positionId_, trade) = maestro.depositAndTradeWithPermit(params, executionParams, signedPermit);
+            else (positionId_, trade) = maestro.depositAndTrade{ value: value }(params, executionParams);
         }
         if (params.cashflow < 0) {
             if (_cashflowToken == nativeTokenWrapper) {
-                (positionId_, trade,) = env.maestro().tradeAndWithdrawNative(params, executionParams, trader);
+                (positionId_, trade,) = maestro.tradeAndWithdrawNative(params, executionParams, trader);
             } else {
-                (positionId_, trade,) = env.maestro().tradeAndWithdraw(params, executionParams, trader);
+                (positionId_, trade,) = maestro.tradeAndWithdraw(params, executionParams, trader);
             }
         }
-        if (params.cashflow == 0) (positionId_, trade) = env.maestro().trade(params, executionParams);
+        if (params.cashflow == 0) (positionId_, trade) = maestro.trade(params, executionParams);
+
+        if (bytes(_testName).length > 0) {
+            snapEnd();
+            testName = "";
+        }
 
         if (env.canPrank()) VM.stopPrank();
         else VM.stopBroadcast();

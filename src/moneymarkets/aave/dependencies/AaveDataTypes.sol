@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.4;
 
+import "./IAToken.sol";
+
 library AaveDataTypes {
 
     struct ReserveData {
@@ -21,11 +23,11 @@ library AaveDataTypes {
         //the id of the reserve. Represents the position in the list of the active reserves
         uint16 id;
         //aToken address
-        address aTokenAddress;
+        IAToken aTokenAddress;
         //stableDebtToken address
-        address stableDebtTokenAddress;
+        IERC20 stableDebtTokenAddress;
         //variableDebtToken address
-        address variableDebtTokenAddress;
+        IERC20 variableDebtTokenAddress;
         //address of the interest rate strategy
         address interestRateStrategyAddress;
         //the current treasury balance, scaled

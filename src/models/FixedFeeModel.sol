@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "../interfaces/IFeeModel.sol";
 
-uint256 constant MAX_FIXED_FEE = 1e18; // 100%
+uint256 constant MAX_FIXED_FEE = WAD; // 100%
 uint256 constant MIN_FIXED_FEE = 0.000001e18; // 0.0001%
 uint256 constant NO_FEE = type(uint256).max;
 

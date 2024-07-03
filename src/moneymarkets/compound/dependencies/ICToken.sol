@@ -3,26 +3,13 @@ pragma solidity 0.8.20;
 
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./ComptrollerErrorReporter.sol";
+import "./ILegacyJumpRateModelV2.sol";
 
 interface ICToken is IERC20 {
 
-    event AccrueInterest(uint256 interestAccumulated, uint256 borrowIndex, uint256 totalBorrows);
-    event Borrow(address borrower, uint256 borrowAmount, uint256 accountBorrows, uint256 totalBorrows);
-    event Failure(uint256 error, uint256 info, uint256 detail);
-    event LiquidateBorrow(address liquidator, address borrower, uint256 repayAmount, address cTokenCollateral, uint256 seizeTokens);
-    event Mint(address minter, uint256 mintAmount, uint256 mintTokens);
-    event NewAdmin(address oldAdmin, address newAdmin);
-    event NewComptroller(address oldComptroller, address newComptroller);
-    event NewMarketInterestRateModel(address oldInterestRateModel, address newInterestRateModel);
-    event NewPendingAdmin(address oldPendingAdmin, address newPendingAdmin);
-    event NewReserveFactor(uint256 oldReserveFactorMantissa, uint256 newReserveFactorMantissa);
-    event Redeem(address redeemer, uint256 redeemAmount, uint256 redeemTokens);
-    event RepayBorrow(address payer, address borrower, uint256 repayAmount, uint256 accountBorrows, uint256 totalBorrows);
-    event ReservesReduced(address admin, uint256 reduceAmount, uint256 newTotalReserves);
-
     function _acceptAdmin() external returns (uint256);
     function initialExchangeRateMantissa() external view returns (uint256);
-    function liquidateBorrow(address borrower, address cTokenCollateral) external payable;
+    function liquidateBorrow(address borrower, ICToken cTokenCollateral) external payable;
     function mint() external payable;
     function repayBorrow() external payable;
     function repayBorrowBehalf(address borrower) external payable;
@@ -55,9 +42,9 @@ interface ICToken is IERC20 {
     function getAccountSnapshot(address account) external view returns (uint256, uint256, uint256, uint256);
     function getCash() external view returns (uint256);
     function implementation() external view returns (address);
-    function interestRateModel() external view returns (address);
+    function interestRateModel() external view returns (ILegacyJumpRateModelV2);
     function isCToken() external view returns (bool);
-    function liquidateBorrow(address borrower, uint256 repayAmount, address cTokenCollateral) external returns (uint256);
+    function liquidateBorrow(address borrower, uint256 repayAmount, ICToken cTokenCollateral) external returns (uint256);
     function mint(uint256 mintAmount) external returns (Error);
     function name() external view returns (string memory);
     function pendingAdmin() external view returns (address);

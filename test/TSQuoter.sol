@@ -64,6 +64,7 @@ contract TSQuoter {
         Liquidity liquidity;
         Ltv ltv;
         uint256 fee;
+        Limits limits;
     }
 
     struct LiquidityBuffer {
@@ -83,6 +84,7 @@ contract TSQuoter {
         uint256 flashFee;
         address spotExecutor;
         LiquidityBuffer liquidityBuffer;
+        bool flashBorrowSupported;
     }
 
     Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
@@ -161,6 +163,8 @@ contract TSQuoter {
 
         (tsQuoteParams.meta.liquidity.borrowingLiquidity, tsQuoteParams.meta.liquidity.lendingLiquidity) =
             contangoLens.liquidity(positionId);
+
+        tsQuoteParams.meta.limits = contangoLens.limits(positionId);
 
         IFeeModel feeModel = contango.feeManager().feeModel();
         if (address(feeModel) != address(0)) tsQuoteParams.meta.fee = feeModel.calculateFee(address(0), positionId, 1e18);

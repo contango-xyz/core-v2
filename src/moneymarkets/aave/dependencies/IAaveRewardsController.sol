@@ -5,23 +5,6 @@ import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/interfaces/IER
 
 interface IAaveRewardsController {
 
-    event Accrued(
-        address indexed asset, address indexed reward, address indexed user, uint256 assetIndex, uint256 userIndex, uint256 rewardsAccrued
-    );
-    event AssetConfigUpdated(
-        address indexed asset,
-        address indexed reward,
-        uint256 oldEmission,
-        uint256 newEmission,
-        uint256 oldDistributionEnd,
-        uint256 newDistributionEnd,
-        uint256 assetIndex
-    );
-    event ClaimerSet(address indexed user, address indexed claimer);
-    event RewardOracleUpdated(address indexed reward, address indexed rewardOracle);
-    event RewardsClaimed(address indexed user, address indexed reward, address indexed to, address claimer, uint256 amount);
-    event TransferStrategyInstalled(address indexed reward, address indexed transferStrategy);
-
     struct RewardsConfigInput {
         uint88 emissionPerSecond;
         uint256 totalSupply;
@@ -30,6 +13,13 @@ interface IAaveRewardsController {
         address reward;
         address transferStrategy;
         address rewardOracle;
+    }
+
+    struct RewardsData {
+        uint256 index;
+        uint256 emissionsPerSecond;
+        uint256 indexLastUpdated;
+        uint256 distributionEnd;
     }
 
     function EMISSION_MANAGER() external view returns (address);
@@ -60,7 +50,7 @@ interface IAaveRewardsController {
     function getEmissionManager() external view returns (address);
     function getRewardOracle(address reward) external view returns (address);
     function getRewardsByAsset(address asset) external view returns (address[] memory);
-    function getRewardsData(address asset, address reward) external view returns (uint256, uint256, uint256, uint256);
+    function getRewardsData(address asset, address reward) external view returns (RewardsData memory);
     function getRewardsList() external view returns (address[] memory);
     function getTransferStrategy(address reward) external view returns (address);
     function getUserAccruedRewards(address user, address reward) external view returns (uint256);

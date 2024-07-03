@@ -4,9 +4,8 @@ pragma solidity ^0.8.4;
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import "./IMorphoOracle.sol";
-import "./IIrm.sol";
 
-type Id is bytes32;
+type MorphoMarketId is bytes32;
 
 struct MarketParams {
     IERC20 loanToken;
@@ -73,10 +72,10 @@ interface IMorpho {
     function feeRecipient() external view returns (address);
 
     /// @notice The state of the position of `user` on the market corresponding to `id`.
-    function position(Id id, address user) external view returns (Position memory);
+    function position(MorphoMarketId id, address user) external view returns (Position memory);
 
     /// @notice The state of the market corresponding to `id`.
-    function market(Id id) external view returns (Market memory);
+    function market(MorphoMarketId id) external view returns (Market memory);
 
     /// @notice Whether the `irm` is enabled.
     function isIrmEnabled(address irm) external view returns (bool);
@@ -94,7 +93,7 @@ interface IMorpho {
     /// @notice The market params corresponding to `id`.
     /// @dev This mapping is not used in Morpho. It is there to enable reducing the cost associated to calldata on layer
     /// 2s by creating a wrapper contract with functions that take `id` as input instead of `marketParams`.
-    function idToMarketParams(Id id) external view returns (MarketParams memory);
+    function idToMarketParams(MorphoMarketId id) external view returns (MarketParams memory);
 
     /// @notice Sets `newOwner` as owner of the contract.
     /// @dev Warning: No two-step transfer ownership.
@@ -268,5 +267,16 @@ interface IMorpho {
 
     /// @notice Accrues interest for the given market `marketParams`.
     function accrueInterest(MarketParams memory marketParams) external;
+
+}
+
+interface IIrm {
+
+    event BorrowRateUpdate(MorphoMarketId indexed id, uint256 avgBorrowRate, uint256 rateAtTarget);
+
+    function MORPHO() external view returns (address);
+    function borrowRate(MarketParams memory marketParams, Market memory market) external returns (uint256);
+    function borrowRateView(MarketParams memory marketParams, Market memory market) external view returns (uint256);
+    function rateAtTarget(MorphoMarketId) external view returns (int256);
 
 }

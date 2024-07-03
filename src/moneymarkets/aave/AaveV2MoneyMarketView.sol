@@ -22,7 +22,19 @@ contract AaveV2MoneyMarketView is AaveMoneyMarketView {
         uint256 __oracleUnit,
         IWETH9 _nativeToken,
         IAggregatorV2V3 _nativeUsdOracle
-    ) AaveMoneyMarketView(_moneyMarketId, _moneyMarketName, _contango, _pool, _dataProvider, _oracle, _nativeToken, _nativeUsdOracle) {
+    )
+        AaveMoneyMarketView(
+            _moneyMarketId,
+            _moneyMarketName,
+            _contango,
+            _pool,
+            _dataProvider,
+            _oracle,
+            IAaveRewardsController(address(0)),
+            _nativeToken,
+            _nativeUsdOracle
+        )
+    {
         poolV2 = IPoolV2(address(_pool));
         dataProviderV2 = IPoolDataProviderV2(address(_dataProvider));
         oracleUnit = __oracleUnit;
@@ -45,6 +57,10 @@ contract AaveV2MoneyMarketView is AaveMoneyMarketView {
         return oracleUnit;
     }
 
+    function priceInUSD(IERC20 asset) public view virtual override returns (uint256 price_) {
+        return _derivePriceInUSD(asset);
+    }
+
     function _rates(PositionId, IERC20 collateralAsset, IERC20 debtAsset)
         internal
         view
@@ -52,8 +68,32 @@ contract AaveV2MoneyMarketView is AaveMoneyMarketView {
         override
         returns (uint256 borrowing, uint256 lending)
     {
-        borrowing = poolV2.getReserveData(address(debtAsset)).currentVariableBorrowRate / 1e9;
-        lending = poolV2.getReserveData(address(collateralAsset)).currentLiquidityRate / 1e9;
+        borrowing = _apy({ rate: poolV2.getReserveData(address(debtAsset)).currentVariableBorrowRate / 1e9, perSeconds: 365 days });
+        lending = _apy({ rate: poolV2.getReserveData(address(collateralAsset)).currentLiquidityRate / 1e9, perSeconds: 365 days });
+    }
+
+    function _collectIrmData(IERC20 asset) internal view override returns (IRMData memory data) {
+        {
+            (, data.totalStableDebt, data.totalVariableDebt,,,, data.averageStableBorrowRate,,,) =
+                dataProviderV2.getReserveData(address(asset));
+        }
+
+        {
+            (,,,, data.reserveFactor,,,,,) = dataProviderV2.getReserveConfigurationData(address(asset));
+        }
+        {
+            (address aTokenAddress,,) = dataProviderV2.getReserveTokensAddresses(address(asset));
+            data.aTokenReserveBalance = asset.balanceOf(aTokenAddress);
+        }
+
+        {
+            IDefaultReserveInterestRateStrategyV2 irStrategy = poolV2.getReserveData(address(asset)).interestRateStrategyAddress;
+            data.optimalUsageRatio = irStrategy.OPTIMAL_UTILIZATION_RATE();
+            data.maxExcessUsageRatio = irStrategy.EXCESS_UTILIZATION_RATE();
+            data.variableRateSlope1 = irStrategy.variableRateSlope1();
+            data.variableRateSlope2 = irStrategy.variableRateSlope2();
+            data.baseVariableBorrowRate = irStrategy.baseVariableBorrowRate();
+        }
     }
 
     function _thresholds(PositionId, IERC20 collateralAsset, IERC20)
@@ -86,10 +126,27 @@ contract AaveV2MoneyMarketView is AaveMoneyMarketView {
     }
 
     function _lendingLiquidity(IERC20 asset) internal view virtual override returns (uint256 lendingLiquidity_) {
-        (,,,,, bool usageAsCollateralEnabled,,,,) = dataProvider.getReserveConfigurationData(address(asset));
-        if (!usageAsCollateralEnabled) return 0;
-
         lendingLiquidity_ = asset.totalSupply();
+    }
+
+    function _reserveStatus(IERC20 asset, bool borrowing)
+        internal
+        view
+        virtual
+        override
+        returns (bool isActive, bool isFrozen, bool isPaused, bool enabled)
+    {
+        bool usageAsCollateralEnabled;
+        bool borrowingEnabled;
+        (,,,,, usageAsCollateralEnabled, borrowingEnabled,, isActive, isFrozen) = dataProvider.getReserveConfigurationData(address(asset));
+        enabled = borrowing ? borrowingEnabled : usageAsCollateralEnabled;
+
+        isPaused = poolV2.paused();
+    }
+
+    function _getTokenSupply(IERC20 asset, bool borrowing) internal view override returns (uint256 tokenSupply) {
+        (uint256 availableLiquidity,, uint256 totalVariableDebt,,,,,,,) = dataProviderV2.getReserveData(address(asset));
+        tokenSupply = borrowing ? totalVariableDebt : availableLiquidity + totalVariableDebt;
     }
 
 }

@@ -97,7 +97,7 @@ contract AaveMoneyMarketPolygonTest is Test {
     }
 
     function debtBalance(IERC20 asset, address account) internal view returns (uint256) {
-        return IERC20(pool.getReserveData(address(asset)).variableDebtTokenAddress).balanceOf(account);
+        return pool.getReserveData(asset).variableDebtTokenAddress.balanceOf(account);
     }
 
 }

@@ -3,17 +3,20 @@ pragma solidity 0.8.20;
 
 import "../../Mock.sol";
 import "../../TestSetup.t.sol";
+import "../utils.t.sol";
 
 contract ExactlyMoneyMarketViewTest is Test {
 
     using Address for *;
     using ERC20Lib for *;
+    using { enabled } for AvailableActions[];
 
     Env internal env;
     IMoneyMarketView internal sut;
     PositionId internal positionId;
     Contango internal contango;
     TestInstrument internal instrument;
+    ExactlyReverseLookup internal reverseLookup;
 
     MoneyMarketId internal constant mm = MM_EXACTLY;
 
@@ -30,6 +33,7 @@ contract ExactlyMoneyMarketViewTest is Test {
         contango = env.contango();
 
         sut = env.contangoLens().moneyMarketView(mm);
+        reverseLookup = ExactlyMoneyMarketView(address(sut)).reverseLookup();
 
         instrument = env.createInstrument(env.erc20(WETH), env.erc20(USDC));
 
@@ -65,7 +69,7 @@ contract ExactlyMoneyMarketViewTest is Test {
         assertApproxEqRelDecimal(balances.debt, 6000e6, TOLERANCE, instrument.quoteDecimals, "Debt balance");
     }
 
-    function testPrices() public {
+    function testPrices() public view {
         Prices memory prices = sut.prices(positionId);
 
         assertEqDecimal(prices.collateral, 1000e18, instrument.baseDecimals, "Collateral price");
@@ -73,19 +77,34 @@ contract ExactlyMoneyMarketViewTest is Test {
         assertEq(prices.unit, 1e18, "Oracle Unit");
     }
 
-    function testBaseQuoteRate() public {
+    function testBaseQuoteRate() public view {
         uint256 baseQuoteRate = sut.baseQuoteRate(positionId);
         assertEqDecimal(baseQuoteRate, 1000e6, instrument.quoteDecimals, "Base quote rate");
     }
 
-    function testPriceInNativeToken() public {
+    function testPriceInNativeToken() public view {
         assertEqDecimal(sut.priceInNativeToken(instrument.base), 1e18, 18, "Base price in native token");
         assertEqDecimal(sut.priceInNativeToken(instrument.quote), 0.001e18, 18, "Quote price in native token");
     }
 
-    function testPriceInUSD() public {
+    function testPriceInUSD() public view {
         assertEqDecimal(sut.priceInUSD(instrument.base), 1000e18, 18, "Base price in USD");
         assertEqDecimal(sut.priceInUSD(instrument.quote), 1e18, 18, "Quote price in USD");
+    }
+
+    function testBalancesUSD() public {
+        (, positionId,) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: mm,
+            quantity: 10 ether,
+            cashflow: 4000e6,
+            cashflowCcy: Currency.Quote
+        });
+
+        Balances memory balances = sut.balancesUSD(positionId);
+
+        assertApproxEqRelDecimal(balances.collateral, 10_000e18, TOLERANCE, 18, "Collateral balance");
+        assertApproxEqRelDecimal(balances.debt, 6000e18, TOLERANCE, 18, "Debt balance");
     }
 
     function testBorrowingLiquidity() public {
@@ -105,7 +124,7 @@ contract ExactlyMoneyMarketViewTest is Test {
         assertApproxEqRelDecimal(beforePosition - afterPosition, 6000e6, TOLERANCE, instrument.quoteDecimals, "Borrowing liquidity delta");
     }
 
-    function testLendingLiquidity() public {
+    function testLendingLiquidity() public view {
         (, uint256 liquidity) = sut.liquidity(positionId);
 
         assertEqDecimal(liquidity, 51_435.3140536652894657e18, instrument.baseDecimals, "Lending liquidity");
@@ -135,10 +154,10 @@ contract ExactlyMoneyMarketViewTest is Test {
         assertEqDecimal(liquidationThreshold, 0.7826e18, 18, "Liquidation threshold");
     }
 
-    function testRates() public {
+    function testRates() public view {
         (uint256 borrowingRate, uint256 lendingRate) = sut.rates(positionId);
 
-        assertEqDecimal(borrowingRate, 0.043541006683424253e18, 18, "Borrowing rate");
+        assertEqDecimal(borrowingRate, 0.044500112639768535e18, 18, "Borrowing rate");
         // Lending rate is calculated off-chain for Exactly
         assertEqDecimal(lendingRate, 0, 18, "Lending rate");
     }
@@ -237,6 +256,55 @@ contract ExactlyMoneyMarketViewTest is Test {
         assertEqDecimal(lending[1].rate, 0.00000229965454392e18, lending[1].token.decimals, "Lend reward[1] rate");
         assertEqDecimal(lending[1].claimable, 0.000602332070501988e18, lending[1].token.decimals, "Lend reward[1] claimable");
         assertEqDecimal(lending[1].usdPrice, 0.88431652e18, 18, "Lend reward[1] usdPrice");
+    }
+
+    function testAvailableActions_HappyPath() public {
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+
+        assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Borrow), "Borrow should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
+    }
+
+    function testAvailableActions_BasePaused() public {
+        IExactlyMarket market = reverseLookup.market(instrument.base);
+        vm.prank(0xC0d6Bc5d052d1e74523AD79dD5A954276c9286D3);
+        market.pause();
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Borrow), "Borrow should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
+    }
+
+    function testAvailableActions_QuotePaused() public {
+        IExactlyMarket market = reverseLookup.market(instrument.quote);
+        vm.prank(0xC0d6Bc5d052d1e74523AD79dD5A954276c9286D3);
+        market.pause();
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertFalse(availableActions.enabled(AvailableActions.Borrow), "Borrow should be disabled");
+        assertFalse(availableActions.enabled(AvailableActions.Repay), "Repay should be disabled");
+    }
+
+    function testAvailableActions_BothPaused() public {
+        IExactlyMarket market = reverseLookup.market(instrument.base);
+        vm.prank(0xC0d6Bc5d052d1e74523AD79dD5A954276c9286D3);
+        market.pause();
+
+        market = reverseLookup.market(instrument.quote);
+        vm.prank(0xC0d6Bc5d052d1e74523AD79dD5A954276c9286D3);
+        market.pause();
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertFalse(availableActions.enabled(AvailableActions.Borrow), "Borrow should be disabled");
+        assertFalse(availableActions.enabled(AvailableActions.Repay), "Repay should be disabled");
     }
 
 }

@@ -95,12 +95,12 @@ contract PositionLifeCycleSparkMainnetFunctionalShortUSDC is AbstractPositionLif
 
 }
 
-contract PositionLifeCycleMorphoBlueGoerliFunctionalLong is AbstractPositionLifeCycleFunctional {
+contract PositionLifeCycleMorphoBlueMainnetFunctionalLong is AbstractPositionLifeCycleFunctional {
 
     using MarketParamsLib for MarketParams;
 
     function setUp() public {
-        super.setUp(Network.Goerli, MM_MORPHO_BLUE, WETH, USDC, WETH_STABLE_MULTIPLIER);
+        super.setUp(Network.Mainnet, 18_919_243, MM_MORPHO_BLUE, WETH, USDC, WETH_STABLE_MULTIPLIER);
 
         IMorpho morpho = env.morpho();
 
@@ -108,8 +108,8 @@ contract PositionLifeCycleMorphoBlueGoerliFunctionalLong is AbstractPositionLife
             loanToken: env.token(USDC),
             collateralToken: env.token(WETH),
             oracle: new MorphoOracleMock(env.erc20(WETH), env.erc20(USDC)),
-            irm: IIrm(0x9ee101eB4941d8D7A665fe71449360CEF3C8Bb87),
-            lltv: 0.9e18
+            irm: IIrm(0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC),
+            lltv: 0.86e18
         });
         morpho.createMarket(params);
         address lp = makeAddr("LP");
@@ -141,14 +141,6 @@ contract PositionLifeCycleSparkGnosisFunctionalLong is AbstractPositionLifeCycle
 
     function setUp() public {
         super.setUp(Network.Gnosis, MM_SPARK, WETH, DAI, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleAgaveGnosisFunctionalLong is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Gnosis, MM_AGAVE, WETH, DAI, WETH_STABLE_MULTIPLIER);
     }
 
 }
@@ -215,6 +207,22 @@ contract PositionLifeCycleSiloArbitrumFunctionalShort is AbstractPositionLifeCyc
 
     function setUp() public {
         super.setUp(Network.Arbitrum, 156_550_831, MM_SILO, USDC, WETH, STABLE_WETH_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleDolomiteArbitrumFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Arbitrum, 204_827_569, MM_DOLOMITE, WETH, USDC, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleDolomiteArbitrumFunctionalShort is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Arbitrum, 204_827_569, MM_DOLOMITE, USDC, WETH, STABLE_WETH_MULTIPLIER);
     }
 
 }

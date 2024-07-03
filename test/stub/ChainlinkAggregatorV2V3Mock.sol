@@ -76,4 +76,14 @@ contract ChainlinkAggregatorV2V3Mock is IAggregatorV2V3 {
         return block.timestamp;
     }
 
+    // Aggregator
+
+    function minAnswer() external pure returns (int192) {
+        return type(int192).min;
+    }
+
+    function maxAnswer() external pure returns (int192) {
+        return type(int192).max;
+    }
+
 }

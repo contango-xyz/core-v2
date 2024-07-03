@@ -2,17 +2,20 @@
 pragma solidity 0.8.20;
 
 import "../../TestSetup.t.sol";
+import "../utils.t.sol";
 
 contract SonneMoneyMarketViewTest is Test {
 
     using Address for *;
     using ERC20Lib for *;
+    using { enabled } for AvailableActions[];
 
     Env internal env;
-    IMoneyMarketView internal sut;
+    CompoundMoneyMarketView internal sut;
     PositionId internal positionId;
     Contango internal contango;
     TestInstrument internal instrument;
+    IComptroller internal comptroller;
 
     MoneyMarketId internal constant mm = MM_SONNE;
 
@@ -27,8 +30,9 @@ contract SonneMoneyMarketViewTest is Test {
 
         contango = env.contango();
 
-        sut = env.contangoLens().moneyMarketView(mm);
+        sut = CompoundMoneyMarketView(address(env.contangoLens().moneyMarketView(mm)));
         rewardsToken = address(env.compoundComptroller().getCompAddress());
+        comptroller = env.compoundComptroller();
 
         instrument = env.createInstrument(env.erc20(WETH), env.erc20(USDC));
 
@@ -64,7 +68,7 @@ contract SonneMoneyMarketViewTest is Test {
         assertApproxEqRelDecimal(balances.debt, 6000e6, TOLERANCE, instrument.quoteDecimals, "Debt balance");
     }
 
-    function testPrices() public {
+    function testPrices() public view {
         Prices memory prices = sut.prices(positionId);
 
         assertEqDecimal(prices.collateral, 1000e18, instrument.baseDecimals, "Collateral price");
@@ -72,19 +76,34 @@ contract SonneMoneyMarketViewTest is Test {
         assertEq(prices.unit, 1e18, "Oracle Unit");
     }
 
-    function testBaseQuoteRate() public {
+    function testBaseQuoteRate() public view {
         uint256 baseQuoteRate = sut.baseQuoteRate(positionId);
         assertEqDecimal(baseQuoteRate, 1000e6, instrument.quoteDecimals, "Base quote rate");
     }
 
-    function testPriceInNativeToken() public {
+    function testPriceInNativeToken() public view {
         assertEqDecimal(sut.priceInNativeToken(instrument.base), 1e18, 18, "Base price in native token");
         assertEqDecimal(sut.priceInNativeToken(instrument.quote), 0.001e18, 18, "Quote price in native token");
     }
 
-    function testPriceInUSD() public {
+    function testPriceInUSD() public view {
         assertEqDecimal(sut.priceInUSD(instrument.base), 1000e18, 18, "Base price in USD");
         assertEqDecimal(sut.priceInUSD(instrument.quote), 1e18, 18, "Quote price in USD");
+    }
+
+    function testBalancesUSD() public {
+        (, positionId,) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: mm,
+            quantity: 10 ether,
+            cashflow: 4000e6,
+            cashflowCcy: Currency.Quote
+        });
+
+        Balances memory balances = sut.balancesUSD(positionId);
+
+        assertApproxEqRelDecimal(balances.collateral, 10_000e18, TOLERANCE, 18, "Collateral balance");
+        assertApproxEqRelDecimal(balances.debt, 6000e18, TOLERANCE, 18, "Debt balance");
     }
 
     function testBorrowingLiquidity() public {
@@ -106,7 +125,26 @@ contract SonneMoneyMarketViewTest is Test {
         );
     }
 
-    function testLendingLiquidity() public {
+    function testBorrowingLiquidity_USDCWETH() public {
+        Symbol symbol;
+        (symbol,, positionId) = env.createInstrumentAndPositionId(instrument.quote, instrument.base, mm);
+        (uint256 beforePosition,) = sut.liquidity(positionId);
+
+        (, positionId,) = env.positionActions().openPosition({
+            symbol: symbol,
+            mm: mm,
+            quantity: 10_000e6,
+            cashflow: 4 ether,
+            cashflowCcy: Currency.Quote
+        });
+
+        (uint256 afterPosition,) = sut.liquidity(positionId);
+
+        assertEqDecimal(beforePosition, 1044.462258323656137782 ether, 18, "Borrowing liquidity");
+        assertApproxEqRelDecimal(beforePosition - afterPosition, 6 ether * 0.95e18 / 1e18, TOLERANCE, 18, "Borrowing liquidity delta");
+    }
+
+    function testLendingLiquidity() public view {
         (, uint256 liquidity) = sut.liquidity(positionId);
 
         assertEqDecimal(liquidity, 48_748.536219336686435387e18, instrument.baseDecimals, "Lending liquidity");
@@ -136,7 +174,7 @@ contract SonneMoneyMarketViewTest is Test {
         assertEqDecimal(liquidationThreshold, 0.75e18, 18, "Liquidation threshold");
     }
 
-    function testRates() public {
+    function testRates() public view {
         (uint256 borrowingRate, uint256 lendingRate) = sut.rates(positionId);
 
         assertEqDecimal(borrowingRate, 0.086314312788434496e18, 18, "Borrowing rate");
@@ -163,7 +201,7 @@ contract SonneMoneyMarketViewTest is Test {
         assertEq(borrowing[0].token.symbol, "SONNE", "Borrow reward[0] symbol");
         assertEq(borrowing[0].token.decimals, 18, "Borrow reward[0] decimals");
         assertEq(borrowing[0].token.unit, 1e18, "Borrow reward[0] unit");
-        assertEqDecimal(borrowing[0].rate, 0.02113392629283682e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
+        assertEqDecimal(borrowing[0].rate, 0.021133926292836797e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
         assertEqDecimal(borrowing[0].claimable, 0, borrowing[0].token.decimals, "Borrow reward[0] claimable");
         assertEqDecimal(borrowing[0].usdPrice, 0.086204e18, 18, "Borrow reward[0] usdPrice");
 
@@ -207,7 +245,7 @@ contract SonneMoneyMarketViewTest is Test {
         assertEq(lending[0].token.symbol, "SONNE", "Lend reward[0] symbol");
         assertEq(lending[0].token.decimals, 18, "Lend reward[0] decimals");
         assertEq(lending[0].token.unit, 1e18, "Lend reward[0] unit");
-        assertEqDecimal(lending[0].rate, 0.002487799109488817e18, lending[0].token.decimals, "Lend reward[0] rate");
+        assertEqDecimal(lending[0].rate, 0.002487799109488814e18, lending[0].token.decimals, "Lend reward[0] rate");
         assertEqDecimal(lending[0].claimable, 0, lending[0].token.decimals, "Lend reward[0] claimable");
         assertEqDecimal(lending[0].usdPrice, 0.086204e18, 18, "Lend reward[0] usdPrice");
     }
@@ -264,6 +302,39 @@ contract SonneMoneyMarketViewTest is Test {
             IERC20(rewardsToken).decimals(),
             "Claimed rewards"
         );
+    }
+
+    function testAvailableActions_HappyPath() public {
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+
+        assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Borrow), "Borrow should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
+    }
+
+    function testAvailableActions_MintPaused() public {
+        ICToken cToken = sut._cToken(instrument.base);
+        vm.prank(comptroller.pauseGuardian());
+        comptroller._setMintPaused(cToken, true);
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertFalse(availableActions.enabled(AvailableActions.Lend), "Lend should be disabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Borrow), "Borrow should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
+    }
+
+    function testAvailableActions_BorrowPaused() public {
+        ICToken cToken = sut._cToken(instrument.quote);
+        vm.prank(comptroller.pauseGuardian());
+        comptroller._setBorrowPaused(cToken, true);
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertFalse(availableActions.enabled(AvailableActions.Borrow), "Borrow should be disabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
     }
 
 }
