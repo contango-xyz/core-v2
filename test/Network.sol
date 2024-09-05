@@ -65,17 +65,7 @@ function isLocalhost(Network network) pure returns (bool) {
         || network == Network.LocalhostMainnet;
 }
 
-using {
-    toString,
-    isOptimism,
-    isArbitrum,
-    isLocalhost,
-    isPolygon,
-    isMainnet,
-    isGnosis,
-    isBase,
-    isPolygonZK
-} for Network global;
+using { toString, isOptimism, isArbitrum, isLocalhost, isPolygon, isMainnet, isGnosis, isBase, isPolygonZK } for Network global;
 
 function currentNetwork() view returns (Network) {
     return networkFromChainId(block.chainid);

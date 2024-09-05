@@ -855,6 +855,45 @@
     },
     "AaveLidoRewardsController": {
       "address": "0x8164Cc65827dcFe994AB23944CBC90e0aa80bFcb"
+    },
+    "EulerMoneyMarketView": {
+      "address": "0x0c7D644Fe0b0a63aa6fcfc7BAad575853D4a7704"
+    },
+    "EulerMoneyMarket": {
+      "address": "0xEC5c85EadB6f810C940E6B3aD571F2FA9865e87d"
+    },
+    "EulerReverseLookup": {
+      "address": "0xD0d9e5cA8793caE9fAc72F34cAaF7f99E4f0fc68"
+    },
+    "EulerRewardsOperator": {
+      "address": "0xB3863D03938eAD437E3f136778531DcB89F29EaD"
+    },
+    "EulerImmutableProxy": {
+      "address": "0x034F657f778b8441c3A89C9914dfF67147bd8c3C"
+    },
+    "UpgradeableBeacon-Euler": {
+      "address": "0xf63F41B61991Df7496A10aAc3A0bBAFe15E20445"
+    },
+    "EulerVaultConnector": {
+      "address": "0x0C9a3dd6b8F28529d72d7f9cE918D493519EE383"
+    },
+    "EulerRewards": {
+      "address": "0x0D52d06ceB8Dcdeeb40Cfd9f17489B350dD7F8a3"
+    },
+    "EulerVaultLens": {
+      "address": "0xE4044D26C879f58Acc97f27db04c1686fa9ED29E"
+    },
+    "EulerEscrowPerspectivesAddresses": {
+      "address": "0xc68CB3658ACf1d49547Fa8605dc158D876cD5828"
+    },
+    "EulerGovernedPerspectivesAddresses": {
+      "address": "0xC0121817FF224a018840e4D15a864747d36e6Eb2"
+    },
+    "EulerUngoverned0xPerspectivesAddresses": {
+      "address": "0x5345562eD3Ce537582A1A568d3B06c8382Cd60BD"
+    },
+    "EulerUngovernedNZXPerspectivesAddresses": {
+      "address": "0x2206c3341582daAF007BA4569321c8Dd39f0710b"
     }
   },
   "matic": {

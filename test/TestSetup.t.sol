@@ -43,6 +43,8 @@ import "src/moneymarkets/silo/SiloMoneyMarket.sol";
 import "src/moneymarkets/silo/SiloMoneyMarketView.sol";
 import "src/moneymarkets/dolomite/DolomiteMoneyMarket.sol";
 import "src/moneymarkets/dolomite/DolomiteMoneyMarketView.sol";
+import "src/moneymarkets/euler/EulerMoneyMarket.sol";
+import "src/moneymarkets/euler/EulerMoneyMarketView.sol";
 import "src/moneymarkets/ContangoLens.sol";
 import "src/models/FixedFeeModel.sol";
 import "@contango/erc721Permit2/ERC721Permit2.sol";
@@ -438,6 +440,19 @@ contract Deployer is Addresses {
         moneyMarket = DolomiteMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
+    function deployEulerMoneyMarket(Env env, IContango contango) public returns (EulerMoneyMarket moneyMarket) {
+        EulerReverseLookup reverseLookup = new EulerReverseLookup(TIMELOCK);
+
+        EulerRewardsOperator rewardsOperator = new EulerRewardsOperator(
+            TIMELOCK, contango.positionNFT(), contango.positionFactory(), env.eulerVaultConnector(), env.eulerRewards(), reverseLookup
+        );
+
+        moneyMarket = new EulerMoneyMarket(contango, env.eulerVaultConnector(), env.eulerRewards(), reverseLookup, rewardsOperator);
+
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        moneyMarket = EulerMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
+    }
+
     function deployVault(Env env) public returns (Vault vault) {
         vault = new Vault(env.nativeToken());
         vault.initialize(TIMELOCK);
@@ -711,6 +726,16 @@ contract Deployer is Addresses {
                 new DolomiteMoneyMarketView(deployment.contango, env.nativeToken(), env.nativeUsdOracle(), env.dolomite())
             );
         }
+        if (env.marketAvailable(MM_EULER) && block.number >= 20_678_328) {
+            EulerMoneyMarket mm = deployEulerMoneyMarket(env, deployment.contango);
+            positionFactory.registerMoneyMarket(mm);
+
+            deployment.contangoLens.setMoneyMarketView(
+                new EulerMoneyMarketView(
+                    deployment.contango, env.nativeToken(), env.nativeUsdOracle(), mm.reverseLookup(), mm.rewardOperator(), env.eulerLens()
+                )
+            );
+        }
 
         positionNFT.grantRole(MINTER_ROLE, address(deployment.contango));
 
@@ -825,6 +850,10 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
     ISilo public wstEthSilo;
     // Dolomite
     IDolomiteMargin public dolomite;
+    // Euler
+    IEthereumVaultConnector public eulerVaultConnector;
+    IRewardStreams public eulerRewards;
+    IEulerVaultLens public eulerLens;
     // Test
     SpotStub public spotStub;
     PositionActions public positionActions;
@@ -1476,6 +1505,7 @@ contract MainnetEnv is Env {
         _moneyMarkets.push(MM_MORPHO_BLUE);
         _moneyMarkets.push(MM_SILO);
         _moneyMarkets.push(MM_AAVE_LIDO);
+        _moneyMarkets.push(MM_EULER);
 
         _erc20s[LINK] = ERC20Data({
             symbol: LINK,
@@ -1569,6 +1599,10 @@ contract MainnetEnv is Env {
 
         aaveLidoAddressProvider = IPoolAddressesProvider(_loadAddress("AaveLidoPoolAddressesProvider"));
         aaveLidoRewardsController = IAaveRewardsController(_loadAddress("AaveLidoRewardsController"));
+
+        eulerVaultConnector = IEthereumVaultConnector(_loadAddress("EulerVaultConnector"));
+        eulerRewards = IRewardStreams(_loadAddress("EulerRewards"));
+        eulerLens = IEulerVaultLens(_loadAddress("EulerVaultLens"));
 
         Deployment memory deployment = deployer.deployContango(this);
         maestro = deployment.maestro;
