@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../stub/MorphoOracleMock.sol";
 import { MarketParamsLib } from "src/moneymarkets/morpho/dependencies/MarketParamsLib.sol";
@@ -149,7 +149,7 @@ contract PositionLifeCycleAaveV2MainnetFunctionalLong is AbstractPositionLifeCyc
 
     function setUp() public {
         super.setUp(Network.Mainnet, MM_AAVE_V2, WETH, USDC, WETH_STABLE_MULTIPLIER);
-        env.spotStub().stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
+        stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
     }
 
 }

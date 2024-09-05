@@ -1,12 +1,16 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../interfaces/IContango.sol";
 import "../libraries/Errors.sol";
+import "../libraries/ERC20Lib.sol";
 
 import "./interfaces/IMoneyMarket.sol";
 
 abstract contract BaseMoneyMarket is IMoneyMarket {
+
+    using Address for address payable;
+    using ERC20Lib for *;
 
     MoneyMarketId public immutable moneyMarketId;
     IContango public immutable contango;
@@ -21,32 +25,67 @@ abstract contract BaseMoneyMarket is IMoneyMarket {
         _initialise(positionId, collateralAsset, debtAsset);
     }
 
-    function lend(PositionId positionId, IERC20 asset, uint256 amount) external override onlyContango returns (uint256) {
+    function lend(PositionId positionId, IERC20 asset, uint256 amount) external override onlyContango returns (uint256 lent) {
         if (amount == 0) return 0;
-        return _lend(positionId, asset, amount, msg.sender);
+        lent = _lend(positionId, asset, amount, msg.sender);
+        emit Lent(positionId, asset, lent);
     }
 
-    function withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to) external override onlyContango returns (uint256) {
+    function withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to)
+        external
+        override
+        onlyContango
+        returns (uint256 withdrawn)
+    {
         if (amount == 0) return 0;
-        return _withdraw(positionId, asset, amount, to);
+        withdrawn = _withdraw(positionId, asset, amount, to);
+        emit Withdrawn(positionId, asset, withdrawn);
     }
 
-    function borrow(PositionId positionId, IERC20 asset, uint256 amount, address to) external override onlyContango returns (uint256) {
+    function borrow(PositionId positionId, IERC20 asset, uint256 amount, address to)
+        external
+        override
+        onlyContango
+        returns (uint256 borrowed)
+    {
         if (amount == 0) return 0;
-        return _borrow(positionId, asset, amount, to);
+        borrowed = _borrow(positionId, asset, amount, to);
+        emit Borrowed(positionId, asset, borrowed);
     }
 
-    function repay(PositionId positionId, IERC20 asset, uint256 amount) external override onlyContango returns (uint256) {
+    function repay(PositionId positionId, IERC20 asset, uint256 amount) external override onlyContango returns (uint256 repaid) {
         if (amount == 0) return 0;
-        return _repay(positionId, asset, amount, msg.sender);
+        repaid = _repay(positionId, asset, amount, msg.sender);
+        emit Repaid(positionId, asset, repaid);
     }
 
     function claimRewards(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset, address to) external override onlyContango {
         _claimRewards(positionId, collateralAsset, debtAsset, to);
+        emit RewardsClaimed(positionId, to);
+    }
+
+    function retrieve(PositionId positionId, IERC20 token) external override returns (uint256 amount) {
+        if (contango.positionFactory().moneyMarket(positionId) != this) revert InvalidPositionId(positionId);
+        address owner = contango.positionNFT().positionOwner(positionId);
+
+        // If we allow any ERC20, an attacker may transfer collateral tokens, not a security problem, but 1x positions suddenly being empty wouldn't be nice
+        if (IERC20(address(0)) != token && !contango.vault().isTokenSupported(token)) revert TokenCantBeRetrieved(token);
+
+        if (token == IERC20(address(0))) {
+            amount = address(this).balance;
+            payable(owner).sendValue(amount);
+        } else {
+            amount = token.transferBalance(owner);
+        }
+        emit Retrieved(positionId, token, amount);
     }
 
     function collateralBalance(PositionId positionId, IERC20 asset) external override returns (uint256) {
         return _collateralBalance(positionId, asset);
+    }
+
+    function debtBalance(PositionId positionId, IERC20 asset) external override returns (uint256) {
+        return _debtBalance(positionId, asset);
     }
 
     function supportsInterface(bytes4 interfaceId) external pure virtual override returns (bool) {
@@ -64,10 +103,12 @@ abstract contract BaseMoneyMarket is IMoneyMarket {
     function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal virtual returns (uint256 actualAmount);
 
     function _claimRewards(PositionId, IERC20, IERC20, address) internal virtual {
-        revert RewardsNotImplemented();
+        // Nothing to do here if the market does not implement rewards
     }
 
     function _collateralBalance(PositionId positionId, IERC20 asset) internal virtual returns (uint256 balance);
+
+    function _debtBalance(PositionId positionId, IERC20 asset) internal virtual returns (uint256 balance);
 
     modifier onlyContango() {
         if (msg.sender != address(contango)) revert Unauthorised(msg.sender);

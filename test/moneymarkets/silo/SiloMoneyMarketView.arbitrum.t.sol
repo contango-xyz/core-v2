@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../TestSetup.t.sol";
 import "../utils.t.sol";
@@ -42,7 +42,7 @@ contract SiloMoneyMarketViewArbitrumTest is Test {
             uniswapFee: 500
         });
 
-        env.spotStub().stubChainlinkPrice(1.1e8, address(env.erc20(ARB).chainlinkUsdOracle));
+        stubChainlinkPrice(1.1e8, address(env.erc20(ARB).chainlinkUsdOracle));
 
         positionId = env.encoder().encodePositionId(instrument.symbol, mm, PERP, 0);
     }
@@ -252,10 +252,10 @@ contract SiloMoneyMarketViewArbitrumTest is Test {
 
     function testRewards_NoPosition() public {
         // Set the price for the block I was comparing with so the values more or less match
-        env.spotStub().stubChainlinkPrice(1.091e8, address(env.erc20(ARB).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
+        stubChainlinkPrice(1.091e8, address(env.erc20(ARB).chainlinkUsdOracle));
+        stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
         // Silo's oracle is ETH based, so we need a live ETH price
-        env.spotStub().stubChainlinkPrice(2168e8, address(env.erc20(WETH).chainlinkUsdOracle));
+        stubChainlinkPrice(2168e8, address(env.erc20(WETH).chainlinkUsdOracle));
 
         (Reward[] memory borrowing, Reward[] memory lending) = sut.rewards(positionId);
 

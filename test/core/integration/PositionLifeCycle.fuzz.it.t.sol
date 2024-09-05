@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../BaseTest.sol";
 
@@ -88,7 +88,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         );
         _assertLeverage(mmv, positionId, leverage);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
         _assertCashflowInvariants(quote);
     }
 
@@ -160,8 +160,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         );
         _assertLeverage(mmv, positionId, increaseLeverage);
 
-        env.checkInvariants(instrument, positionId, openQuote.execParams.flashLoanProvider);
-        env.checkInvariants(instrument, positionId, increaseQuote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
         _assertCashflowInvariants(increaseQuote);
     }
 
@@ -197,7 +196,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         env.tsQuoter().setLiquidityBuffer(TSQuoter.LiquidityBuffer({ lending: LIQUIDITY_BUFFER, borrowing: LIQUIDITY_BUFFER }));
         _stubUniswapInfiniteLiquidity();
 
-        (TSQuote memory openQuote, PositionId positionId, Trade memory trade) =
+        (, PositionId positionId, Trade memory trade) =
             env.positionActions().openPosition(instrument.symbol, mm, quantity, leverage, cashflowCcy);
 
         IMoneyMarketView mmv = env.contangoLens().moneyMarketView(mm);
@@ -234,8 +233,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         }
 
         uint256 contangoBaseTolerance = trade.quantity.abs().mulDiv(TOLERANCE, WAD); // % of traded quantity allowed for dust
-        env.checkInvariants(instrument, positionId, openQuote.execParams.flashLoanProvider, contangoBaseTolerance);
-        env.checkInvariants(instrument, positionId, decreaseQuote.execParams.flashLoanProvider, contangoBaseTolerance);
+        env.checkInvariants(instrument, positionId, contangoBaseTolerance);
         _assertCashflowInvariants(decreaseQuote);
     }
 
@@ -292,7 +290,7 @@ contract PositionLifeCycleIntegration is BaseTest {
         assertApproxEqAbsDecimal(balances.debt, 0, env.bounds(quoteCcy.symbol).dust, instrument.quoteDecimals, "variable debt");
 
         uint256 contangoBaseTolerance = trade.quantity.abs().mulDiv(TOLERANCE, WAD); // % of traded quantity allowed for dust
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider, contangoBaseTolerance);
+        env.checkInvariants(instrument, positionId, contangoBaseTolerance);
         if (cashflowCcy == Currency.Quote) {
             assertGt(instrument.quote.balanceOf(TRADER), 0, string.concat("trader quote (", instrument.quote.symbol(), ") withdraw"));
         } else {
@@ -322,8 +320,6 @@ contract PositionLifeCycleIntegration is BaseTest {
         address poolAddress = env.spotStub().stubUniswapPrice({ base: baseCcy, quote: quoteCcy, spread: 0, uniswapFee: 500 });
         deal(address(baseCcy.token), poolAddress, type(uint160).max);
         deal(address(quoteCcy.token), poolAddress, type(uint160).max);
-        deal(address(baseCcy.token), env.balancer(), type(uint256).max);
-        deal(address(quoteCcy.token), env.balancer(), type(uint256).max);
     }
 
     function _boundParams(uint8 networkId, uint8 mmId, uint8 baseId, uint8 quoteId)

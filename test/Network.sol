@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "forge-std/Vm.sol";
 
@@ -65,21 +65,34 @@ function isLocalhost(Network network) pure returns (bool) {
         || network == Network.LocalhostMainnet;
 }
 
-using { toString, isOptimism, isArbitrum, isLocalhost, isPolygon, isMainnet, isGnosis, isBase, isPolygonZK } for Network global;
+using {
+    toString,
+    isOptimism,
+    isArbitrum,
+    isLocalhost,
+    isPolygon,
+    isMainnet,
+    isGnosis,
+    isBase,
+    isPolygonZK
+} for Network global;
 
 function currentNetwork() view returns (Network) {
-    if (block.chainid == 1) return Network.Mainnet;
-    if (block.chainid == 10) return Network.Optimism;
-    if (block.chainid == 137) return Network.Polygon;
-    if (block.chainid == 42_161) return Network.Arbitrum;
-    if (block.chainid == 1101) return Network.PolygonZK;
-    if (block.chainid == 100) return Network.Gnosis;
-    if (block.chainid == 8453) return Network.Base;
-    if (block.chainid == 31_337) return Network.LocalhostArbitrum;
-    if (block.chainid == 31_338) return Network.LocalhostOptimism;
-    if (block.chainid == 31_339) return Network.LocalhostMainnet;
-    if (block.chainid == 31_340) return Network.LocalhostPolygon;
-    revert(
-        string.concat("Unsupported network, chainId=", Vm(address(uint160(uint256(keccak256("hevm cheat code"))))).toString(block.chainid))
-    );
+    return networkFromChainId(block.chainid);
+}
+
+function networkFromChainId(uint256 chainId) pure returns (Network) {
+    if (chainId == 1) return Network.Mainnet;
+    if (chainId == 10) return Network.Optimism;
+    if (chainId == 100) return Network.Gnosis;
+    if (chainId == 137) return Network.Polygon;
+    if (chainId == 1101) return Network.PolygonZK;
+    if (chainId == 8453) return Network.Base;
+    if (chainId == 42_161) return Network.Arbitrum;
+
+    if (chainId == 31_337) return Network.LocalhostArbitrum;
+    if (chainId == 31_338) return Network.LocalhostOptimism;
+    if (chainId == 31_339) return Network.LocalhostMainnet;
+    if (chainId == 31_340) return Network.LocalhostPolygon;
+    revert(string.concat("Unsupported network, chainId=", Vm(address(uint160(uint256(keccak256("hevm cheat code"))))).toString(chainId)));
 }

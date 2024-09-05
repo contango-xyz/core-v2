@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -38,11 +38,10 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
         ISiloLens _lens,
         ISiloIncentivesController _incentivesController,
         ISilo _wstEthSilo,
-        IERC20 _stablecoin,
-        IERC20 _arb
+        IERC20 _stablecoin
     )
         BaseMoneyMarketView(MM_SILO, "Silo", _contango, _nativeToken, _nativeUsdOracle)
-        SiloBase(_lens, _incentivesController, _wstEthSilo, _nativeToken, _stablecoin, _arb)
+        SiloBase(_lens, _incentivesController, _wstEthSilo, _nativeToken, _stablecoin)
     {
         priceProvidersRepository = repository.priceProvidersRepository();
     }
@@ -69,7 +68,11 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
     }
 
     function _oraclePrice(IERC20 asset) internal view virtual override returns (uint256) {
-        return priceProvidersRepository.getPrice(asset);
+        try priceProvidersRepository.getPrice(asset) returns (uint256 price) {
+            return price;
+        } catch {
+            return 0;
+        }
     }
 
     function priceInNativeToken(IERC20 asset) public view virtual override returns (uint256 price_) {
@@ -148,27 +151,7 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
     {
         ISilo silo = getSilo(collateralAsset, debtAsset);
         borrowing = _asRewards({ positionId: positionId, silo: silo, asset: debtAsset, lending: false });
-
-        Reward[] memory rewards = _asRewards({ positionId: positionId, silo: silo, asset: collateralAsset, lending: true });
-        uint256 claimable = address(arb) != address(0) ? arb.balanceOf(_account(positionId)) : 0;
-        Reward memory arbRewards;
-        if (claimable > 0) {
-            arbRewards.token = _asTokenData(arb);
-            arbRewards.usdPrice = priceInUSD(arb);
-            arbRewards.claimable = claimable;
-        }
-
-        bool hasNativeRewards = rewards.length > 0 && (rewards[0].rate > 0 || rewards[0].claimable > 0);
-        bool hasArbRewards = arbRewards.claimable > 0;
-
-        uint256 lendingLength;
-        if (hasNativeRewards) lendingLength++;
-        if (hasArbRewards) lendingLength++;
-
-        lending = new Reward[](lendingLength);
-        lendingLength = 0;
-        if (hasNativeRewards) lending[lendingLength++] = rewards[0];
-        if (hasArbRewards) lending[lendingLength++] = arbRewards;
+        lending = _asRewards({ positionId: positionId, silo: silo, asset: collateralAsset, lending: true });
     }
 
     function _availableActions(PositionId, IERC20 collateralAsset, IERC20 debtAsset)
@@ -220,26 +203,22 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
         if (emissionPerSecond == 0 && claimable == 0) return new Reward[](0);
 
         rewards_ = new Reward[](1);
-        Reward memory reward;
 
         IERC20 rewardsToken = incentivesController.REWARD_TOKEN();
 
-        reward.usdPrice = priceInUSD(rewardsToken);
-        reward.token = _asTokenData(rewardsToken);
-        reward.claimable = claimable;
+        rewards_[0].usdPrice = priceInUSD(rewardsToken);
+        rewards_[0].token = _asTokenData(rewardsToken);
+        rewards_[0].claimable = claimable;
 
-        if (lending) {
-            uint256 valueOfEmissions = emissionPerSecond * reward.usdPrice / WAD;
-            uint256 assetPrice = priceInUSD(asset);
+        uint256 valueOfEmissions = emissionPerSecond * rewards_[0].usdPrice / WAD;
+        uint256 assetPrice = priceInUSD(asset);
 
-            uint256 assetSupplied =
-                positionId.isCollateralOnly() ? silo.assetStorage(asset).collateralOnlyDeposits : silo.assetStorage(asset).totalDeposits;
-            uint256 valueOfAssetsSupplied = assetPrice * assetSupplied / 10 ** asset.decimals();
+        uint256 totalAmount = lending
+            ? positionId.isCollateralOnly() ? silo.assetStorage(asset).collateralOnlyDeposits : silo.assetStorage(asset).totalDeposits
+            : silo.assetStorage(asset).totalBorrowAmount;
 
-            reward.rate = _apy({ rate: valueOfEmissions * WAD / valueOfAssetsSupplied, perSeconds: 1 });
-        }
-
-        rewards_[0] = reward;
+        uint256 valueOfAssets = assetPrice * totalAmount / 10 ** asset.decimals();
+        rewards_[0].rate = _apy({ rate: valueOfEmissions * WAD / valueOfAssets, perSeconds: 1 });
     }
 
 }

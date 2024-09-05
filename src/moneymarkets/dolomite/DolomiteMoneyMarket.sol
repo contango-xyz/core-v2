@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -44,7 +44,7 @@ contract DolomiteMoneyMarket is BaseMoneyMarket {
             : dolomite.getAccountWei(_self(), dolomite.getMarketIdByTokenAddress(asset)).value;
     }
 
-    function debtBalance(PositionId positionId, IERC20 asset) public view returns (uint256 balance) {
+    function _debtBalance(PositionId positionId, IERC20 asset) internal view override returns (uint256 balance) {
         IDolomiteMargin.Info memory self = _isIsolationMode() ? IDolomiteMargin.Info(address(vault), _accountNumber(positionId)) : _self();
         return dolomite.getAccountWei(self, dolomite.getMarketIdByTokenAddress(asset)).value;
     }
@@ -65,7 +65,7 @@ contract DolomiteMoneyMarket is BaseMoneyMarket {
     }
 
     function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
-        actualAmount = Math.min(amount, debtBalance(positionId, asset));
+        actualAmount = Math.min(amount, _debtBalance(positionId, asset));
         if (actualAmount > 0) {
             __deposit(asset, asset.transferOut(payer, address(this), actualAmount));
             if (_isIsolationMode()) {

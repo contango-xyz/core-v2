@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../TestSetup.t.sol";
 
@@ -51,9 +51,9 @@ contract MorphoBlueMoneyMarketViewTest is Test {
         payload = reverseLookup.setMarket(MorphoMarketId.wrap(0xB323495F7E4148BE5643A4EA4A8221EEF163E4BCCFDEDC2A6F4696BAACBC86CC)); // WSTETH/USDC
         vm.stopPrank();
 
-        env.spotStub().stubChainlinkPrice(1.15e8, 0x4F67e4d9BD67eFa28236013288737D39AeF48e79); // WSTETH/ETH
-        env.spotStub().stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4); // USDC/ETH
-        env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle)); // ETH/USD
+        stubChainlinkPrice(1.15e8, 0x4F67e4d9BD67eFa28236013288737D39AeF48e79); // WSTETH/ETH
+        stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4); // USDC/ETH
+        stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle)); // ETH/USD
         address poolAddress = env.spotStub().stubPrice({
             base: instrument.baseData,
             quote: instrument.quoteData,
@@ -66,8 +66,6 @@ contract MorphoBlueMoneyMarketViewTest is Test {
 
         deal(address(instrument.baseData.token), poolAddress, type(uint96).max);
         deal(address(instrument.quoteData.token), poolAddress, type(uint96).max);
-        deal(address(instrument.baseData.token), env.balancer(), type(uint96).max);
-        deal(address(instrument.quoteData.token), env.balancer(), type(uint96).max);
     }
 
     function testBalances_NewPosition() public {

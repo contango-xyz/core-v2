@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../BaseTest.sol";
 import "forge-std/console.sol";
@@ -31,8 +31,6 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         deal(address(instrument.baseData.token), poolAddress, type(uint96).max);
         deal(address(instrument.quoteData.token), poolAddress, type(uint96).max);
-        deal(address(instrument.baseData.token), env.balancer(), type(uint96).max);
-        deal(address(instrument.quoteData.token), env.balancer(), type(uint96).max);
     }
 
     // Borrow 6k, Sell 6k for ~6 ETH
@@ -47,7 +45,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Borrow 6k, Sell 10k for ~10 ETH
@@ -62,7 +60,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Borrow 4k, Sell 4k for ~4 ETH
@@ -70,7 +68,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
         Currency cashflowCcy = Currency.None;
         (TSQuote memory quote, PositionId positionId,) = _initialPosition();
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
 
         quote = positionActions.quoteWithCashflow({ positionId: positionId, quantity: 4 ether, cashflow: 0, cashflowCcy: cashflowCcy });
 
@@ -78,7 +76,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 1k for ~1 ETH
@@ -93,7 +91,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Scenario 05 is just adding/removing quote, no swap = no slippage check
@@ -112,7 +110,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 2 ETH for ~2k, repay debt with the proceeds
@@ -129,7 +127,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4k for ~4 ETH but only borrow what the trader's not paying for (borrow 1k)
@@ -144,7 +142,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4k for ~4 ETH, no changes on debt
@@ -159,7 +157,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4k for ~4 ETH & repay debt with 2k excess cashflow
@@ -169,14 +167,14 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         skip(1 seconds);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
 
         quote = positionActions.quoteWithCashflow({ positionId: positionId, quantity: 4 ether, cashflow: 6000e6, cashflowCcy: cashflowCcy });
 
         (bool success, bytes memory data) = _movePriceUpAndTrade(positionId, quote, cashflowCcy);
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Scenario 11 is just adding/removing quote, no swap = no slippage check
@@ -193,7 +191,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 3k for ~3 ETH, Withdraw 2, Lend ~1 (take 3k new debt)
@@ -208,7 +206,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4k for ~4 ETH, Withdraw 1k (take 5k new debt)
@@ -223,7 +221,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 1k for ~1 ETH, Withdraw 2k (take 3k new debt)
@@ -238,7 +236,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4 ETH for ~4k, repay debt with proceeds
@@ -255,7 +253,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 5 ETH for ~5k, repay debt with proceeds
@@ -272,7 +270,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4 ETH for ~4k, repay debt worth ~5k
@@ -289,7 +287,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 1 ETH for ~1k, withdraw 3 ETH, repay ~1k
@@ -306,7 +304,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Borrow 1k, Sell 1k for ~1 ETH, withdraw ~2 ETH
@@ -323,7 +321,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4 ETH for ~4k, repay ~1k debt, withdraw 3k
@@ -340,7 +338,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 1 ETH for ~1k, take ~1k debt, withdraw 2k
@@ -357,7 +355,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 6 ETH for ~6k, repay 6k, withdraw 4 ETH
@@ -375,7 +373,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 10 ETH for ~10k, repay 6k, withdraw ~4k
@@ -391,7 +389,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Borrow 2k, Sell 2k for ~2 ETH, withdraw ~2 ETH
@@ -408,7 +406,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Scenario 26 is just adding/removing quote, no swap = no slippage check
@@ -426,7 +424,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 5k for ~5 ETH but only borrow what the trader's not paying for (borrow 4k)
@@ -441,7 +439,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceAboveLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 3 ETH for ~3k, withdraw 1 ETH, repay ~3k
@@ -458,7 +456,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4 ETH for ~4k, repay ~3k debt, withdraw 1k
@@ -475,7 +473,7 @@ contract PositionSlippageFunctional is BaseTest, IContangoErrors {
 
         _assertPriceBelowLimit(success, data, quote);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // ============================ HELPERS ============================

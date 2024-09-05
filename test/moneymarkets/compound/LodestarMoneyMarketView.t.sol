@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../Mock.sol";
 import "../../TestSetup.t.sol";
@@ -21,7 +21,6 @@ contract LodestarMoneyMarketViewTest is Test {
     MoneyMarketId internal constant mm = MM_LODESTAR;
 
     address internal rewardsToken;
-    address internal arbToken;
 
     // Fees are 0.1% so the numbers are slightly off
     uint256 internal constant TOLERANCE = 0.01e18;
@@ -34,7 +33,6 @@ contract LodestarMoneyMarketViewTest is Test {
 
         sut = CompoundMoneyMarketView(address(env.contangoLens().moneyMarketView(mm)));
         rewardsToken = address(env.compoundComptroller().getCompAddress());
-        arbToken = address(LodestarMoneyMarketView(address(sut)).arbToken());
         comptroller = env.compoundComptroller();
 
         instrument = env.createInstrument(env.erc20(WETH), env.erc20(USDC));
@@ -281,22 +279,10 @@ contract LodestarMoneyMarketViewTest is Test {
         skip(15 days);
         vm.roll(block.number + 15 * 24 * 60 * 60 / 12);
 
-        // Simulate an airdrop of 10 ARB
-        deal(arbToken, address(contango.positionFactory().moneyMarket(positionId)), 10e18);
-
         (Reward[] memory borrowing, Reward[] memory lending) = sut.rewards(positionId);
 
         assertEq(borrowing.length, 1, "Borrow rewards length");
-        assertEq(lending.length, 2, "Lend rewards length");
-
-        assertEq(address(lending[0].token.token), arbToken, "Lend reward[0] token");
-        assertEq(lending[0].token.name, "Arbitrum", "Lend reward[0] name");
-        assertEq(lending[0].token.symbol, "ARB", "Lend reward[0] symbol");
-        assertEq(lending[0].token.decimals, 18, "Lend reward[0] decimals");
-        assertEq(lending[0].token.unit, 1e18, "Lend reward[0] unit");
-        assertEqDecimal(lending[0].rate, 0, lending[0].token.decimals, "Lend reward[0] rate");
-        assertEqDecimal(lending[0].claimable, 10e18, lending[0].token.decimals, "Lend reward[0] claimable");
-        assertEqDecimal(lending[0].usdPrice, 1.57497219e18, 18, "Lend reward[0] usdPrice");
+        assertEq(lending.length, 1, "Lend rewards length");
 
         assertEq(address(borrowing[0].token.token), rewardsToken, "Borrow reward[0] token");
         assertEq(borrowing[0].token.name, "Lodestar", "Borrow reward[0] name");
@@ -307,22 +293,21 @@ contract LodestarMoneyMarketViewTest is Test {
         assertEqDecimal(borrowing[0].claimable, 244.749177770556468575e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
         assertEqDecimal(borrowing[0].usdPrice, 0.069799336764938e18, 18, "Borrow reward[0] usdPrice");
 
-        assertEq(address(lending[1].token.token), rewardsToken, "Lend reward[1] token");
-        assertEq(lending[1].token.name, "Lodestar", "Lend reward[1] name");
-        assertEq(lending[1].token.symbol, "LODE", "Lend reward[1] symbol");
-        assertEq(lending[1].token.decimals, 18, "Lend reward[1] decimals");
-        assertEq(lending[1].token.unit, 1e18, "Lend reward[1] unit");
-        assertEqDecimal(lending[1].rate, 0.016890434998734378e18, lending[1].token.decimals, "Lend reward[1] rate");
-        assertEqDecimal(lending[1].claimable, 288.777153511697578182e18, lending[1].token.decimals, "Lend reward[1] claimable");
-        assertEqDecimal(lending[1].usdPrice, 0.069799336764938e18, 18, "Lend reward[1] usdPrice");
+        assertEq(address(lending[0].token.token), rewardsToken, "Lend reward[0] token");
+        assertEq(lending[0].token.name, "Lodestar", "Lend reward[0] name");
+        assertEq(lending[0].token.symbol, "LODE", "Lend reward[0] symbol");
+        assertEq(lending[0].token.decimals, 18, "Lend reward[0] decimals");
+        assertEq(lending[0].token.unit, 1e18, "Lend reward[0] unit");
+        assertEqDecimal(lending[0].rate, 0.016890434998734378e18, lending[0].token.decimals, "Lend reward[0] rate");
+        assertEqDecimal(lending[0].claimable, 288.777153511697578182e18, lending[0].token.decimals, "Lend reward[0] claimable");
+        assertEqDecimal(lending[0].usdPrice, 0.069799336764938e18, 18, "Lend reward[0] usdPrice");
 
         address recipient = makeAddr("bank");
         vm.prank(TRADER);
         contango.claimRewards(positionId, recipient);
-        assertEqDecimal(IERC20(arbToken).balanceOf(recipient), lending[0].claimable, IERC20(arbToken).decimals(), "Claimed ARB rewards");
         assertEqDecimal(
             IERC20(rewardsToken).balanceOf(recipient),
-            borrowing[0].claimable + lending[1].claimable,
+            borrowing[0].claimable + lending[0].claimable,
             IERC20(rewardsToken).decimals(),
             "Claimed LODE rewards"
         );

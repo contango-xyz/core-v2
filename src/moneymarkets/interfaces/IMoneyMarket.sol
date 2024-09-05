@@ -8,8 +8,16 @@ import { PositionId, MoneyMarketId } from "../../libraries/DataTypes.sol";
 
 interface IMoneyMarket is IERC165 {
 
+    event Borrowed(PositionId indexed positionId, IERC20 indexed asset, uint256 amount);
+    event Lent(PositionId indexed positionId, IERC20 indexed asset, uint256 amount);
+    event Repaid(PositionId indexed positionId, IERC20 indexed asset, uint256 amount);
+    event Withdrawn(PositionId indexed positionId, IERC20 indexed asset, uint256 amount);
+    event RewardsClaimed(PositionId indexed positionId, address to);
+    event Retrieved(PositionId indexed positionId, IERC20 indexed token, uint256 amount);
+
     error InvalidMoneyMarketId();
-    error RewardsNotImplemented();
+    error InvalidPositionId(PositionId positionId);
+    error TokenCantBeRetrieved(IERC20 token);
 
     /// @dev indicates whether the money market requires an underlying account to be created
     /// if true, the money market must be cloned to create an underlying position
@@ -31,5 +39,9 @@ interface IMoneyMarket is IERC165 {
     function claimRewards(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset, address to) external;
 
     function collateralBalance(PositionId positionId, IERC20 asset) external returns (uint256 balance);
+
+    function debtBalance(PositionId positionId, IERC20 asset) external returns (uint256 balance);
+
+    function retrieve(PositionId positionId, IERC20 token) external returns (uint256 amount);
 
 }

@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -60,16 +60,20 @@ contract UniswapPoolStub {
 
         (amount0, amount1) = _calculateSwap(zeroForOne, amountSpecified, price);
 
+        function(int256, int256, bytes memory) external callback = IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback;
+        if (block.chainid == 56) callback = IUniswapV3SwapCallback(msg.sender).pancakeV3SwapCallback;
+        if (block.chainid == 534_352) callback = IUniswapV3SwapCallback(msg.sender).ramsesV2SwapCallback;
+
         if (amount0 < 0) {
             token0.safeTransfer(recipient, uint256(-amount0));
             uint256 expected = token1.balanceOf(address(this)) + uint256(amount1);
-            IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
+            callback(amount0, amount1, data);
             uint256 actual = token1.balanceOf(address(this));
             _validateRepayment(actual, expected);
         } else {
             token1.safeTransfer(recipient, uint256(-amount1));
             uint256 expected = token0.balanceOf(address(this)) + uint256(amount0);
-            IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
+            callback(amount0, amount1, data);
             uint256 actual = token0.balanceOf(address(this));
             _validateRepayment(actual, expected);
         }

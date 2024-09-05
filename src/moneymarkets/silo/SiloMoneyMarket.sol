@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -25,9 +25,8 @@ contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
         ISiloIncentivesController _incentivesController,
         ISilo _wstEthSilo,
         IERC20 _weth,
-        IERC20 _stablecoin,
-        IERC20 _arb
-    ) BaseMoneyMarket(MM_SILO, _contango) SiloBase(_lens, _incentivesController, _wstEthSilo, _weth, _stablecoin, _arb) { }
+        IERC20 _stablecoin
+    ) BaseMoneyMarket(MM_SILO, _contango) SiloBase(_lens, _incentivesController, _wstEthSilo, _weth, _stablecoin) { }
 
     function _initialise(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal virtual override {
         if (!positionId.isPerp()) revert InvalidExpiry();
@@ -42,7 +41,7 @@ contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
         balance = lens.collateralBalanceOfUnderlying(silo, asset, address(this));
     }
 
-    function _debtBalance(PositionId, IERC20 asset) internal virtual returns (uint256 balance) {
+    function _debtBalance(PositionId, IERC20 asset) internal virtual override returns (uint256 balance) {
         silo.accrueInterest(asset);
         balance = lens.getBorrowAmount(silo, asset, address(this), block.timestamp);
     }
@@ -87,7 +86,6 @@ contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
             ? silo.assetStorage(collateralAsset).collateralOnlyToken
             : silo.assetStorage(collateralAsset).collateralToken;
         incentivesController.claimRewards(toArray(collateralToken, silo.assetStorage(debtAsset).debtToken), type(uint256).max, to);
-        if (address(arb) != address(0)) arb.transferBalance(to);
     }
 
 }

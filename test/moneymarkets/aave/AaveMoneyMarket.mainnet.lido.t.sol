@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "../../Mock.sol";
 import "../../TestSetup.t.sol";
 
-contract AaveV2MoneyMarketMainnetTest is Test {
+contract AaveMoneyMarketMainnetLidoTest is Test {
 
     using Address for *;
     using ERC20Lib for *;
@@ -19,27 +19,27 @@ contract AaveV2MoneyMarketMainnetTest is Test {
 
     function setUp() public {
         env = provider(Network.Mainnet);
-        env.init();
+        env.init(20_420_912);
 
         contango = address(env.contango());
 
-        sut = env.deployer().deployAaveV2MoneyMarket(env, IContango(contango));
+        sut = env.deployer().deployAaveLidoMoneyMarket(env, IContango(contango));
         pool = AaveMoneyMarketView(address(sut)).pool();
-        env.createInstrument(env.erc20(WETH), env.erc20(DAI));
+        env.createInstrument(env.erc20(WSTETH), env.erc20(WETH));
 
-        positionId = env.encoder().encodePositionId(Symbol.wrap("WETHDAI"), MM_AAVE_V2, PERP, 1);
+        positionId = env.encoder().encodePositionId(Symbol.wrap("WSTETHETH"), MM_AAVE_LIDO, PERP, 1);
         vm.startPrank(contango);
-        sut.initialise(positionId, env.token(WETH), env.token(DAI));
+        sut.initialise(positionId, env.token(WSTETH), env.token(WETH));
         vm.stopPrank();
 
-        stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
-        stubChainlinkPrice(1e8, address(env.erc20(DAI).chainlinkUsdOracle));
+        stubChainlinkPrice(1000e8, address(env.erc20(WSTETH).chainlinkUsdOracle));
+        stubChainlinkPrice(1e8, address(env.erc20(WETH).chainlinkUsdOracle));
     }
 
     function testMoneyMarketPermissions() public {
         address hacker = address(0x666);
 
-        IERC20 borrowToken = env.token(DAI);
+        IERC20 borrowToken = env.token(WETH);
 
         vm.prank(hacker);
         vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, hacker));
@@ -47,11 +47,11 @@ contract AaveV2MoneyMarketMainnetTest is Test {
     }
 
     function testInitialise_InvalidExpiry() public {
-        IERC20 lendToken = env.token(WETH);
-        IERC20 borrowToken = env.token(DAI);
+        IERC20 lendToken = env.token(WSTETH);
+        IERC20 borrowToken = env.token(WETH);
 
-        sut = env.deployer().deployAaveV2MoneyMarket(env, IContango(contango));
-        positionId = env.encoder().encodePositionId(Symbol.wrap("WETHDAI"), MM_AAVE_V2, PERP - 1, 1);
+        sut = env.deployer().deployAaveLidoMoneyMarket(env, IContango(contango));
+        positionId = env.encoder().encodePositionId(Symbol.wrap("WSTETHETH"), MM_AAVE_LIDO, PERP - 1, 1);
 
         vm.expectRevert(InvalidExpiry.selector);
         vm.prank(contango);
@@ -59,11 +59,11 @@ contract AaveV2MoneyMarketMainnetTest is Test {
     }
 
     function testInitialise_InvalidMoneyMarketId() public {
-        IERC20 lendToken = env.token(WETH);
-        IERC20 borrowToken = env.token(DAI);
+        IERC20 lendToken = env.token(WSTETH);
+        IERC20 borrowToken = env.token(WETH);
 
-        sut = env.deployer().deployAaveV2MoneyMarket(env, IContango(contango));
-        positionId = env.encoder().encodePositionId(Symbol.wrap("WETHDAI"), MM_COMPOUND, PERP, 1);
+        sut = env.deployer().deployAaveLidoMoneyMarket(env, IContango(contango));
+        positionId = env.encoder().encodePositionId(Symbol.wrap("WSTETHETH"), MM_EXACTLY, PERP, 1);
 
         vm.expectRevert(IMoneyMarket.InvalidMoneyMarketId.selector);
         vm.prank(contango);
@@ -71,25 +71,26 @@ contract AaveV2MoneyMarketMainnetTest is Test {
     }
 
     function testInitialise_NoEMode() public {
-        IERC20 lendToken = env.token(WETH);
-        IERC20 borrowToken = env.token(DAI);
+        IERC20 lendToken = env.token(WSTETH);
+        IERC20 borrowToken = env.token(WETH);
 
-        sut = env.deployer().deployAaveV2MoneyMarket(env, IContango(contango));
+        sut = env.deployer().deployAaveLidoMoneyMarket(env, IContango(contango));
 
         vm.prank(contango);
         sut.initialise(positionId, lendToken, borrowToken);
 
         assertEq(lendToken.allowance(address(sut), address(pool)), type(uint256).max, "lendToken allowance");
         assertEq(borrowToken.allowance(address(sut), address(pool)), type(uint256).max, "borrowToken allowance");
+        assertEq(pool.getUserEMode(address(sut)), 0, "eMode");
     }
 
     function testLifeCycle_HP() public {
         // setup
-        IERC20 lendToken = env.token(WETH);
-        IERC20 borrowToken = env.token(DAI);
+        IERC20 lendToken = env.token(WSTETH);
+        IERC20 borrowToken = env.token(WETH);
 
         uint256 lendAmount = 10 ether;
-        uint256 borrowAmount = 1000e18;
+        uint256 borrowAmount = 1000e6;
 
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
@@ -106,18 +107,18 @@ contract AaveV2MoneyMarketMainnetTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = sut.debtBalance(positionId, borrowToken);
+        uint256 debt = debtBalance(borrowToken, address(sut));
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -131,11 +132,11 @@ contract AaveV2MoneyMarketMainnetTest is Test {
 
     function testLifeCycle_RepayInExcess() public {
         // setup
-        IERC20 lendToken = env.token(WETH);
-        IERC20 borrowToken = env.token(DAI);
+        IERC20 lendToken = env.token(WSTETH);
+        IERC20 borrowToken = env.token(WETH);
 
         uint256 lendAmount = 10 ether;
-        uint256 borrowAmount = 1000e18;
+        uint256 borrowAmount = 1000e6;
 
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
@@ -152,18 +153,18 @@ contract AaveV2MoneyMarketMainnetTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = sut.debtBalance(positionId, borrowToken);
+        uint256 debt = debtBalance(borrowToken, address(sut));
         env.dealAndApprove(borrowToken, contango, debt * 2, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt * 2);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -175,20 +176,13 @@ contract AaveV2MoneyMarketMainnetTest is Test {
         assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
     }
 
-    function testRepayEmptyPosition() public {
-        IERC20 borrowToken = env.token(DAI);
-        env.dealAndApprove(borrowToken, contango, 10e18, address(sut));
-        vm.prank(contango);
-        sut.repay(positionId, borrowToken, 10e18);
-    }
-
     function testLifeCycle_PartialRepayWithdraw() public {
         // setup
-        IERC20 lendToken = env.token(WETH);
-        IERC20 borrowToken = env.token(DAI);
+        IERC20 lendToken = env.token(WSTETH);
+        IERC20 borrowToken = env.token(WETH);
 
         uint256 lendAmount = 10 ether;
-        uint256 borrowAmount = 1000e18;
+        uint256 borrowAmount = 1000e6;
 
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
@@ -205,18 +199,18 @@ contract AaveV2MoneyMarketMainnetTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = sut.debtBalance(positionId, borrowToken);
+        uint256 debt = debtBalance(borrowToken, address(sut));
         env.dealAndApprove(borrowToken, contango, debt / 4, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt / 4);
 
         assertEq(repaid, debt / 4, "repaid half debt");
-        assertApproxEqAbsDecimal(sut.debtBalance(positionId, borrowToken), debt / 4 * 3, 5, borrowToken.decimals(), "debt is 3/4");
+        assertApproxEqAbsDecimal(debtBalance(borrowToken, address(sut)), debt / 4 * 3, 5, borrowToken.decimals(), "debt is 3/4");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -232,11 +226,11 @@ contract AaveV2MoneyMarketMainnetTest is Test {
 
     function testLifeCycle_FlashBorrow() public {
         // setup
-        IERC20 lendToken = env.token(WETH);
-        IERC20 borrowToken = env.token(DAI);
+        IERC20 lendToken = env.token(WSTETH);
+        IERC20 borrowToken = env.token(WETH);
 
         uint256 lendAmount = 10 ether;
-        uint256 borrowAmount = 1000e18;
+        uint256 borrowAmount = 1000e6;
 
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
@@ -253,18 +247,18 @@ contract AaveV2MoneyMarketMainnetTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = sut.debtBalance(positionId, borrowToken);
+        uint256 debt = debtBalance(borrowToken, address(sut));
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -306,6 +300,10 @@ contract AaveV2MoneyMarketMainnetTest is Test {
     function testIERC165() public view {
         assertTrue(sut.supportsInterface(type(IMoneyMarket).interfaceId), "IMoneyMarket");
         assertTrue(sut.supportsInterface(type(IFlashBorrowProvider).interfaceId), "IFlashBorrowProvider");
+    }
+
+    function debtBalance(IERC20 asset, address account) internal view returns (uint256) {
+        return pool.getReserveData(asset).variableDebtTokenAddress.balanceOf(account);
     }
 
 }

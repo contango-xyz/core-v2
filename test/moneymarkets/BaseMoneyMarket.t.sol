@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../TestSetup.t.sol";
 
@@ -76,5 +76,7 @@ contract FooMoneyMarket is BaseMoneyMarket {
     function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) { }
 
     function _collateralBalance(PositionId positionId, IERC20 asset) internal override returns (uint256 balance) { }
+
+    function _debtBalance(PositionId positionId, IERC20 asset) internal override returns (uint256 balance) { }
 
 }

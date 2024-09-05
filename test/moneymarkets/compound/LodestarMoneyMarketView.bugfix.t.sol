@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../TestSetup.t.sol";
 
@@ -31,8 +31,6 @@ contract LodestarMoneyMarketViewBugfixTest is Test {
                     _contango: IContango(0x6Cae28b3D09D8f8Fc74ccD496AC986FC84C0C24E),
                     _reverseLookup: CompoundReverseLookup(0xB3863D03938eAD437E3f136778531DcB89F29EaD),
                     _rewardsTokenOracle: address(0x49bB23DfAe944059C2403BCc255c5a9c0F851a8D),
-                    _arbOracle: IAggregatorV2V3(0xb2A824043730FE05F3DA2efaFa1CBbe83fa548D6),
-                    _arbToken: IERC20(0x912CE59144191C1204E64559FE8253a0e49E6548),
                     _nativeUsdOracle: IAggregatorV2V3(0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612)
                 })
             ).code
@@ -42,8 +40,7 @@ contract LodestarMoneyMarketViewBugfixTest is Test {
         assertEq(borrowingAfter.length, 1, "borrowingAfter.length");
         assertRewards(borrowingBefore[1], borrowingAfter[0], "borrowingAfter[0]");
 
-        assertEq(lendingAfter.length, lendingBefore.length, "lendingAfter.length");
-        assertRewards(lendingBefore[1], lendingAfter[1], "lendingAfter[1]");
+        assertEq(lendingAfter.length, 1, "lendingAfter.length");
     }
 
     function assertRewards(Reward memory rewardBefore, Reward memory rewardAfter, string memory label) internal pure {

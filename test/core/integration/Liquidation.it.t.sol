@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../BaseTest.sol";
 import "src/moneymarkets/Liquidations.sol";
@@ -57,8 +57,6 @@ abstract contract Liquidation is BaseTest, Liquidations {
 
         deal(address(instrument.baseData.token), poolAddress, type(uint96).max);
         deal(address(instrument.quoteData.token), poolAddress, type(uint96).max);
-        deal(address(instrument.baseData.token), env.balancer(), type(uint96).max);
-        deal(address(instrument.quoteData.token), env.balancer(), type(uint96).max);
     }
 
     function _movePrice(int256 percentage) internal virtual {
@@ -155,7 +153,7 @@ contract AaveV2Liquidation is AbstractAaveV2Liquidation {
 
     function setUp() public {
         setUp(Network.Mainnet, MM_AAVE_V2, WETH, USDC);
-        env.spotStub().stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
+        stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
     }
 
     function _movePrice(int256 percentage) internal override {

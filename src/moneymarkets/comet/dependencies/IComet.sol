@@ -97,6 +97,8 @@ interface IComet {
     function baseBorrowMin() external view returns (uint256);
     function baseMinForRewards() external view returns (uint256);
     function baseScale() external view returns (uint256);
+    function baseIndexScale() external view returns (uint256);
+    function baseAccrualScale() external view returns (uint256);
     function baseToken() external view returns (IERC20);
     function baseTokenPriceFeed() external view returns (address);
     function baseTrackingBorrowSpeed() external view returns (uint256);
@@ -107,6 +109,7 @@ interface IComet {
     function borrowPerSecondInterestRateSlopeHigh() external view returns (uint256);
     function borrowPerSecondInterestRateSlopeLow() external view returns (uint256);
     function buyCollateral(IERC20 asset, uint256 minAmount, uint256 baseAmount, address recipient) external;
+    function collateralBalanceOf(address, IERC20) external view returns (uint256);
     function decimals() external view returns (uint8);
     function extensionDelegate() external view returns (address);
     function getAssetInfo(uint8 i) external view returns (AssetInfo memory);

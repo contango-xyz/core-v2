@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "src/models/FixedFeeModel.sol";
 
@@ -135,7 +135,7 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
 
     function testCallbackPermissions() public {
         Contango.FlashLoanCallback memory cb;
-        cb.ep.flashLoanProvider = env.balancerFLP();
+        cb.ep.flashLoanProvider = new TestFLP();
         cb.positionId = env.encoder().encodePositionId(WETHUSDC, MM_AAVE, PERP, 1);
 
         vm.expectRevert(abi.encodeWithSelector(UnexpectedCallback.selector));
@@ -184,7 +184,7 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
         });
         env.dealAndApprove(instrument.base, TRADER, uint256(quote.cashflowUsed), address(env.vault()));
 
-        IERC7399 flp = new BadFLP(env.balancerFLP());
+        IERC7399 flp = new BadFLP(new TestFLP());
         quote.execParams.flashLoanProvider = flp;
 
         vm.prank(TRADER);

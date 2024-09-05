@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import { UD60x18, ud, UNIT } from "@prb/math/src/UD60x18.sol";
 
@@ -132,7 +132,14 @@ abstract contract BaseMoneyMarketView is IMoneyMarketView {
     function _balances(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
         internal
         virtual
-        returns (Balances memory balances_);
+        returns (Balances memory balances_)
+    {
+        if (positionId.getNumber() > 0) {
+            IMoneyMarket mm = IMoneyMarket(_account(positionId));
+            balances_.collateral = mm.collateralBalance(positionId, collateralAsset);
+            balances_.debt = mm.debtBalance(positionId, debtAsset);
+        }
+    }
 
     function _prices(PositionId, IERC20 collateralAsset, IERC20 debtAsset) internal view virtual returns (Prices memory prices_) {
         prices_.collateral = _oraclePrice(collateralAsset);

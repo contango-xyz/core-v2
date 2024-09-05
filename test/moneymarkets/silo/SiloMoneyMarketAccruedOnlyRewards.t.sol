@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../TestSetup.t.sol";
 import "../utils.t.sol";
@@ -30,7 +30,6 @@ contract SiloMoneyMarketAccruedOnlyRewardsTest is Test {
         ISilo wstEthSilo = ISilo(0xA8897b4552c075e884BDB8e7b704eB10DB29BF0D);
         IWETH9 weth = IWETH9(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
         IERC20 stablecoin = IERC20(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
-        IERC20 arb = IERC20(0x912CE59144191C1204E64559FE8253a0e49E6548);
 
         SiloMoneyMarketView mmv = new SiloMoneyMarketView(
             contango,
@@ -39,8 +38,7 @@ contract SiloMoneyMarketAccruedOnlyRewardsTest is Test {
             siloLens,
             incentivesController,
             wstEthSilo,
-            stablecoin,
-            arb
+            stablecoin
         );
 
         vm.startPrank(TIMELOCK_ADDRESS);

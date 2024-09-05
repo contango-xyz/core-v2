@@ -2,6 +2,7 @@
 pragma solidity ^0.8.10;
 
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+import { IAggregatorV2V3 } from "../../../dependencies/Chainlink.sol";
 
 interface IAaveRewardsController {
 
@@ -48,7 +49,7 @@ interface IAaveRewardsController {
     function getClaimer(address user) external view returns (address);
     function getDistributionEnd(address asset, address reward) external view returns (uint256);
     function getEmissionManager() external view returns (address);
-    function getRewardOracle(address reward) external view returns (address);
+    function getRewardOracle(IERC20 reward) external view returns (IAggregatorV2V3);
     function getRewardsByAsset(address asset) external view returns (address[] memory);
     function getRewardsData(address asset, address reward) external view returns (RewardsData memory);
     function getRewardsList() external view returns (address[] memory);

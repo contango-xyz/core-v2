@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "./extensions/PositionIdExt.sol";
 
@@ -37,5 +37,11 @@ using {
 type OrderId is bytes32;
 
 type MoneyMarketId is uint8;
+
+function mmEquals(MoneyMarketId a, MoneyMarketId b) pure returns (bool) {
+    return MoneyMarketId.unwrap(a) == MoneyMarketId.unwrap(b);
+}
+
+using { mmEquals as == } for MoneyMarketId global;
 
 type Timelock is address;

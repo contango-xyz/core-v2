@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import { ISolidlyPool } from "../../dependencies/Solidly.sol";
 import "./CompoundMoneyMarketView.sol";
@@ -8,20 +8,9 @@ import { MM_LODESTAR } from "script/constants.sol";
 
 contract LodestarMoneyMarketView is CompoundMoneyMarketView {
 
-    IAggregatorV2V3 public immutable arbOracle;
-    IERC20 public immutable arbToken;
-
-    constructor(
-        IContango _contango,
-        CompoundReverseLookup _reverseLookup,
-        address _rewardsTokenOracle,
-        IAggregatorV2V3 _arbOracle,
-        IERC20 _arbToken,
-        IAggregatorV2V3 _nativeUsdOracle
-    ) CompoundMoneyMarketView(MM_LODESTAR, "Lodestar", _contango, _reverseLookup, _rewardsTokenOracle, _nativeUsdOracle) {
-        arbOracle = _arbOracle;
-        arbToken = _arbToken;
-    }
+    constructor(IContango _contango, CompoundReverseLookup _reverseLookup, address _rewardsTokenOracle, IAggregatorV2V3 _nativeUsdOracle)
+        CompoundMoneyMarketView(MM_LODESTAR, "Lodestar", _contango, _reverseLookup, _rewardsTokenOracle, _nativeUsdOracle)
+    { }
 
     function _oraclePrice(IERC20 asset) internal view virtual override returns (uint256) {
         uint256 price = IPriceOracleProxyETH(comptroller.oracle()).getUnderlyingPrice(_cToken(asset));
@@ -67,24 +56,11 @@ contract LodestarMoneyMarketView is CompoundMoneyMarketView {
         returns (Reward[] memory borrowing, Reward[] memory lending)
     {
         Reward memory reward;
-
-        uint256 claimable = arbToken.balanceOf(_account(positionId));
-        Reward memory arbRewards;
-        if (claimable > 0) {
-            arbRewards.token = _asTokenData(arbToken);
-            arbRewards.usdPrice = uint256(arbOracle.latestAnswer()) * 10 ** (arbToken.decimals() - 8);
-            arbRewards.claimable = claimable;
-        }
-
         reward = _asRewards(positionId, collateralAsset, false);
-        uint256 length;
-        if (arbRewards.claimable > 0) length++;
-        if (reward.rate > 0) length++;
-
-        lending = new Reward[](length);
-        length = 0;
-        if (arbRewards.claimable > 0) lending[length++] = arbRewards;
-        if (reward.rate > 0) lending[length++] = reward;
+        if (reward.rate > 0) {
+            lending = new Reward[](1);
+            lending[0] = reward;
+        }
 
         reward = _asRewards(positionId, debtAsset, true);
         if (reward.rate > 0) {

@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../BaseTest.sol";
 
@@ -63,6 +63,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
     uint256 internal price;
     uint256 internal spread;
     uint256 internal multiplier;
+    uint24 uniswapFee = 500;
 
     function setUp(Network network, MoneyMarketId _mm, bytes32 base, bytes32 quote, uint256 _multiplier) internal virtual {
         setUp(network, forkBlock(network), _mm, base, quote, _multiplier);
@@ -92,7 +93,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             quote: instrument.quoteData,
             baseUsdPrice: int256(multiplier > MULTIPLIER_UNIT ? DEFAULT_ORACLE_UNIT : DEFAULT_ORACLE_UNIT.mulDiv(MULTIPLIER_UNIT, multiplier)),
             quoteUsdPrice: int256(multiplier < MULTIPLIER_UNIT ? DEFAULT_ORACLE_UNIT : DEFAULT_ORACLE_UNIT.mulDiv(multiplier, MULTIPLIER_UNIT)),
-            uniswapFee: 500
+            uniswapFee: uniswapFee
         });
 
         poolStub = UniswapPoolStub(poolAddress);
@@ -100,8 +101,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         deal(address(instrument.baseData.token), poolAddress, type(uint96).max);
         deal(address(instrument.quoteData.token), poolAddress, type(uint96).max);
-        deal(address(instrument.baseData.token), env.balancer(), type(uint96).max);
-        deal(address(instrument.quoteData.token), env.balancer(), type(uint96).max);
     }
 
     // Borrow 6k, Sell 6k for ~6 ETH
@@ -138,7 +137,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Borrow 6k, Sell 10k for ~10 ETH
@@ -175,7 +174,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Borrow 4k, Sell 4k for ~4 ETH
@@ -214,7 +213,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 1k for ~1 ETH
@@ -252,7 +251,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Just lend 4 ETH, no spot trade needed
@@ -290,7 +289,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Lend 4 ETH & Sell 2 ETH, repay debt with the proceeds
@@ -328,7 +327,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 2 ETH for ~2k, repay debt with the proceeds
@@ -361,7 +360,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Modify);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4k for ~4 ETH but only borrow what the trader's not paying for (borrow 1k)
@@ -399,7 +398,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4k for ~4 ETH, no changes on debt
@@ -438,7 +437,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4k for ~4 ETH & repay debt with 2k excess cashflow
@@ -479,7 +478,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Repay debt with cashflow
@@ -514,7 +513,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Modify);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4.1k for ~4.1 ETH, Withdraw 0.1, Lend ~4 (take 4.1k new debt)
@@ -557,7 +556,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), inputs.cashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 2.1k for ~2.1 ETH, Withdraw 1.1, Lend ~1 (take 2.1k new debt)
@@ -600,7 +599,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), inputs.cashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4k for ~4 ETH, Withdraw 100 (take 4.1k new debt)
@@ -643,7 +642,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), inputs.cashflow.abs(), "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 1k for ~1 ETH, Withdraw 1.1k (take 2.1k new debt)
@@ -686,7 +685,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), inputs.cashflow.abs(), "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4 ETH for ~4k, repay debt with proceeds
@@ -727,9 +726,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Close);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(
-            instrument, positionId, quote.execParams.flashLoanProvider, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD)
-        );
+        env.checkInvariants(instrument, positionId, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD));
     }
 
     // Sell 5 ETH for ~5k, repay debt with proceeds
@@ -770,9 +767,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Close);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(
-            instrument, positionId, quote.execParams.flashLoanProvider, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD)
-        );
+        env.checkInvariants(instrument, positionId, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD));
     }
 
     // Sell 4 ETH for ~4k, repay debt worth ~5k
@@ -813,9 +808,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Close);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(
-            instrument, positionId, quote.execParams.flashLoanProvider, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD)
-        );
+        env.checkInvariants(instrument, positionId, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD));
     }
 
     // Sell 2.5 ETH for ~2.5k, withdraw 1.5 ETH, repay ~2.5k
@@ -861,7 +854,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Borrow 200, Sell 200 for ~0.2 ETH, withdraw ~1.2 ETH
@@ -906,7 +899,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4 ETH for ~4k, repay ~2.5k debt, withdraw 1.5k
@@ -950,9 +943,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), inputs.cashflow.abs(), "trader quote balance");
 
-        env.checkInvariants(
-            instrument, positionId, quote.execParams.flashLoanProvider, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD)
-        );
+        env.checkInvariants(instrument, positionId, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD));
     }
 
     // Sell 1 ETH for ~1k, take ~200 debt, withdraw 1.2k
@@ -996,9 +987,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), inputs.cashflow.abs(), "trader quote balance");
 
-        env.checkInvariants(
-            instrument, positionId, quote.execParams.flashLoanProvider, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD)
-        );
+        env.checkInvariants(instrument, positionId, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD));
     }
 
     // Sell 6 ETH for ~6k, repay ~6k, withdraw 4 ETH
@@ -1047,7 +1036,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         // TODO where's the leftover quote?
         assertEqDecimal(instrument.quote.balanceOf(TRADER), 0, instrument.quoteDecimals, "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 10 ETH for ~10k, repay 6k, withdraw ~4k
@@ -1098,7 +1087,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         env.checkInvariants(
             instrument,
             positionId,
-            quote.execParams.flashLoanProvider,
             expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD) + (expectations.estimatedFee - expectations.fee)
         );
     }
@@ -1139,7 +1127,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Borrow 1k, withdraw 1k
@@ -1177,7 +1165,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Just withdraw 1 ETH, no spot trade needed
@@ -1223,7 +1211,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4k for ~4 ETH
@@ -1261,7 +1249,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 5k for ~5 ETH but only borrow what the trader's not paying for (borrow 4k)
@@ -1299,7 +1287,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertPosition(positionId, trade, Action.Open);
         _assertTreasuryBalance(expectations.fee);
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 3 ETH for ~3k, withdraw 1 ETH, repay ~3k
@@ -1345,7 +1333,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Sell 4 ETH for ~4k, repay ~3k debt, withdraw 1k
@@ -1389,13 +1377,13 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), inputs.cashflow.abs(), "trader quote balance");
 
-        env.checkInvariants(
-            instrument, positionId, quote.execParams.flashLoanProvider, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD)
-        );
+        env.checkInvariants(instrument, positionId, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD));
     }
 
     // Close 1x position
     function testScenario32() public {
+        uint256 quoteBalance = instrument.quote.balanceOf(TRADER);
+
         FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
         uint256 prevFee = feeModel.defaultFee();
         vm.prank(TIMELOCK_ADDRESS);
@@ -1446,9 +1434,9 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
-        assertEqDecimal(instrument.quote.balanceOf(TRADER), 0, instrument.quoteDecimals, "trader quote balance");
+        assertEqDecimal(instrument.quote.balanceOf(TRADER), quoteBalance, instrument.quoteDecimals, "trader quote balance");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // ============================ HELPERS ============================

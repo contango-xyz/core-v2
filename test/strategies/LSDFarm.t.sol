@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../TestSetup.t.sol";
 
@@ -56,8 +56,8 @@ contract LSDFarmTest is Test, GasSnapshot {
         deal(address(longInstrument.baseData.token), poolAddress, type(uint96).max);
         deal(address(longInstrument.quoteData.token), poolAddress, type(uint96).max);
 
-        env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(1.15e18, 0xe59EBa0D492cA53C6f46015EEa00517F2707dc77); // Lido: Chainlink wstETH-ETH exchange rate
+        stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
+        stubChainlinkPrice(1.15e18, 0xe59EBa0D492cA53C6f46015EEa00517F2707dc77); // Lido: Chainlink wstETH-ETH exchange rate
 
         _longPositionId = env.encoder().encodePositionId(longInstrument.symbol, MM_AAVE, PERP, 0);
         _shortPositionId = env.encoder().encodePositionId(shortInstrument.symbol, MM_SONNE, PERP, 0);
@@ -144,7 +144,7 @@ contract LSDFarmTest is Test, GasSnapshot {
             quoteUsdPrice: 1000e8,
             uniswapFee: 500
         });
-        env.spotStub().stubChainlinkPrice(1.2e18, 0xe59EBa0D492cA53C6f46015EEa00517F2707dc77); // Lido: Chainlink wstETH-ETH exchange rate
+        stubChainlinkPrice(1.2e18, 0xe59EBa0D492cA53C6f46015EEa00517F2707dc77); // Lido: Chainlink wstETH-ETH exchange rate
 
         PositionPermit memory longPermit = env.positionIdPermit2(longPositionId, trader, traderPK, address(sut));
 

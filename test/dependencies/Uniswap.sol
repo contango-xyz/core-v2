@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "src/dependencies/Uniswap.sol";
 
@@ -73,6 +73,9 @@ interface IUniswapV3SwapCallback {
     /// @param data Any data passed through by the caller via the IUniswapV3PoolActions#swap call
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
 
+    function pancakeV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
+    function ramsesV2SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external;
+
 }
 
 /// @dev strip down version of https://github.com/Uniswap/v3-core/blob/864efb5bb57bd8bde4689cfd8f7fd7ddeb100524/contracts/libraries/TickMath.sol
@@ -91,7 +94,9 @@ library TickMath {
 /// @title Provides functions for deriving a pool address from the factory, tokens, and the fee
 library PoolAddress {
 
-    bytes32 internal constant POOL_INIT_CODE_HASH = 0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
+    bytes32 internal constant POOL_INIT_CODE_HASH_UNI = 0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
+    bytes32 internal constant POOL_INIT_CODE_HASH_CAKE = 0x6ce8eb472fa82df5469c6ab6d485f17c3ad13c8cd7af59b3d4a8026c5ce0f7e2;
+    bytes32 internal constant POOL_INIT_CODE_HASH_NURI = 0x1565b129f2d1790f12d45301b9b084335626f0c92410bc43130763b69971135d;
 
     /// @notice The identifying key of the pool
     struct PoolKey {
@@ -114,15 +119,16 @@ library PoolAddress {
     /// @param factory The Uniswap V3 factory contract address
     /// @param key The PoolKey
     /// @return pool The contract address of the V3 pool
-    function computeAddress(address factory, PoolKey memory key) internal pure returns (address pool) {
+    function computeAddress(address factory, PoolKey memory key) internal view returns (address pool) {
         require(key.token0 < key.token1, "Invalid PoolKey");
+        bytes32 initHash = POOL_INIT_CODE_HASH_UNI;
+
+        if (block.chainid == 56) initHash = POOL_INIT_CODE_HASH_CAKE;
+        if (block.chainid == 534_352) initHash = POOL_INIT_CODE_HASH_NURI;
+
         pool = address(
             uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(hex"ff", factory, keccak256(abi.encode(key.token0, key.token1, key.fee)), POOL_INIT_CODE_HASH)
-                    )
-                )
+                uint256(keccak256(abi.encodePacked(hex"ff", factory, keccak256(abi.encode(key.token0, key.token1, key.fee)), initHash)))
             )
         );
     }

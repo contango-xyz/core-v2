@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../Mock.sol";
 import "../../TestSetup.t.sol";
@@ -35,8 +35,8 @@ contract SparkMoneyMarketMainnetUSDCLongTest is Test {
         sut.initialise(positionId, env.token(WETH), env.token(USDC));
         vm.stopPrank();
 
-        env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(DAI).chainlinkUsdOracle));
+        stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
+        stubChainlinkPrice(1e8, address(env.erc20(DAI).chainlinkUsdOracle));
     }
 
     function testInitialise_InvalidExpiry() public {

@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../libraries/ERC20Lib.sol";
 import "../../libraries/Arrays.sol";
@@ -108,6 +108,10 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
 
     function _collateralBalance(PositionId, IERC20 asset) internal override returns (uint256 balance) {
         balance = cToken(asset).balanceOfUnderlying(address(this));
+    }
+
+    function _debtBalance(PositionId, IERC20 asset) internal override returns (uint256 balance) {
+        balance = cToken(asset).borrowBalanceCurrent(address(this));
     }
 
     function cToken(IERC20 asset) public view returns (ICToken) {

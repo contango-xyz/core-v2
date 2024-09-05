@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../AbstractMMV.t.sol";
 
@@ -47,8 +47,6 @@ contract DolomiteMoneyMarketViewIsolationTest is AbstractMarketViewTest {
 
         deal(address(instrument.baseData.token), poolAddress, type(uint96).max);
         deal(address(instrument.quoteData.token), poolAddress, type(uint96).max);
-        deal(address(instrument.baseData.token), env.balancer(), type(uint96).max);
-        deal(address(instrument.quoteData.token), env.balancer(), type(uint96).max);
     }
 
     function _oraclePrecision(uint256 x) internal pure override returns (uint256) {

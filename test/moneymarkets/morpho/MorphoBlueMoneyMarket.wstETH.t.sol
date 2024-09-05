@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../Mock.sol";
 import "../../TestSetup.t.sol";
@@ -59,10 +59,10 @@ contract MorphoBlueMoneyMarketWSTETHTest is Test {
         sut.initialise(positionId, env.token(WSTETH), env.token(WETH));
         vm.stopPrank();
 
-        env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(1150e8, address(env.erc20(WSTETH).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(1.15e18, 0x86392dC19c0b719886221c78AB11eb8Cf5c52812); // stETH / ETH
-        env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(WETH).chainlinkUsdOracle));
+        stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
+        stubChainlinkPrice(1150e8, address(env.erc20(WSTETH).chainlinkUsdOracle));
+        stubChainlinkPrice(1.15e18, 0x86392dC19c0b719886221c78AB11eb8Cf5c52812); // stETH / ETH
+        stubChainlinkPrice(1e8, address(env.erc20(WETH).chainlinkUsdOracle));
     }
 
     function testInitialise_InvalidExpiry() public {
@@ -111,18 +111,20 @@ contract MorphoBlueMoneyMarketWSTETHTest is Test {
         sut.borrow(positionId, borrowToken, borrowAmount, trader);
         assertEqDecimal(borrowToken.balanceOf(trader), borrowAmount, borrowToken.decimals(), "borrowed balance");
 
-        assertApproxEqAbsDecimal(debtBalance(), borrowAmount, 1, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertApproxEqAbsDecimal(
+            sut.debtBalance(positionId, borrowToken), borrowAmount, 1, borrowToken.decimals(), "debtBalance after lend + borrow"
+        );
 
         skip(10 days);
 
         // repay
-        uint256 debt = debtBalance();
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(debtBalance(), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -155,18 +157,20 @@ contract MorphoBlueMoneyMarketWSTETHTest is Test {
         sut.borrow(positionId, borrowToken, borrowAmount, trader);
         assertEqDecimal(borrowToken.balanceOf(trader), borrowAmount, borrowToken.decimals(), "borrowed balance");
 
-        assertApproxEqAbsDecimal(debtBalance(), borrowAmount, 1, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertApproxEqAbsDecimal(
+            sut.debtBalance(positionId, borrowToken), borrowAmount, 1, borrowToken.decimals(), "debtBalance after lend + borrow"
+        );
 
         skip(10 days);
 
         // repay
-        uint256 debt = debtBalance();
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt * 2, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt * 2);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(debtBalance(), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -206,19 +210,21 @@ contract MorphoBlueMoneyMarketWSTETHTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertApproxEqAbsDecimal(debtBalance(), borrowAmount, 1, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertApproxEqAbsDecimal(
+            sut.debtBalance(positionId, borrowToken), borrowAmount, 1, borrowToken.decimals(), "debtBalance after lend + borrow"
+        );
 
         skip(10 days);
 
         // repay
-        uint256 debt = debtBalance();
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt / 4, address(sut));
 
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt / 4);
 
         assertEq(repaid, debt / 4, "repaid half debt");
-        assertApproxEqAbsDecimal(debtBalance(), debt / 4 * 3, 5, borrowToken.decimals(), "debt is 3/4");
+        assertApproxEqAbsDecimal(sut.debtBalance(positionId, borrowToken), debt / 4 * 3, 5, borrowToken.decimals(), "debt is 3/4");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -235,14 +241,6 @@ contract MorphoBlueMoneyMarketWSTETHTest is Test {
     function testIERC165() public view {
         assertTrue(sut.supportsInterface(type(IMoneyMarket).interfaceId), "IMoneyMarket");
         assertFalse(sut.supportsInterface(type(IFlashBorrowProvider).interfaceId), "IFlashBorrowProvider");
-    }
-
-    function debtBalance() internal returns (uint256 debt) {
-        MorphoMarketId marketId = reverseLookup.marketId(positionId.getPayload());
-        MarketParams memory marketParams = morpho.idToMarketParams(marketId);
-        morpho.accrueInterest(marketParams); // Accrue interest before before loading the market state
-        Market memory market = morpho.market(marketId);
-        debt = morpho.position(marketId, address(sut)).borrowShares.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
 }

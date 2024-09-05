@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -72,6 +72,10 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
     function _collateralBalance(PositionId, IERC20 asset) internal view override returns (uint256 balance) {
         IExactlyMarket collateralMarket = reverseLookup.market(asset);
         return collateralMarket.convertToAssets(collateralMarket.balanceOf(address(this)));
+    }
+
+    function _debtBalance(PositionId, IERC20 asset) internal view override returns (uint256 balance) {
+        balance = reverseLookup.market(asset).previewDebt(address(this));
     }
 
 }

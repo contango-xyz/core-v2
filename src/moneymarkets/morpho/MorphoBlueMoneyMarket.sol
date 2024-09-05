@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -14,7 +14,7 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
 
     using SafeERC20 for *;
     using ERC20Lib for *;
-    using SharesMathLib for uint256;
+    using SharesMathLib for *;
 
     bool public constant override NEEDS_ACCOUNT = true;
 
@@ -41,6 +41,14 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
 
     function _collateralBalance(PositionId positionId, IERC20) internal view virtual override returns (uint256 balance) {
         balance = morpho.position(reverseLookup.marketId(positionId.getPayload()), address(this)).collateral;
+    }
+
+    function _debtBalance(PositionId positionId, IERC20) internal virtual override returns (uint256 balance) {
+        MorphoMarketId marketId = reverseLookup.marketId(positionId.getPayload());
+        morpho.accrueInterest(morpho.idToMarketParams(marketId)); // Accrue interest before loading the market state
+        Market memory market = morpho.market(marketId);
+        Position memory position = morpho.position(marketId, address(this));
+        balance = position.borrowShares.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
     function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer)
@@ -111,10 +119,6 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
             onBehalf: address(this),
             receiver: to
         });
-    }
-
-    function _claimRewards(PositionId, IERC20, IERC20, address to) internal virtual override {
-        if (address(ena) != address(0)) ena.transferBalance(to);
     }
 
 }

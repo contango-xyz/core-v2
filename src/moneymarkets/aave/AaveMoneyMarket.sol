@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -58,7 +58,7 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         return _aToken(asset).balanceOf(address(this));
     }
 
-    function debtBalance(PositionId, IERC20 asset) public view virtual returns (uint256 balance) {
+    function _debtBalance(PositionId, IERC20 asset) internal view virtual override returns (uint256 balance) {
         return _vToken(asset).balanceOf(address(this));
     }
 
@@ -91,7 +91,7 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         override
         returns (uint256 actualAmount)
     {
-        actualAmount = Math.min(amount, debtBalance(positionId, asset));
+        actualAmount = Math.min(amount, _debtBalance(positionId, asset));
         if (actualAmount > 0) {
             asset.transferOut(payer, address(this), actualAmount);
             actualAmount = pool.repay({

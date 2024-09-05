@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../BaseTest.sol";
 
@@ -47,8 +47,6 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors, IContangoEv
 
         deal(address(instrument.baseData.token), poolAddress, type(uint96).max);
         deal(address(instrument.quoteData.token), poolAddress, type(uint96).max);
-        deal(address(instrument.baseData.token), env.balancer(), type(uint96).max);
-        deal(address(instrument.quoteData.token), env.balancer(), type(uint96).max);
     }
 
     function testValidation02_base() public {
@@ -361,8 +359,8 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors, IContangoEv
             cashflowCcy: Currency.Base
         });
 
-        // force balancer flash loan provider
-        quote.execParams.flashLoanProvider = env.balancerFLP();
+        // force flash loan provider
+        quote.execParams.flashLoanProvider = new TestFLP();
 
         positionActions.submitTrade(newPositionId, quote, Currency.Base);
     }
@@ -396,7 +394,7 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors, IContangoEv
 
         assertEqDecimal(trade.cashflow, expectedCashflow, instrument.quote.decimals(), "cashflow");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Tries to repay more than existing debt with extra cashflow on a decrease
@@ -429,7 +427,7 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors, IContangoEv
         assertEqDecimal(trade.cashflow, expectedCashflow, instrument.quote.decimals(), "cashflow");
 
         uint256 contangoBaseDustTolerance = 1 ether * 0.00001e18 / 1e18;
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider, contangoBaseDustTolerance);
+        env.checkInvariants(instrument, positionId, contangoBaseDustTolerance);
     }
 
     // // Tries to repay more than existing debt with extra cashflow on a modify
@@ -461,7 +459,7 @@ contract PositionValidationsFunctional is BaseTest, IContangoErrors, IContangoEv
 
         assertEqDecimal(trade.cashflow, expectedCashflow, instrument.quote.decimals(), "cashflow");
 
-        env.checkInvariants(instrument, positionId, quote.execParams.flashLoanProvider);
+        env.checkInvariants(instrument, positionId);
     }
 
     // Can't fully close a position without cashflow ccy

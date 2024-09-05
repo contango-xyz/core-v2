@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "src/libraries/DataTypes.sol";
 
@@ -46,6 +46,8 @@ MoneyMarketId constant MM_COMET = MoneyMarketId.wrap(14);
 MoneyMarketId constant MM_GRANARY = MoneyMarketId.wrap(15);
 MoneyMarketId constant MM_SILO = MoneyMarketId.wrap(16);
 MoneyMarketId constant MM_DOLOMITE = MoneyMarketId.wrap(17);
+MoneyMarketId constant MM_ZEROLEND = MoneyMarketId.wrap(18);
+MoneyMarketId constant MM_AAVE_LIDO = MoneyMarketId.wrap(19);
 
 uint32 constant PERP = type(uint32).max;
 uint256 constant DEFAULT_SLIPPAGE_TOLERANCE = 0.001e4;

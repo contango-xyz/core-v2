@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "src/dependencies/Chainlink.sol";
 
@@ -42,7 +42,7 @@ contract ChainlinkAggregatorV2V3Mock is IAggregatorV2V3 {
         override
         returns (uint80 roundId_, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
     {
-        return (roundId, price, 0, block.timestamp, 0);
+        return (roundId, price, block.timestamp, block.timestamp, 0);
     }
 
     function latestRoundData()

@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../AbstractMMV.t.sol";
 
@@ -18,10 +18,10 @@ contract AaveV2MoneyMarketViewTest is AbstractMarketViewTest {
         pool = AaveMoneyMarketView(address(sut)).pool();
 
         // USDC / ETH - 18 decimals
-        env.spotStub().stubChainlinkPrice(0.001e18, 0xefb7e6be8356cCc6827799B6A7348eE674A80EaE);
+        stubChainlinkPrice(0.001e18, 0xefb7e6be8356cCc6827799B6A7348eE674A80EaE);
         // MATIC / ETH - 18 decimals
-        env.spotStub().stubChainlinkPrice(0.002e18, 0x327e23A4855b6F663a28c5161541d69Af8973302);
-        env.spotStub().stubChainlinkPrice(2e8, address(env.erc20(WMATIC).chainlinkUsdOracle));
+        stubChainlinkPrice(0.002e18, 0x327e23A4855b6F663a28c5161541d69Af8973302);
+        stubChainlinkPrice(2e8, address(env.erc20(WMATIC).chainlinkUsdOracle));
     }
 
     function testPrices() public view override {

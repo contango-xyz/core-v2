@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -11,6 +11,7 @@ import "./dependencies/IDefaultReserveInterestRateStrategy.sol";
 
 import "../BaseMoneyMarketView.sol";
 import "../../libraries/Arrays.sol";
+import { MM_AAVE } from "script/constants.sol";
 
 contract AaveMoneyMarketView is BaseMoneyMarketView {
 
@@ -72,7 +73,11 @@ contract AaveMoneyMarketView is BaseMoneyMarketView {
     }
 
     function _oraclePrice(IERC20 asset) internal view virtual override returns (uint256) {
-        return oracle.getAssetPrice(asset);
+        try oracle.getAssetPrice(asset) returns (uint256 price) {
+            return price;
+        } catch {
+            return 0;
+        }
     }
 
     function _thresholds(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
@@ -222,7 +227,13 @@ contract AaveMoneyMarketView is BaseMoneyMarketView {
 
         uint256 maxBorrowable = borrowCap > totalDebt ? borrowCap - totalDebt : 0;
         (address aTokenAddress,,) = dataProvider.getReserveTokensAddresses(address(asset));
-        uint256 available = asset.balanceOf(aTokenAddress);
+        uint256 available;
+        // GHO is a bit different
+        if (MM_AAVE == moneyMarketId && block.chainid == 1 && address(asset) == 0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f) {
+            available = maxBorrowable;
+        } else {
+            available = asset.balanceOf(aTokenAddress);
+        }
 
         borrowingLiquidity_ = borrowCap == 0 ? available : Math.min(maxBorrowable, available);
     }
@@ -231,7 +242,7 @@ contract AaveMoneyMarketView is BaseMoneyMarketView {
         (uint256 decimals,,,,,,,,,) = dataProvider.getReserveConfigurationData(address(asset));
 
         (, uint256 supplyCap) = dataProvider.getReserveCaps(address(asset));
-        if (supplyCap == 0) return type(uint256).max; // Infinite supply cap
+        if (supplyCap == 0) return asset.totalSupply(); // Infinite supply cap
 
         supplyCap = supplyCap * 10 ** decimals;
         uint256 currentSupply = _getTokenSupply(asset, false);
@@ -258,7 +269,10 @@ contract AaveMoneyMarketView is BaseMoneyMarketView {
             IAaveRewardsController.RewardsData memory data = rewardsController.getRewardsData(asset, rewardTokens[i]);
             rewards_[i].claimable = account != address(0) ? rewardsController.getUserRewards(toArray(asset), account, rewardTokens[i]) : 0;
             rewards_[i].token = _asTokenData(rewardToken);
-            rewards_[i].usdPrice = priceInUSD(rewardToken);
+            {
+                IAggregatorV2V3 rewardOracle = rewardsController.getRewardOracle(rewardToken);
+                rewards_[i].usdPrice = uint256(rewardOracle.latestAnswer()) * 1e18 / 10 ** rewardOracle.decimals();
+            }
 
             if (block.timestamp > data.distributionEnd) continue;
 

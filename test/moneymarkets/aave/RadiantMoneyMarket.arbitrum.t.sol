@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../Mock.sol";
 import "../../TestSetup.t.sol";
@@ -32,9 +32,9 @@ contract RadiantMoneyMarketArbitrumTest is Test {
         sut.initialise(positionId, env.token(WETH), env.token(DAI));
         vm.stopPrank();
 
-        env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(DAI).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(0.26814594e8, 0x20d0Fcab0ECFD078B036b6CAf1FaC69A6453b352);
+        stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
+        stubChainlinkPrice(1e8, address(env.erc20(DAI).chainlinkUsdOracle));
+        stubChainlinkPrice(0.26814594e8, 0x20d0Fcab0ECFD078B036b6CAf1FaC69A6453b352);
     }
 
     function testMoneyMarketPermissions() public {

@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 bytes32 constant EMERGENCY_BREAK_ROLE = keccak256("EMERGENCY_BREAK");
 bytes32 constant OPERATOR_ROLE = keccak256("OPERATOR");

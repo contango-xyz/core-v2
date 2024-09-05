@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../AbstractMMV.t.sol";
 
@@ -90,7 +90,7 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
         assertEq(borrowing[0].token.symbol, "COMP", "Borrow reward[0] symbol");
         assertEq(borrowing[0].token.decimals, 18, "Borrow reward[0] decimals");
         assertEq(borrowing[0].token.unit, 1e18, "Borrow reward[0] unit");
-        assertEqDecimal(borrowing[0].rate, 0.029928512669850625e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
+        assertEqDecimal(borrowing[0].rate, 0.02992851266985047e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
         assertEqDecimal(borrowing[0].claimable, 0, borrowing[0].token.decimals, "Borrow reward[0] claimable");
         assertEqDecimal(borrowing[0].usdPrice, 52.59511454e18, 18, "Borrow reward[0] usdPrice");
     }
@@ -128,7 +128,7 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
         assertEq(borrowing[0].token.symbol, "COMP", "Borrow reward[0] symbol");
         assertEq(borrowing[0].token.decimals, 18, "Borrow reward[0] decimals");
         assertEq(borrowing[0].token.unit, 1e18, "Borrow reward[0] unit");
-        assertEqDecimal(borrowing[0].rate, 0.029824707535848274e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
+        assertEqDecimal(borrowing[0].rate, 0.02982470753584801e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
         assertEqDecimal(borrowing[0].claimable, 0.140458e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
         assertEqDecimal(borrowing[0].usdPrice, 52.59511454e18, 18, "Borrow reward[0] usdPrice");
 

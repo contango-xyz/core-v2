@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../Mock.sol";
 import "../../TestSetup.t.sol";
@@ -32,8 +32,8 @@ contract AaveMoneyMarketArbitrumTest is Test {
         sut.initialise(positionId, env.token(WETH), env.token(USDC));
         vm.stopPrank();
 
-        env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
+        stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
+        stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
     }
 
     function testMoneyMarketPermissions() public {
@@ -124,18 +124,18 @@ contract AaveMoneyMarketArbitrumTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = debtBalance(borrowToken, address(sut));
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -170,18 +170,18 @@ contract AaveMoneyMarketArbitrumTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = debtBalance(borrowToken, address(sut));
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt * 2, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt * 2);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -223,18 +223,18 @@ contract AaveMoneyMarketArbitrumTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = debtBalance(borrowToken, address(sut));
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt / 4, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt / 4);
 
         assertEq(repaid, debt / 4, "repaid half debt");
-        assertApproxEqAbsDecimal(debtBalance(borrowToken, address(sut)), debt / 4 * 3, 5, borrowToken.decimals(), "debt is 3/4");
+        assertApproxEqAbsDecimal(sut.debtBalance(positionId, borrowToken), debt / 4 * 3, 5, borrowToken.decimals(), "debt is 3/4");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -271,18 +271,18 @@ contract AaveMoneyMarketArbitrumTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = debtBalance(borrowToken, address(sut));
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -324,18 +324,18 @@ contract AaveMoneyMarketArbitrumTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = debtBalance(borrowToken, address(sut));
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -378,18 +378,18 @@ contract AaveMoneyMarketArbitrumTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = debtBalance(borrowToken, address(sut));
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -433,18 +433,18 @@ contract AaveMoneyMarketArbitrumTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
         // repay
-        uint256 debt = debtBalance(borrowToken, address(sut));
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -486,10 +486,6 @@ contract AaveMoneyMarketArbitrumTest is Test {
     function testIERC165() public view {
         assertTrue(sut.supportsInterface(type(IMoneyMarket).interfaceId), "IMoneyMarket");
         assertTrue(sut.supportsInterface(type(IFlashBorrowProvider).interfaceId), "IFlashBorrowProvider");
-    }
-
-    function debtBalance(IERC20 asset, address account) internal view returns (uint256) {
-        return pool.getReserveData(asset).variableDebtTokenAddress.balanceOf(account);
     }
 
 }

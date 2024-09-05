@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../TestSetup.t.sol";
 import "./utils.t.sol";
@@ -159,10 +159,7 @@ contract AbstractMarketViewTest is Test {
     function testBaseQuoteRate() public virtual {
         uint256 baseQuoteRate = sut.baseQuoteRate(positionId);
         assertEqDecimal(
-            baseQuoteRate,
-            _transformPrecision(baseUsdPrice, oracleDecimals, instrument.quoteDecimals),
-            instrument.quoteDecimals,
-            "Base quote rate"
+            baseQuoteRate, _transformPrecision(baseUsdPrice, 8, instrument.quoteDecimals), instrument.quoteDecimals, "Base quote rate"
         );
     }
 

@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../TestSetup.t.sol";
 import "../../BaseTest.sol";
@@ -31,8 +31,8 @@ contract LodestarMoneyMarketTest is BaseTest {
         sut.initialise(positionId, env.token(WETH), env.token(USDC));
         vm.stopPrank();
 
-        env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
+        stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
+        stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
     }
 
     function testInitialise_InvalidExpiry() public {

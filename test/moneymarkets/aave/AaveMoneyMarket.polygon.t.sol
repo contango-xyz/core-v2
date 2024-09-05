@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../TestSetup.t.sol";
 
@@ -32,8 +32,8 @@ contract AaveMoneyMarketPolygonTest is Test {
         sut.initialise(positionId, env.token(USDC), env.token(WMATIC));
         vm.stopPrank();
 
-        env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(USDC).chainlinkUsdOracle));
-        env.spotStub().stubChainlinkPrice(1e8, address(env.erc20(WMATIC).chainlinkUsdOracle));
+        stubChainlinkPrice(1000e8, address(env.erc20(USDC).chainlinkUsdOracle));
+        stubChainlinkPrice(1e8, address(env.erc20(WMATIC).chainlinkUsdOracle));
     }
 
     function testLifeCycle_ClaimRewards() public {
@@ -59,7 +59,7 @@ contract AaveMoneyMarketPolygonTest is Test {
         assertEqDecimal(
             sut.collateralBalance(positionId, lendToken), lendAmount, lendToken.decimals(), "collateralBalance after lend + borrow"
         );
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), borrowAmount, borrowToken.decimals(), "debtBalance after lend + borrow");
 
         skip(10 days);
 
@@ -72,13 +72,13 @@ contract AaveMoneyMarketPolygonTest is Test {
         skip(20 days);
 
         // repay
-        uint256 debt = debtBalance(borrowToken, address(sut));
+        uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
         assertEq(repaid, debt, "repaid all debt");
-        assertEqDecimal(debtBalance(borrowToken, address(sut)), 0, borrowToken.decimals(), "debt is zero");
+        assertEqDecimal(sut.debtBalance(positionId, borrowToken), 0, borrowToken.decimals(), "debt is zero");
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
@@ -94,10 +94,6 @@ contract AaveMoneyMarketPolygonTest is Test {
         sut.claimRewards(positionId, lendToken, borrowToken, contango);
         assertEqDecimal(stMatic.balanceOf(contango), 0.081822798852697848e18, stMatic.decimals(), "stMatic.balanceOf");
         assertEqDecimal(maticX.balanceOf(contango), 0.128335663809026175e18, maticX.decimals(), "maticX.balanceOf");
-    }
-
-    function debtBalance(IERC20 asset, address account) internal view returns (uint256) {
-        return pool.getReserveData(asset).variableDebtTokenAddress.balanceOf(account);
     }
 
 }

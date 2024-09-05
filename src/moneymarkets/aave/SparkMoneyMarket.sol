@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "./AaveMoneyMarketWithoutFlashBorrow.sol";
 import "./dependencies/Spark.sol";
@@ -57,10 +57,10 @@ contract SparkMoneyMarket is AaveMoneyMarketWithoutFlashBorrow {
         }
     }
 
-    function debtBalance(PositionId positionId, IERC20 asset) public view virtual override returns (uint256 balance) {
+    function _debtBalance(PositionId positionId, IERC20 asset) internal view virtual override returns (uint256 balance) {
         balance = asset == usdc
-            ? (super.debtBalance(positionId, dai) + DAI_USDC_UNIT_DIFF - 1) / DAI_USDC_UNIT_DIFF
-            : super.debtBalance(positionId, asset);
+            ? (super._debtBalance(positionId, dai) + DAI_USDC_UNIT_DIFF - 1) / DAI_USDC_UNIT_DIFF
+            : super._debtBalance(positionId, asset);
     }
 
     function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
@@ -99,7 +99,7 @@ contract SparkMoneyMarket is AaveMoneyMarketWithoutFlashBorrow {
         returns (uint256 actualAmount)
     {
         if (asset == usdc) {
-            actualAmount = Math.min(amount, debtBalance(positionId, asset));
+            actualAmount = Math.min(amount, _debtBalance(positionId, asset));
             asset.transferOut(payer, address(this), actualAmount);
             psm.sellGem(address(this), actualAmount);
             super._repay(positionId, dai, actualAmount * DAI_USDC_UNIT_DIFF, address(this));

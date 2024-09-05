@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../Mock.sol";
 import "../../TestSetup.t.sol";
@@ -34,7 +34,7 @@ contract DolomiteMoneyMarketArbitrumIsolationTest is Test {
 
         isolationToken = IERC20(0x6Cc56e9cA71147D40b10a8cB8cBe911C1Faf4Cf8);
 
-        env.spotStub().stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
+        stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
         vm.mockCall(
             0xBfca44aB734E57Dc823cA609a0714EeC9ED06cA0, abi.encodeWithSignature("getPrice(address)", isolationToken), abi.encode(970e18)
         );

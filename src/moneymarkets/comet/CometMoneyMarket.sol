@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "../../libraries/ERC20Lib.sol";
 
@@ -61,6 +61,10 @@ contract CometMoneyMarket is BaseMoneyMarket {
 
     function _collateralBalance(PositionId positionId, IERC20 asset) internal view override returns (uint256 balance) {
         balance = reverseLookup.comet(positionId.getPayload()).userCollateral(address(this), asset).balance;
+    }
+
+    function _debtBalance(PositionId positionId, IERC20) internal view override returns (uint256 balance) {
+        balance = reverseLookup.comet(positionId.getPayload()).borrowBalanceOf(address(this));
     }
 
 }

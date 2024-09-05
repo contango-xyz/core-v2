@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 
@@ -24,7 +24,7 @@ contract UniswapPoolStubTest is IUniswapV3SwapCallback, Test {
         env.init();
     }
 
-    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external virtual override {
+    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) public virtual override {
         AssertionData memory assertionData = abi.decode(data, (AssertionData));
 
         assertEqDecimal(amount0Delta, assertionData.expectedAmount0Delta, sut.token0().decimals(), "amount0Delta");
@@ -33,6 +33,14 @@ contract UniswapPoolStubTest is IUniswapV3SwapCallback, Test {
         uint256 repayment = uint256(amount0Delta > 0 ? amount0Delta : amount1Delta);
         deal(address(assertionData.repaymentToken), address(this), repayment);
         assertionData.repaymentToken.transfer(msg.sender, repayment);
+    }
+
+    function pancakeV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
+        uniswapV3SwapCallback(amount0Delta, amount1Delta, data);
+    }
+
+    function ramsesV2SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external {
+        uniswapV3SwapCallback(amount0Delta, amount1Delta, data);
     }
 
 }

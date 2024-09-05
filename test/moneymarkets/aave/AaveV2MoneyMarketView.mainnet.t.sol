@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "./IPoolConfiguratorV2.sol";
 
@@ -25,7 +25,7 @@ contract AaveV2MoneyMarketViewTest is AbstractMarketViewTest {
         vm.mockCall(address(env.aaveV2AddressProvider()), abi.encodeWithSignature("getPoolAdmin()"), abi.encode(address(this)));
         vm.mockCall(address(env.aaveV2AddressProvider()), abi.encodeWithSignature("getEmergencyAdmin()"), abi.encode(address(this)));
 
-        env.spotStub().stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
+        stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
     }
 
     function testPrices() public view override {

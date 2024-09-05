@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 
@@ -15,8 +15,7 @@ import "src/interfaces/IOrderManager.sol";
 import "src/core/ReferralManager.sol";
 import "src/core/FeeManager.sol";
 
-import "test/flp/balancer/BalancerFlashLoanProvider.sol";
-import "test/flp/aave/AaveFlashLoanProvider.sol";
+import "test/flp/TestFLP.sol";
 
 import "src/moneymarkets/UnderlyingPositionFactory.sol";
 import "src/moneymarkets/UpgradeableBeaconWithOwner.sol";
@@ -33,7 +32,6 @@ import "src/moneymarkets/exactly/ExactlyMoneyMarketView.sol";
 import "src/moneymarkets/compound/CompoundMoneyMarket.sol";
 import "src/moneymarkets/compound/CompoundMoneyMarketView.sol";
 import "src/moneymarkets/compound/SonneMoneyMarketView.sol";
-import "src/moneymarkets/compound/LodestarMoneyMarket.sol";
 import "src/moneymarkets/compound/LodestarMoneyMarketView.sol";
 import "src/moneymarkets/comet/CometMoneyMarket.sol";
 import "src/moneymarkets/comet/CometMoneyMarketView.sol";
@@ -90,6 +88,7 @@ bytes32 constant GNO = "GNO";
 bytes32 constant WSTETH = "WSTETH";
 bytes32 constant PTweETH27JUN2024 = "PTweETH27JUN2024";
 bytes32 constant PENDLE = "PENDLE";
+bytes32 constant WBNB = "WBNB";
 
 uint256 constant DEFAULT_TRADING_FEE = 0.001e18; // 0.1%
 uint256 constant DEFAULT_ORACLE_UNIT = 1e8;
@@ -214,6 +213,26 @@ contract Deployer is Addresses {
             env.aaveAddressProvider().getPool(),
             env.aaveAddressProvider().getPoolDataProvider(),
             env.aaveRewardsController()
+        );
+    }
+
+    function deployAaveLidoMoneyMarket(Env env, IContango contango) public returns (AaveMoneyMarket moneyMarket) {
+        return deployAaveMoneyMarket(
+            contango,
+            MM_AAVE_LIDO,
+            env.aaveLidoAddressProvider().getPool(),
+            env.aaveLidoAddressProvider().getPoolDataProvider(),
+            env.aaveLidoRewardsController()
+        );
+    }
+
+    function deployZeroLendMoneyMarket(Env env, IContango contango) public returns (AaveMoneyMarket moneyMarket) {
+        return deployAaveMoneyMarket(
+            contango,
+            MM_ZEROLEND,
+            env.zeroLendAddressProvider().getPool(),
+            env.zeroLendAddressProvider().getPoolDataProvider(),
+            env.zeroLendRewardsController()
         );
     }
 
@@ -379,12 +398,11 @@ contract Deployer is Addresses {
     function deployLodestarMoneyMarket(Env env, IContango contango) public returns (CompoundMoneyMarket moneyMarket) {
         CompoundReverseLookup reverseLookup = new CompoundReverseLookup(TIMELOCK, env.compoundComptroller(), env.nativeToken());
         reverseLookup.update();
-        moneyMarket = new LodestarMoneyMarket({
+        moneyMarket = new CompoundMoneyMarket({
             _moneyMarketId: MM_LODESTAR,
             _contango: contango,
             _reverseLookup: reverseLookup,
-            _nativeToken: env.nativeToken(),
-            _arbToken: env.token(ARB)
+            _nativeToken: env.nativeToken()
         });
         UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
         moneyMarket = CompoundMoneyMarket(payable(address(new ImmutableBeaconProxy(beacon))));
@@ -404,11 +422,10 @@ contract Deployer is Addresses {
     }
 
     function deploySiloMoneyMarket(Env env, IContango contango) public returns (SiloMoneyMarket moneyMarket) {
-        IERC20 arb = env.network().isArbitrum() ? env.token(ARB) : IERC20(address(0));
         IERC20 stable = env.network().isArbitrum() ? env.token(USDC) : IERC20(address(0));
 
         moneyMarket =
-            new SiloMoneyMarket(contango, env.siloLens(), env.siloIncentivesController(), env.wstEthSilo(), env.nativeToken(), stable, arb);
+            new SiloMoneyMarket(contango, env.siloLens(), env.siloIncentivesController(), env.wstEthSilo(), env.nativeToken(), stable);
 
         UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
         moneyMarket = SiloMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
@@ -465,6 +482,39 @@ contract Deployer is Addresses {
                     env.aaveAddressProvider().getPoolDataProvider(),
                     env.aaveAddressProvider().getPriceOracle(),
                     env.aaveRewardsController(),
+                    env.nativeToken(),
+                    env.nativeUsdOracle()
+                )
+            );
+        }
+        if (env.marketAvailable(MM_AAVE_LIDO) && env.blockNumber() >= 20_420_912) {
+            positionFactory.registerMoneyMarket(deployAaveLidoMoneyMarket(env, deployment.contango));
+            deployment.contangoLens.setMoneyMarketView(
+                new AaveMoneyMarketView(
+                    MM_AAVE_LIDO,
+                    "AaveLido",
+                    deployment.contango,
+                    env.aaveLidoAddressProvider().getPool(),
+                    env.aaveLidoAddressProvider().getPoolDataProvider(),
+                    env.aaveLidoAddressProvider().getPriceOracle(),
+                    env.aaveLidoRewardsController(),
+                    env.nativeToken(),
+                    env.nativeUsdOracle()
+                )
+            );
+        }
+
+        if (env.marketAvailable(MM_ZEROLEND)) {
+            positionFactory.registerMoneyMarket(deployZeroLendMoneyMarket(env, deployment.contango));
+            deployment.contangoLens.setMoneyMarketView(
+                new AaveMoneyMarketView(
+                    MM_ZEROLEND,
+                    "ZeroLend",
+                    deployment.contango,
+                    env.zeroLendAddressProvider().getPool(),
+                    env.zeroLendAddressProvider().getPoolDataProvider(),
+                    env.zeroLendAddressProvider().getPriceOracle(),
+                    env.zeroLendRewardsController(),
                     env.nativeToken(),
                     env.nativeUsdOracle()
                 )
@@ -591,14 +641,7 @@ contract Deployer is Addresses {
             CompoundMoneyMarket moneyMarket = deployLodestarMoneyMarket(env, deployment.contango);
             positionFactory.registerMoneyMarket(moneyMarket);
             deployment.contangoLens.setMoneyMarketView(
-                new LodestarMoneyMarketView(
-                    deployment.contango,
-                    moneyMarket.reverseLookup(),
-                    env.lodestarOracle(),
-                    env.erc20(ARB).chainlinkUsdOracle,
-                    env.token(ARB),
-                    env.nativeUsdOracle()
-                )
+                new LodestarMoneyMarketView(deployment.contango, moneyMarket.reverseLookup(), env.lodestarOracle(), env.nativeUsdOracle())
             );
         }
         if (env.marketAvailable(MM_MOONWELL)) {
@@ -647,7 +690,6 @@ contract Deployer is Addresses {
         if (env.marketAvailable(MM_SILO)) {
             positionFactory.registerMoneyMarket(deploySiloMoneyMarket(env, deployment.contango));
 
-            IERC20 arb = env.network().isArbitrum() ? env.token(ARB) : IERC20(address(0));
             IERC20 stable = env.network().isArbitrum() ? env.token(USDC) : IERC20(address(0));
 
             deployment.contangoLens.setMoneyMarketView(
@@ -658,8 +700,7 @@ contract Deployer is Addresses {
                     env.siloLens(),
                     env.siloIncentivesController(),
                     env.wstEthSilo(),
-                    stable,
-                    arb
+                    stable
                 )
             );
         }
@@ -675,15 +716,10 @@ contract Deployer is Addresses {
 
         // Flash loan providers
         {
-            IERC7399 balancerFLP = new BalancerFlashLoanProvider(IFlashLoaner(env.balancer()));
-            deployment.tsQuoter.addFlashLoanProvider(balancerFLP);
-            env.setBalancerFLP(balancerFLP);
-
-            if (env.marketAvailable(MM_AAVE)) {
-                IERC7399 aaveFLP = new AaveFlashLoanProvider(env.aaveAddressProvider());
-                deployment.tsQuoter.addFlashLoanProvider(aaveFLP);
-                env.setAaveFLP(aaveFLP);
-            }
+            TestFLP flp = new TestFLP();
+            deployment.tsQuoter.addFlashLoanProvider(flp);
+            env.setFlashLoanProvider(flp);
+            VM.allowCheatcodes(address(flp));
         }
 
         VM.stopPrank();
@@ -740,6 +776,12 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
     // Aave
     IPoolAddressesProvider public aaveAddressProvider;
     IAaveRewardsController public aaveRewardsController;
+    // ZeroLend
+    IPoolAddressesProvider public zeroLendAddressProvider;
+    IAaveRewardsController public zeroLendRewardsController;
+    // AaveLido
+    IPoolAddressesProvider public aaveLidoAddressProvider;
+    IAaveRewardsController public aaveLidoRewardsController;
     // Aave V2
     IPoolAddressesProviderV2 public aaveV2AddressProvider;
     IPoolDataProvider public aaveV2PoolDataProvider;
@@ -760,8 +802,6 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
     // Uniswap
     address public uniswap;
     SwapRouter02 public uniswapRouter;
-    // Balancer
-    address public balancer;
     // Sonne
     address public sonneOracle;
     // Lodestar
@@ -805,9 +845,8 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
     IAggregatorV2V3 public nativeUsdOracle;
     // MultiChain
     IPermit2 public permit2 = IPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);
-    // FlashLoanProviders
-    IERC7399 public balancerFLP;
-    IERC7399 public aaveFLP;
+    // Flash loan providers
+    TestFLP public flashLoanProvider;
 
     ERC721Permit2 public erc721Permit2;
 
@@ -839,7 +878,8 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
         _bounds[DAI] = ERC20Bounds({ min: 100e18, max: type(uint96).max, dust: 0.0001e18 });
         _bounds[SDAI] = ERC20Bounds({ min: 100e18, max: type(uint96).max, dust: 0.0001e18 });
         _bounds[USDC] = ERC20Bounds({ min: 100e6, max: type(uint96).max / 1e12, dust: 0.0001e6 });
-        _bounds[WETH] = ERC20Bounds({ min: 0.1e18, max: type(uint96).max, dust: 0.0000001e18 });
+        _bounds[USDT] = ERC20Bounds({ min: 100e6, max: type(uint96).max / 1e12, dust: 0.0001e6 });
+        _bounds[WETH] = ERC20Bounds({ min: 0.1e18, max: type(uint96).max, dust: 0.00001e18 });
     }
 
     function init() public virtual;
@@ -881,14 +921,9 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
         return _flashLoanProviders;
     }
 
-    function setAaveFLP(IERC7399 flp) public {
-        aaveFLP = flp;
-        _flashLoanProviders.push(flp);
-    }
-
-    function setBalancerFLP(IERC7399 flp) public {
-        balancerFLP = flp;
-        _flashLoanProviders.push(flp);
+    function setFlashLoanProvider(TestFLP _flashLoanProvider) public {
+        _flashLoanProviders.push(_flashLoanProvider);
+        flashLoanProvider = _flashLoanProvider;
     }
 
     function erc20(bytes32 symbol) public view returns (ERC20Data memory erc20Data) {
@@ -990,25 +1025,19 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
         assertApproxEqAbsDecimal(balance, 0, dust, _token.decimals(), label);
     }
 
-    function checkInvariants(TestInstrument memory instrument, PositionId positionId, IERC7399 flp) public view {
-        assertNoBalances(instrument, positionId, flp);
+    function checkInvariants(TestInstrument memory instrument, PositionId positionId) public view {
+        assertNoBalances(instrument, positionId);
     }
 
-    function checkInvariants(TestInstrument memory instrument, PositionId positionId, IERC7399 flp, uint256 contangoBaseTolerance)
-        public
-        view
-    {
-        assertNoBalances(instrument, positionId, flp, contangoBaseTolerance);
+    function checkInvariants(TestInstrument memory instrument, PositionId positionId, uint256 contangoBaseTolerance) public view {
+        assertNoBalances(instrument, positionId, contangoBaseTolerance);
     }
 
-    function assertNoBalances(TestInstrument memory instrument, PositionId positionId, IERC7399 flp) public view {
-        assertNoBalances(instrument, positionId, flp, bounds(instrument.baseData.symbol).dust);
+    function assertNoBalances(TestInstrument memory instrument, PositionId positionId) public view {
+        assertNoBalances(instrument, positionId, bounds(instrument.baseData.symbol).dust);
     }
 
-    function assertNoBalances(TestInstrument memory instrument, PositionId positionId, IERC7399 flp, uint256 contangoBaseTolerance)
-        public
-        view
-    {
+    function assertNoBalances(TestInstrument memory instrument, PositionId positionId, uint256 contangoBaseTolerance) public view {
         assertNoBalances(instrument.base, address(contango), contangoBaseTolerance, "contango balance: base");
         assertNoBalances(instrument.quote, address(contango), bounds(instrument.quoteData.symbol).dust, "contango balance: quote");
         assertNoBalances(
@@ -1020,20 +1049,6 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
             bounds(instrument.quoteData.symbol).dust,
             "MM balance: quote"
         );
-        if (address(flp) != address(0)) {
-            assertNoBalances(
-                instrument.base,
-                address(flp),
-                bounds(instrument.baseData.symbol).dust,
-                string.concat("FLP (", VM.toString(address(flp)), ") balance: base")
-            );
-            assertNoBalances(
-                instrument.quote,
-                address(flp),
-                bounds(instrument.quoteData.symbol).dust,
-                string.concat("FLP (", VM.toString(address(flp)), ") balance: quote")
-            );
-        }
     }
 
     function deposit(IERC20 _token, address to, uint256 amount) public {
@@ -1239,7 +1254,6 @@ contract ArbitrumEnv is Env {
 
         uniswap = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
         uniswapRouter = SwapRouter02(uniswap);
-        balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
         aaveAddressProvider = IPoolAddressesProvider(0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb);
         aaveRewardsController = IAaveRewardsController(0x929EC64c34a17401F460460D4B9390518E5B473e);
         radiantAddressProvider = IPoolAddressesProviderV2(0x091d52CacE1edc5527C99cDCFA6937C1635330E4);
@@ -1330,7 +1344,6 @@ contract OptimismEnv is Env {
 
         uniswap = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
         uniswapRouter = SwapRouter02(uniswap);
-        balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
         aaveAddressProvider = IPoolAddressesProvider(0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb);
         aaveRewardsController = IAaveRewardsController(0x929EC64c34a17401F460460D4B9390518E5B473e);
         auditor = IAuditor(0xaEb62e6F27BC103702E7BC879AE98bceA56f027E);
@@ -1414,7 +1427,6 @@ contract PolygonEnv is Env {
 
         uniswap = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
         uniswapRouter = SwapRouter02(uniswap);
-        balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
         aaveAddressProvider = IPoolAddressesProvider(0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb);
         aaveRewardsController = IAaveRewardsController(0x929EC64c34a17401F460460D4B9390518E5B473e);
         aaveV2AddressProvider = IPoolAddressesProviderV2(0xd05e3E715d945B59290df0ae8eF85c1BdB684744);
@@ -1463,6 +1475,7 @@ contract MainnetEnv is Env {
         _moneyMarkets.push(MM_AAVE_V2);
         _moneyMarkets.push(MM_MORPHO_BLUE);
         _moneyMarkets.push(MM_SILO);
+        _moneyMarkets.push(MM_AAVE_LIDO);
 
         _erc20s[LINK] = ERC20Data({
             symbol: LINK,
@@ -1530,7 +1543,6 @@ contract MainnetEnv is Env {
 
         uniswap = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
         uniswapRouter = SwapRouter02(uniswap);
-        balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
         aaveAddressProvider = IPoolAddressesProvider(0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e);
         aaveRewardsController = IAaveRewardsController(0x8164Cc65827dcFe994AB23944CBC90e0aa80bFcb);
         compoundComptroller = IComptroller(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
@@ -1554,6 +1566,9 @@ contract MainnetEnv is Env {
         super.init(blockNumber);
         fork("mainnet", blockNumber);
         cleanTreasury();
+
+        aaveLidoAddressProvider = IPoolAddressesProvider(_loadAddress("AaveLidoPoolAddressesProvider"));
+        aaveLidoRewardsController = IAaveRewardsController(_loadAddress("AaveLidoRewardsController"));
 
         Deployment memory deployment = deployer.deployContango(this);
         maestro = deployment.maestro;
@@ -1605,7 +1620,6 @@ contract GnosisEnv is Env {
 
         uniswap = 0x4F54dd2F4f30347d841b7783aD08c050d8410a9d;
         uniswapRouter = SwapRouter02(uniswap);
-        balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
         sparkAddressProvider = IPoolAddressesProvider(0xA98DaCB3fC964A6A0d2ce3B77294241585EAbA6d);
         sparkRewardsController = IAaveRewardsController(0x98e6BcBA7d5daFbfa4a92dAF08d3d7512820c30C);
         aaveAddressProvider = IPoolAddressesProvider(0x36616cf17557639614c1cdDb356b1B83fc0B2132);
@@ -1696,7 +1710,6 @@ contract BaseEnv is Env {
 
         uniswap = 0x2626664c2603336E57B271c5C0b26F421741e481;
         uniswapRouter = SwapRouter02(uniswap);
-        balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
         aaveAddressProvider = IPoolAddressesProvider(0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D);
         aaveRewardsController = IAaveRewardsController(0xf9cc4F0D883F1a1eb2c253bdb46c254Ca51E1F44);
         comet = IComet(0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf);

@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -48,7 +48,7 @@ contract CometMoneyMarketView is BaseMoneyMarketView {
     function _balances(PositionId positionId, IERC20 collateralAsset, IERC20) internal view override returns (Balances memory balances_) {
         address account = _account(positionId);
         IComet comet = reverseLookup.comet(positionId.getPayload());
-        balances_.collateral = comet.userCollateral(account, collateralAsset).balance;
+        balances_.collateral = comet.collateralBalanceOf(account, collateralAsset);
         balances_.debt = comet.borrowBalanceOf(account);
     }
 
@@ -74,14 +74,14 @@ contract CometMoneyMarketView is BaseMoneyMarketView {
         IComet comet = reverseLookup.cometsByBaseAsset(asset);
 
         if (comet != IComet(address(0))) {
-            return comet.getPrice(comet.baseTokenPriceFeed());
+            return comet.getPrice(comet.baseTokenPriceFeed()) * _conversion(comet) / 1e8;
         } else {
             uint256 comets = reverseLookup.nextPayload();
             for (uint40 i = 1; i < comets; i++) {
                 comet = reverseLookup.comet(Payload.wrap(bytes5(i)));
 
                 try comet.getAssetInfoByAddress(asset) returns (IComet.AssetInfo memory assetInfo) {
-                    return comet.getPrice(assetInfo.priceFeed);
+                    return comet.getPrice(assetInfo.priceFeed) * _conversion(comet) / 1e8;
                 } catch {
                     continue;
                 }
@@ -89,6 +89,11 @@ contract CometMoneyMarketView is BaseMoneyMarketView {
         }
 
         revert OracleNotFound(asset);
+    }
+
+    function _conversion(IComet comet) internal view returns (uint256) {
+        // Comet's oracle seem to be always on market ccy, so far we only have either USD or WETH
+        return comet.baseToken() == nativeToken ? uint256(nativeUsdOracle.latestAnswer()) : 1e8;
     }
 
     function _oracleUnit() internal view virtual override returns (uint256) {
@@ -149,15 +154,14 @@ contract CometMoneyMarketView is BaseMoneyMarketView {
         borrowing[0].claimable = cometRewards.getRewardOwed(comet, _account(positionId)).owed;
         borrowing[0].usdPrice = uint256(compOracle.latestAnswer()) * 1e10;
 
+        // Ref, albeit outdated: https://github.com/compound-developers/compound-3-developer-faq/blob/2e2bea0848c67af0400d76fe39e0fc859b53d28a/contracts/MyContract.sol#L181
         uint256 unit = 10 ** debtAsset.decimals();
-        uint256 accrualDescaleFactor = unit / 1e6;
-        baseTrackingBorrowSpeed = WAD * comet.baseTrackingBorrowSpeed() / comet.trackingIndexScale() / accrualDescaleFactor;
-        uint256 priceOfBorrow = comet.getPrice(comet.baseTokenPriceFeed()) * 1e10;
-        uint256 valueOfBorrow = comet.totalBorrow() * priceOfBorrow / unit;
-        uint256 yearlyReward = baseTrackingBorrowSpeed * 365 days;
-        uint256 valueOfReward = yearlyReward * borrowing[0].usdPrice / WAD;
-
-        borrowing[0].rate = valueOfReward * WAD / valueOfBorrow;
+        uint256 baseIndexScale = comet.baseIndexScale();
+        uint256 baseAccrualScale = comet.baseAccrualScale();
+        uint256 scaleFactor = unit > baseIndexScale ? baseIndexScale * baseAccrualScale : baseIndexScale / baseAccrualScale;
+        uint256 basePriceInUsd = _oraclePrice(debtAsset) * 1e10;
+        uint256 rewardToSuppliersPerDay = baseTrackingBorrowSpeed * 1 days * scaleFactor;
+        borrowing[0].rate = (borrowing[0].usdPrice * rewardToSuppliersPerDay / (comet.totalBorrow() * basePriceInUsd)) * 365;
     }
 
     function _availableActions(PositionId positionId, IERC20, IERC20)

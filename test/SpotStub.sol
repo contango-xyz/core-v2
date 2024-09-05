@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "forge-std/console.sol";
 import "forge-std/StdCheats.sol";
@@ -58,15 +58,6 @@ contract SpotStub is StdCheats {
         return stubUniswapPrice(base, quote, spread, uniswapFee);
     }
 
-    function stubChainlinkPrice(int256 price, address chainlinkAggregator) public returns (ChainlinkAggregatorV2V3Mock oracle) {
-        (bool success, bytes memory returndata) =
-            chainlinkAggregator.call(abi.encodeWithSelector(ChainlinkAggregatorV2V3Mock(chainlinkAggregator).decimals.selector));
-        // defaults to 8 if v3 interface is not supported
-        uint8 decimals = success ? abi.decode(returndata, (uint8)) : 8;
-        deployCodeTo("ChainlinkAggregatorV2V3Mock.sol:ChainlinkAggregatorV2V3Mock", chainlinkAggregator);
-        oracle = ChainlinkAggregatorV2V3Mock(chainlinkAggregator).setDecimals(decimals).set(price);
-    }
-
     function movePrice(ERC20Data memory data, int256 percentage) public returns (int256 newPrice) {
         return movePrice(address(data.chainlinkUsdOracle), string.concat(data.token.symbol(), "/USD"), percentage);
     }
@@ -117,4 +108,29 @@ contract SpotStub is StdCheats {
         UniswapPoolStub(params.poolAddress).setAbsoluteSpread(params.spread);
     }
 
+}
+
+function stubChainlinkPrice(int256 price, address chainlinkAggregator) returns (ChainlinkAggregatorV2V3Mock oracle) {
+    (bool success, bytes memory returndata) =
+        chainlinkAggregator.call(abi.encodeWithSelector(ChainlinkAggregatorV2V3Mock(chainlinkAggregator).decimals.selector));
+    // defaults to 8 if v3 interface is not supported
+    uint8 decimals = success ? abi.decode(returndata, (uint8)) : 8;
+    deployCodeTo("ChainlinkAggregatorV2V3Mock.sol:ChainlinkAggregatorV2V3Mock", chainlinkAggregator);
+    oracle = ChainlinkAggregatorV2V3Mock(chainlinkAggregator).setDecimals(decimals).set(price);
+}
+
+function deployCodeTo(string memory what, bytes memory args, uint256 value, address where) {
+    bytes memory creationCode = VM.getCode(what);
+    VM.etch(where, abi.encodePacked(creationCode, args));
+    (bool success, bytes memory runtimeBytecode) = where.call{ value: value }("");
+    require(success, "StdCheats deployCodeTo(string,bytes,uint256,address): Failed to create runtime bytecode.");
+    VM.etch(where, runtimeBytecode);
+}
+
+function deployCodeTo(string memory what, address where) {
+    deployCodeTo(what, "", 0, where);
+}
+
+function deployCodeTo(string memory what, bytes memory args, address where) {
+    deployCodeTo(what, args, 0, where);
 }

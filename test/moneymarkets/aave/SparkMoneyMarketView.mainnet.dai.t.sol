@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "./IPoolConfigurator.sol";
 import "../AbstractMMV.t.sol";
@@ -97,7 +97,7 @@ contract SparkMoneyMarketViewDAITest is AbstractMarketViewTest {
 
     function testLendingLiquidity() public view {
         (, uint256 liquidity) = sut.liquidity(positionId);
-        assertEqDecimal(liquidity, type(uint256).max, instrument.baseDecimals, "Lending liquidity");
+        assertEqDecimal(liquidity, 3_258_026.488783186220365455e18, instrument.baseDecimals, "Lending liquidity");
     }
 
     function testThresholds_NewPosition() public {
