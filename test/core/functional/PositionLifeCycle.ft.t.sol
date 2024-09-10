@@ -226,3 +226,23 @@ contract PositionLifeCycleDolomiteArbitrumFunctionalShort is AbstractPositionLif
     }
 
 }
+
+contract PositionLifeCycleEulerMainnetFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Mainnet, 20_678_328, MM_EULER, WETH, USDC, WETH_STABLE_MULTIPLIER);
+
+        EulerMoneyMarket mm = EulerMoneyMarket(address(contango.positionFactory().moneyMarket(MM_EULER)));
+
+        IEulerVault ethVault = IEulerVault(0xD8b27CF359b7D15710a5BE299AF6e7Bf904984C2);
+        IEulerVault usdcVault = IEulerVault(0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9);
+
+        vm.startPrank(TIMELOCK_ADDRESS);
+        uint16 ethId = mm.reverseLookup().setVault(ethVault);
+        uint16 usdcId = mm.reverseLookup().setVault(usdcVault);
+        vm.stopPrank();
+
+        env.encoder().setPayload(baseQuotePayload(ethId, usdcId));
+    }
+
+}

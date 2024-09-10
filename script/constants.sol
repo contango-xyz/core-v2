@@ -48,6 +48,7 @@ MoneyMarketId constant MM_SILO = MoneyMarketId.wrap(16);
 MoneyMarketId constant MM_DOLOMITE = MoneyMarketId.wrap(17);
 MoneyMarketId constant MM_ZEROLEND = MoneyMarketId.wrap(18);
 MoneyMarketId constant MM_AAVE_LIDO = MoneyMarketId.wrap(19);
+MoneyMarketId constant MM_EULER = MoneyMarketId.wrap(30);
 
 uint32 constant PERP = type(uint32).max;
 uint256 constant DEFAULT_SLIPPAGE_TOLERANCE = 0.001e4;
