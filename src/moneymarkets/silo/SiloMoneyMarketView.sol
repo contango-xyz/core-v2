@@ -8,7 +8,6 @@ import "../../libraries/Arrays.sol";
 
 import "./SiloBase.sol";
 import "../BaseMoneyMarketView.sol";
-import { MM_SILO } from "script/constants.sol";
 
 contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
 
@@ -32,6 +31,7 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
     ISiloPriceProvidersRepository public immutable priceProvidersRepository;
 
     constructor(
+        MoneyMarketId _moneyMarketId,
         IContango _contango,
         IWETH9 _nativeToken,
         IAggregatorV2V3 _nativeUsdOracle,
@@ -40,7 +40,7 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
         ISilo _wstEthSilo,
         IERC20 _stablecoin
     )
-        BaseMoneyMarketView(MM_SILO, "Silo", _contango, _nativeToken, _nativeUsdOracle)
+        BaseMoneyMarketView(_moneyMarketId, "Silo", _contango, _nativeToken, _nativeUsdOracle)
         SiloBase(_lens, _incentivesController, _wstEthSilo, _nativeToken, _stablecoin)
     {
         priceProvidersRepository = repository.priceProvidersRepository();

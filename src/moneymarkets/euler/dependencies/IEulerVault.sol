@@ -113,4 +113,32 @@ interface IEulerVault is IERC4626 {
     /// @return Address of the interest rate contract or address zero to indicate 0% interest
     function interestRateModel() external view returns (address);
 
+    // Test only
+
+    /// @notice Checks to see if a liquidation would be profitable, without actually doing anything
+    /// @param liquidator Address that will initiate the liquidation
+    /// @param violator Address that may be in collateral violation
+    /// @param collateral Collateral which is to be seized
+    /// @return maxRepay Max amount of debt that can be repaid, in asset units
+    /// @return maxYield Yield in collateral corresponding to max allowed amount of debt to be repaid, in collateral
+    /// balance (shares for vaults)
+    function checkLiquidation(address liquidator, address violator, IEulerVault collateral)
+        external
+        view
+        returns (uint256 maxRepay, uint256 maxYield);
+
+    /// @notice Attempts to perform a liquidation
+    /// @param violator Address that may be in collateral violation
+    /// @param collateral Collateral which is to be seized
+    /// @param repayAssets The amount of underlying debt to be transferred from violator to sender, in asset units (use
+    /// max uint256 to repay the maximum possible amount).
+    /// @param minYieldBalance The minimum acceptable amount of collateral to be transferred from violator to sender, in
+    /// collateral balance units (shares for vaults)
+    function liquidate(address violator, IEulerVault collateral, uint256 repayAssets, uint256 minYieldBalance) external;
+
+    /// @notice Retrieves liquidation cool-off time, which must elapse after successful account status check before
+    /// account can be liquidated
+    /// @return The liquidation cool off time in seconds
+    function liquidationCoolOffTime() external view returns (uint16);
+
 }

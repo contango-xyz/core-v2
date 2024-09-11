@@ -44,7 +44,7 @@ contract LSDFarmTest is Test, GasSnapshot {
         (trader, traderPK) = makeAddrAndKey("trader");
         spotExecutor = env.maestro().spotExecutor();
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), lens);
+        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), lens, env.maestro().spotExecutor());
 
         address poolAddress = env.spotStub().stubPrice({
             base: longInstrument.baseData,

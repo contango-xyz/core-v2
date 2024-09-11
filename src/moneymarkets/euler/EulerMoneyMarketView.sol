@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.20;
+pragma solidity 0.8.27;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -44,11 +44,10 @@ contract EulerMoneyMarketView is BaseMoneyMarketView {
     {
         IEulerVault quoteVault = reverseLookup.quote(positionId);
         IERC20 unitOfAccount = quoteVault.unitOfAccount();
-        prices_.debt = quoteVault.oracle().getQuote(10 ** debtAsset.decimals(), debtAsset, unitOfAccount);
+        IPriceOracle oracle = quoteVault.oracle();
 
-        IEulerVault baseVault = reverseLookup.base(positionId);
-        prices_.collateral = baseVault.oracle().getQuote(10 ** collateralAsset.decimals(), collateralAsset, unitOfAccount);
-
+        prices_.debt = oracle.getQuote(10 ** debtAsset.decimals(), debtAsset, unitOfAccount);
+        prices_.collateral = oracle.getQuote(10 ** collateralAsset.decimals(), collateralAsset, unitOfAccount);
         prices_.unit = unitOfAccount == USD ? 1e18 : 10 ** unitOfAccount.decimals();
     }
 
