@@ -44,7 +44,7 @@ contract CrossStableFundingRateFarmTest is Test, GasSnapshot {
         (trader, traderPK) = makeAddrAndKey("trader");
         spotExecutor = env.maestro().spotExecutor();
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), lens);
+        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), lens, env.maestro().spotExecutor());
 
         stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
         stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));

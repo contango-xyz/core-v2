@@ -149,7 +149,7 @@ contract PositionLifeCycleAaveV2MainnetFunctionalLong is AbstractPositionLifeCyc
 
     function setUp() public {
         super.setUp(Network.Mainnet, MM_AAVE_V2, WETH, USDC, WETH_STABLE_MULTIPLIER);
-        stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
+        stubChainlinkPrice(0.001e18, CHAINLINK_USDC_ETH);
     }
 
 }
@@ -227,6 +227,39 @@ contract PositionLifeCycleDolomiteArbitrumFunctionalShort is AbstractPositionLif
 
 }
 
+contract PositionLifeCycleAaveBscFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Bsc, MM_AAVE, WETH, USDT, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleZeroLendLineaFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Linea, MM_ZEROLEND, WETH, USDC, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleAaveScrollFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        uniswapFee = 3000;
+        super.setUp(Network.Scroll, MM_AAVE, WETH, USDC, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
+contract PositionLifeCycleAaveAvalancheFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Avalanche, MM_AAVE, WETH, USDC, WETH_STABLE_MULTIPLIER);
+    }
+
+}
+
 contract PositionLifeCycleEulerMainnetFunctionalLong is AbstractPositionLifeCycleFunctional {
 
     function setUp() public {
@@ -243,6 +276,16 @@ contract PositionLifeCycleEulerMainnetFunctionalLong is AbstractPositionLifeCycl
         vm.stopPrank();
 
         env.encoder().setPayload(baseQuotePayload(ethId, usdcId));
+    }
+
+}
+
+contract PositionLifeCycleFluidEthereumFunctionalLong is AbstractPositionLifeCycleFunctional {
+
+    function setUp() public {
+        super.setUp(Network.Mainnet, 20_714_207, MM_FLUID, WETH, USDC, WETH_STABLE_MULTIPLIER);
+        env.encoder().setPayload(Payload.wrap(bytes5(uint40(11))));
+        stubChainlinkPrice(0.001e18, CHAINLINK_USDC_ETH);
     }
 
 }

@@ -37,8 +37,9 @@ contract SiloMoneyMarketBorrowRewardsTest is Test, Addresses {
         IWETH9 weth = IWETH9(_loadAddress("NativeToken"));
         IERC20 stablecoin = IERC20(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
 
-        SiloMoneyMarket mm = new SiloMoneyMarket(contango, siloLens, incentivesController, wstEthSilo, weth, stablecoin);
+        SiloMoneyMarket mm = new SiloMoneyMarket(MM_SILO, contango, siloLens, incentivesController, wstEthSilo, weth, stablecoin);
         SiloMoneyMarketView mmv = new SiloMoneyMarketView(
+            MM_SILO,
             contango,
             weth,
             IAggregatorV2V3(0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612),
@@ -65,7 +66,8 @@ contract SiloMoneyMarketBorrowRewardsTest is Test, Addresses {
             TIMELOCK,
             IMaestro(_loadAddress("MaestroProxy")),
             IERC721Permit2(_loadAddress("IERC721Permit2")),
-            ContangoLens(_loadAddress("ContangoLensProxy"))
+            ContangoLens(_loadAddress("ContangoLensProxy")),
+            SimpleSpotExecutor(_loadAddress("SimpleSpotExecutor"))
         );
         IERC20 base = IERC20(0xB86fb1047A955C0186c77ff6263819b37B32440D);
 

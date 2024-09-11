@@ -53,14 +53,14 @@ abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, Acce
 
     bytes32 internal flashLoanHash;
 
-    constructor(Timelock timelock, IMaestro _maestro, IERC721Permit2 _erc721Permit2, ContangoLens _lens) {
+    constructor(Timelock timelock, IMaestro _maestro, IERC721Permit2 _erc721Permit2, ContangoLens _lens, SimpleSpotExecutor _spotExecutor) {
         // Grant the admin role to the timelock by default
         _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
 
         contango = _maestro.contango();
         vault = _maestro.vault();
         positionNFT = contango.positionNFT();
-        spotExecutor = _maestro.spotExecutor();
+        spotExecutor = _spotExecutor;
         erc721Permit2 = _erc721Permit2;
         lens = _lens;
         erc20Permit2 = _maestro.permit2();

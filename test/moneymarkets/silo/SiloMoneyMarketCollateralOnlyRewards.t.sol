@@ -31,8 +31,9 @@ contract SiloMoneyMarketCollateralOnlyRewardsTest is Test {
         IWETH9 weth = IWETH9(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
         IERC20 stablecoin = IERC20(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
 
-        SiloMoneyMarket mm = new SiloMoneyMarket(contango, siloLens, incentivesController, wstEthSilo, weth, stablecoin);
+        SiloMoneyMarket mm = new SiloMoneyMarket(MM_SILO, contango, siloLens, incentivesController, wstEthSilo, weth, stablecoin);
         SiloMoneyMarketView mmv = new SiloMoneyMarketView(
+            MM_SILO,
             contango,
             weth,
             IAggregatorV2V3(0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612),

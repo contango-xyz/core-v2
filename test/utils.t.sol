@@ -24,6 +24,21 @@ function first(Vm.Log[] memory logs, bytes memory _event) pure returns (Vm.Log m
     revert(string.concat(string(_event), " not found"));
 }
 
+function all(Vm.Log[] memory logs, bytes memory _event) pure returns (Vm.Log[] memory result) {
+    uint256 count;
+    result = new Vm.Log[](logs.length);
+
+    for (uint256 i = 0; i < logs.length; i++) {
+        if (logs[i].topics[0] == keccak256(_event)) result[count++] = logs[i];
+    }
+
+    assembly {
+        mstore(result, count)
+    }
+
+    return result;
+}
+
 function positionsUpserted(Vm.Log[] memory logs) pure returns (PositionId[] memory positions) {
     positions = new PositionId[](logs.length);
     uint256 j;

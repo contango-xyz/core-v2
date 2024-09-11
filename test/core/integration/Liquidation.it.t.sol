@@ -153,11 +153,11 @@ contract AaveV2Liquidation is AbstractAaveV2Liquidation {
 
     function setUp() public {
         setUp(Network.Mainnet, MM_AAVE_V2, WETH, USDC);
-        stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4);
+        stubChainlinkPrice(0.001e18, CHAINLINK_USDC_ETH);
     }
 
     function _movePrice(int256 percentage) internal override {
-        env.spotStub().movePrice(0x986b5E1e1755e3C2440e960477f25201B0a8bbD4, "USDC/ETH", -percentage);
+        env.spotStub().movePrice(CHAINLINK_USDC_ETH, "USDC/ETH", -percentage);
     }
 
 }
@@ -273,6 +273,130 @@ contract MoonwellLiquidation is AbstractCompoundV2Liquidation {
 
     function setUp() public {
         super.setUp(Network.Base, MM_MOONWELL, WETH, USDC);
+    }
+
+}
+
+contract EulerLiquidation is Liquidation {
+
+    using { first } for Vm.Log[];
+    using { asAddress } for bytes32;
+
+    IEulerVault public ethVault = IEulerVault(0xD8b27CF359b7D15710a5BE299AF6e7Bf904984C2);
+    IEulerVault public usdcVault = IEulerVault(0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9);
+
+    function setUp() public {
+        super.setUp(Network.Mainnet, 20_678_328, MM_EULER, WETH, USDC);
+
+        Contango contango = env.contango();
+
+        EulerMoneyMarket mm = EulerMoneyMarket(address(contango.positionFactory().moneyMarket(MM_EULER)));
+
+        vm.startPrank(TIMELOCK_ADDRESS);
+        uint16 ethId = mm.reverseLookup().setVault(ethVault);
+        uint16 usdcId = mm.reverseLookup().setVault(usdcVault);
+        vm.stopPrank();
+
+        env.encoder().setPayload(baseQuotePayload(ethId, usdcId));
+
+        env.dealAndApprove(instrument.base, liquidator, 100 ether, address(ethVault));
+        vm.startPrank(liquidator);
+        mm.evc().enableController(liquidator, usdcVault);
+        mm.evc().enableCollateral(liquidator, ethVault);
+        ethVault.deposit(100 ether, liquidator);
+        vm.stopPrank();
+    }
+
+    function test_Liquidate() public {
+        (, positionId,) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: mm,
+            quantity: 10 ether,
+            cashflow: 0,
+            cashflowCcy: Currency.Quote
+        });
+
+        _movePrice(-0.05e18);
+        skip(usdcVault.liquidationCoolOffTime() + 1);
+
+        address account = address(positionFactory.moneyMarket(positionId));
+        (uint256 maxRepay, uint256 maxYield) = usdcVault.checkLiquidation(liquidator, account, ethVault);
+        assertGt(maxRepay, 0, "maxRepay");
+
+        vm.recordLogs();
+        vm.prank(liquidator);
+        usdcVault.liquidate(account, ethVault, maxRepay, 0);
+
+        // Liquidate(address indexed liquidator, address indexed violator, address collateral, uint256 repayAssets, uint256 yieldBalance)
+        Vm.Log memory log = vm.getRecordedLogs().first("Liquidate(address,address,address,uint256,uint256)");
+        assertEq(log.topics[1].asAddress(), liquidator, "Liquidate.liquidator");
+        assertEq(log.topics[2].asAddress(), account, "Liquidate.violator");
+
+        (address collateral, uint256 repayAssets, uint256 yieldBalance) = abi.decode(log.data, (address, uint256, uint256));
+        assertEq(collateral, address(ethVault), "Liquidate.collateral");
+        assertEq(repayAssets, maxRepay, "Liquidate.repayAssets");
+        assertEq(yieldBalance, maxYield, "Liquidate.yieldBalance");
+    }
+
+}
+
+contract FluidLiquidation is Liquidation {
+
+    using { first, all } for Vm.Log[];
+    using { asAddress } for bytes32;
+
+    address oracle = CHAINLINK_USDC_ETH;
+
+    function setUp() public {
+        super.setUp(Network.Mainnet, 20_714_207, MM_FLUID, WETH, USDC);
+        env.encoder().setPayload(Payload.wrap(bytes5(uint40(11))));
+        stubChainlinkPrice(0.001e18, oracle);
+    }
+
+    function test_Liquidate() public {
+        (, positionId,) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: mm,
+            quantity: 10 ether,
+            cashflow: 1500e6,
+            cashflowCcy: Currency.Quote
+        });
+
+        env.spotStub().movePrice(oracle, "USDC", -0.05e18);
+
+        FluidMoneyMarket account = FluidMoneyMarket(payable(address(positionFactory.moneyMarket(positionId))));
+        IFluidVault vault = account.vault(positionId);
+
+        uint256 debtToCover = 1000e6;
+        env.dealAndApprove(instrument.quote, liquidator, debtToCover, address(vault));
+
+        vm.recordLogs();
+        vm.prank(liquidator);
+        vault.liquidate(debtToCover, 0, liquidator, true);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        Vm.Log[] memory opeations = logs.all("LogOperate(address,address,int256,int256,address,address,uint256,uint256)");
+        assertEq(opeations.length, 2, "LogOperate");
+
+        Vm.Log memory log = opeations[0];
+        assertEq(log.topics[1].asAddress(), address(vault), "LogOperate1.user");
+        assertEq(log.topics[2].asAddress(), address(instrument.quote), "LogOperate1.token");
+
+        (int256 supplyAmount, int256 borrowAmount) = abi.decode(log.data, (int256, int256));
+        assertApproxEqAbsDecimal(supplyAmount, 0, 0, 0, "LogOperate1.supplyAmount");
+        assertApproxEqAbsDecimal(borrowAmount, -int256(debtToCover), 1, 6, "LogOperate1.borrowAmount");
+
+        log = opeations[1];
+        assertEq(log.topics[1].asAddress(), address(vault), "LogOperate2.user");
+        assertEq(log.topics[2].asAddress(), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, "LogOperate2.token");
+
+        (supplyAmount, borrowAmount) = abi.decode(log.data, (int256, int256));
+        assertApproxEqAbsDecimal(supplyAmount, -0.63 ether, 0.001 ether, 18, "LogOperate2.supplyAmount");
+        assertApproxEqAbsDecimal(borrowAmount, 0, 0, 0, "LogOperate2.borrowAmount");
+
+        log = logs.first("LogLiquidate(address,uint256,uint256,address)");
+        (address liquidator) = abi.decode(log.data, (address));
+        assertEq(liquidator, liquidator, "LogLiquidate.liquidator");
     }
 
 }

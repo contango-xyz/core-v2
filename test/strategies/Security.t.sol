@@ -47,7 +47,7 @@ contract StrategiesSecurityTest is BaseTest, GasSnapshot {
         usdc = env.token(USDC);
         dai = env.token(DAI);
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), env.contangoLens());
+        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), env.contangoLens(), env.maestro().spotExecutor());
 
         env.spotStub().stubPrice({ base: env.erc20(WETH), quote: env.erc20(USDC), baseUsdPrice: 1000e8, quoteUsdPrice: 1e8, uniswapFee: 500 });
 

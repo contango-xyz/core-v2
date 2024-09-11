@@ -45,6 +45,8 @@ import "src/moneymarkets/dolomite/DolomiteMoneyMarket.sol";
 import "src/moneymarkets/dolomite/DolomiteMoneyMarketView.sol";
 import "src/moneymarkets/euler/EulerMoneyMarket.sol";
 import "src/moneymarkets/euler/EulerMoneyMarketView.sol";
+import "src/moneymarkets/fluid/FluidMoneyMarket.sol";
+import "src/moneymarkets/fluid/FluidMoneyMarketView.sol";
 import "src/moneymarkets/ContangoLens.sol";
 import "src/models/FixedFeeModel.sol";
 import "@contango/erc721Permit2/ERC721Permit2.sol";
@@ -99,6 +101,8 @@ bytes32 constant DEFAULT_ADMIN_ROLE = "";
 
 Symbol constant WETHUSDC = Symbol.wrap("WETHUSDC");
 
+address constant CHAINLINK_USDC_ETH = 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4;
+
 function _deployCode(string memory what) returns (address addr) {
     bytes memory bytecode = VM.getCode(what);
     /// @solidity memory-safe-assembly
@@ -116,6 +120,10 @@ function provider(Network network) returns (Env) {
     else if (network == Network.Mainnet) return Env(_deployCode("TestSetup.t.sol:MainnetEnv"));
     else if (network == Network.Gnosis) return Env(_deployCode("TestSetup.t.sol:GnosisEnv"));
     else if (network == Network.Base) return Env(_deployCode("TestSetup.t.sol:BaseEnv"));
+    else if (network == Network.Bsc) return Env(_deployCode("TestSetup.t.sol:BscEnv"));
+    else if (network == Network.Linea) return Env(_deployCode("TestSetup.t.sol:LineaEnv"));
+    else if (network == Network.Scroll) return Env(_deployCode("TestSetup.t.sol:ScrollEnv"));
+    else if (network == Network.Avalanche) return Env(_deployCode("TestSetup.t.sol:AvalancheEnv"));
     else revert(string.concat("Unsupported network: ", network.toString()));
 }
 
@@ -126,6 +134,10 @@ function forkBlock(Network network) pure returns (uint256) {
     else if (network == Network.Mainnet) return 18_012_703;
     else if (network == Network.Gnosis) return 30_772_017;
     else if (network == Network.Base) return 6_372_881;
+    else if (network == Network.Bsc) return 39_407_478;
+    else if (network == Network.Linea) return 7_910_918;
+    else if (network == Network.Scroll) return 8_225_281;
+    else if (network == Network.Avalanche) return 49_053_214;
     else revert(string.concat("Unsupported network: ", network.toString()));
 }
 
@@ -426,8 +438,9 @@ contract Deployer is Addresses {
     function deploySiloMoneyMarket(Env env, IContango contango) public returns (SiloMoneyMarket moneyMarket) {
         IERC20 stable = env.network().isArbitrum() ? env.token(USDC) : IERC20(address(0));
 
-        moneyMarket =
-            new SiloMoneyMarket(contango, env.siloLens(), env.siloIncentivesController(), env.wstEthSilo(), env.nativeToken(), stable);
+        moneyMarket = new SiloMoneyMarket(
+            MM_SILO, contango, env.siloLens(), env.siloIncentivesController(), env.wstEthSilo(), env.nativeToken(), stable
+        );
 
         UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
         moneyMarket = SiloMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
@@ -451,6 +464,13 @@ contract Deployer is Addresses {
 
         UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
         moneyMarket = EulerMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
+    }
+
+    function deployFluidMoneyMarket(Env env, IContango contango) public returns (FluidMoneyMarket moneyMarket) {
+        moneyMarket = new FluidMoneyMarket(contango, env.nativeToken(), env.fluidVaultResolver());
+
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        moneyMarket = FluidMoneyMarket(payable(address(new ImmutableBeaconProxy(beacon))));
     }
 
     function deployVault(Env env) public returns (Vault vault) {
@@ -709,6 +729,7 @@ contract Deployer is Addresses {
 
             deployment.contangoLens.setMoneyMarketView(
                 new SiloMoneyMarketView(
+                    MM_SILO,
                     deployment.contango,
                     env.nativeToken(),
                     env.nativeUsdOracle(),
@@ -734,6 +755,15 @@ contract Deployer is Addresses {
                 new EulerMoneyMarketView(
                     deployment.contango, env.nativeToken(), env.nativeUsdOracle(), mm.reverseLookup(), mm.rewardOperator(), env.eulerLens()
                 )
+            );
+        }
+
+        if (env.marketAvailable(MM_FLUID) && block.number >= 20_678_328) {
+            FluidMoneyMarket mm = deployFluidMoneyMarket(env, deployment.contango);
+            positionFactory.registerMoneyMarket(mm);
+
+            deployment.contangoLens.setMoneyMarketView(
+                new FluidMoneyMarketView(deployment.contango, env.nativeToken(), env.nativeUsdOracle(), env.fluidVaultResolver())
             );
         }
 
@@ -854,6 +884,8 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
     IEthereumVaultConnector public eulerVaultConnector;
     IRewardStreams public eulerRewards;
     IEulerVaultLens public eulerLens;
+    // Fluid
+    IFluidVaultResolver public fluidVaultResolver;
     // Test
     SpotStub public spotStub;
     PositionActions public positionActions;
@@ -907,7 +939,8 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
         _bounds[DAI] = ERC20Bounds({ min: 100e18, max: type(uint96).max, dust: 0.0001e18 });
         _bounds[SDAI] = ERC20Bounds({ min: 100e18, max: type(uint96).max, dust: 0.0001e18 });
         _bounds[USDC] = ERC20Bounds({ min: 100e6, max: type(uint96).max / 1e12, dust: 0.0001e6 });
-        _bounds[USDT] = ERC20Bounds({ min: 100e6, max: type(uint96).max / 1e12, dust: 0.0001e6 });
+        if (network.isBsc()) _bounds[USDT] = ERC20Bounds({ min: 100e18, max: type(uint96).max, dust: 0.0001e18 });
+        else _bounds[USDT] = ERC20Bounds({ min: 100e6, max: type(uint96).max / 1e12, dust: 0.0001e6 });
         _bounds[WETH] = ERC20Bounds({ min: 0.1e18, max: type(uint96).max, dust: 0.00001e18 });
     }
 
@@ -1506,6 +1539,7 @@ contract MainnetEnv is Env {
         _moneyMarkets.push(MM_SILO);
         _moneyMarkets.push(MM_AAVE_LIDO);
         _moneyMarkets.push(MM_EULER);
+        _moneyMarkets.push(MM_FLUID);
 
         _erc20s[LINK] = ERC20Data({
             symbol: LINK,
@@ -1603,6 +1637,8 @@ contract MainnetEnv is Env {
         eulerVaultConnector = IEthereumVaultConnector(_loadAddress("EulerVaultConnector"));
         eulerRewards = IRewardStreams(_loadAddress("EulerRewards"));
         eulerLens = IEulerVaultLens(_loadAddress("EulerVaultLens"));
+
+        fluidVaultResolver = IFluidVaultResolver(_loadAddress("FluidVaultResolver"));
 
         Deployment memory deployment = deployer.deployContango(this);
         maestro = deployment.maestro;
@@ -1765,6 +1801,249 @@ contract BaseEnv is Env {
         super.init(blockNumber);
         fork("base", blockNumber);
         cleanTreasury();
+
+        Deployment memory deployment = deployer.deployContango(this);
+        maestro = deployment.maestro;
+        vault = deployment.vault;
+        contango = deployment.contango;
+        contangoLens = deployment.contangoLens;
+        orderManager = deployment.orderManager;
+        feeManager = deployment.feeManager;
+        tsQuoter = deployment.tsQuoter;
+        positionFactory = contango.positionFactory();
+        positionNFT = contango.positionNFT();
+        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+
+        erc721Permit2 = new ERC721Permit2();
+        VM.prank(TIMELOCK_ADDRESS);
+        positionNFT.setContangoContract(address(erc721Permit2), true);
+    }
+
+}
+
+contract BscEnv is Env {
+
+    constructor() Env(Network.Bsc) {
+        _moneyMarkets.push(MM_AAVE);
+
+        // chainlink addresses for bsc - https://docs.chain.link/data-feeds/price-feeds/addresses?network=bnb-chain&page=1
+        _erc20s[DAI] = ERC20Data({
+            symbol: DAI,
+            token: IERC20(0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3),
+            chainlinkUsdOracle: IAggregatorV2V3(0x132d3C0B1D2cEa0BC552588063bdBb210FDeecfA),
+            hasPermit: false
+        });
+        _erc20s[WETH] = ERC20Data({
+            symbol: WETH,
+            token: IERC20(0x2170Ed0880ac9A755fd29B2688956BD959F933F8),
+            chainlinkUsdOracle: IAggregatorV2V3(0x9ef1B8c0E4F7dc8bF5719Ea496883DC6401d5b2e),
+            hasPermit: false
+        });
+        _erc20s[USDC] = ERC20Data({
+            symbol: USDC,
+            token: IERC20(0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d),
+            chainlinkUsdOracle: IAggregatorV2V3(0x51597f405303C4377E36123cBc172b13269EA163),
+            hasPermit: false
+        });
+        _erc20s[WBNB] = ERC20Data({
+            symbol: WBNB,
+            token: IERC20(0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c),
+            chainlinkUsdOracle: IAggregatorV2V3(0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE),
+            hasPermit: false
+        });
+        _erc20s[USDT] = ERC20Data({
+            symbol: USDT,
+            token: IERC20(0x55d398326f99059fF775485246999027B3197955),
+            chainlinkUsdOracle: IAggregatorV2V3(0x0F682319Ed4A240b7a2599A48C965049515D9bC3),
+            hasPermit: false
+        });
+
+        spotStub = new SpotStub(0x41ff9AA7e16B8B1a8a8dc4f0eFacd93D02d071c9);
+        VM.makePersistent(address(spotStub));
+
+        uniswap = 0x13f4EA83D0bd40E75C8222255bc855a974568Dd4;
+        uniswapRouter = SwapRouter02(uniswap);
+    }
+
+    function init() public override {
+        init(forkBlock(Network.Bsc));
+    }
+
+    function init(uint256 blockNumber) public override {
+        super.init(blockNumber);
+        nativeToken = IWETH9(address(token(WBNB)));
+        fork("bsc", blockNumber);
+
+        aaveAddressProvider = IPoolAddressesProvider(_loadAddress("AavePoolAddressesProvider"));
+        aaveRewardsController = IAaveRewardsController(_loadAddress("AaveRewardsController"));
+
+        Deployment memory deployment = deployer.deployContango(this);
+        maestro = deployment.maestro;
+        vault = deployment.vault;
+        contango = deployment.contango;
+        contangoLens = deployment.contangoLens;
+        orderManager = deployment.orderManager;
+        feeManager = deployment.feeManager;
+        tsQuoter = deployment.tsQuoter;
+        positionFactory = contango.positionFactory();
+        positionNFT = contango.positionNFT();
+        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+
+        erc721Permit2 = new ERC721Permit2();
+        VM.prank(TIMELOCK_ADDRESS);
+        positionNFT.setContangoContract(address(erc721Permit2), true);
+    }
+
+}
+
+contract LineaEnv is Env {
+
+    constructor() Env(Network.Linea) {
+        _moneyMarkets.push(MM_ZEROLEND);
+
+        // chainlink addresses for linea - https://docs.chain.link/data-feeds/price-feeds/addresses?network=linea&page=1
+        _erc20s[WETH] = ERC20Data({
+            symbol: WETH,
+            token: IERC20(0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f),
+            chainlinkUsdOracle: IAggregatorV2V3(0x3c6Cd9Cc7c7a4c2Cf5a82734CD249D7D593354dA),
+            hasPermit: false
+        });
+        _erc20s[USDC] = ERC20Data({
+            symbol: USDC,
+            token: IERC20(0x176211869cA2b568f2A7D4EE941E073a821EE1ff),
+            chainlinkUsdOracle: IAggregatorV2V3(0xAADAa473C1bDF7317ec07c915680Af29DeBfdCb5),
+            hasPermit: false
+        });
+
+        spotStub = new SpotStub(0xc35DADB65012eC5796536bD9864eD8773aBc74C4);
+        VM.makePersistent(address(spotStub));
+
+        uniswap = 0xb1E835Dc2785b52265711e17fCCb0fd018226a6e;
+        uniswapRouter = SwapRouter02(uniswap);
+    }
+
+    function init() public override {
+        init(forkBlock(Network.Linea));
+    }
+
+    function init(uint256 blockNumber) public override {
+        super.init(blockNumber);
+        fork("linea", blockNumber);
+
+        zeroLendAddressProvider = IPoolAddressesProvider(_loadAddress("ZeroLendPoolAddressesProvider"));
+        zeroLendRewardsController = IAaveRewardsController(_loadAddress("ZeroLendRewardsController"));
+
+        Deployment memory deployment = deployer.deployContango(this);
+        maestro = deployment.maestro;
+        vault = deployment.vault;
+        contango = deployment.contango;
+        contangoLens = deployment.contangoLens;
+        orderManager = deployment.orderManager;
+        feeManager = deployment.feeManager;
+        tsQuoter = deployment.tsQuoter;
+        positionFactory = contango.positionFactory();
+        positionNFT = contango.positionNFT();
+        encoder = new Encoder(contango, zeroLendAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+
+        erc721Permit2 = new ERC721Permit2();
+        VM.prank(TIMELOCK_ADDRESS);
+        positionNFT.setContangoContract(address(erc721Permit2), true);
+    }
+
+}
+
+contract ScrollEnv is Env {
+
+    constructor() Env(Network.Scroll) {
+        _moneyMarkets.push(MM_AAVE);
+
+        // chainlink addresses for Scroll - https://docs.chain.link/data-feeds/price-feeds/addresses?network=scroll&page=1
+        _erc20s[WETH] = ERC20Data({
+            symbol: WETH,
+            token: IERC20(0x5300000000000000000000000000000000000004),
+            chainlinkUsdOracle: IAggregatorV2V3(0x6bF14CB0A831078629D993FDeBcB182b21A8774C),
+            hasPermit: false
+        });
+        _erc20s[USDC] = ERC20Data({
+            symbol: USDC,
+            token: IERC20(0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4),
+            chainlinkUsdOracle: IAggregatorV2V3(0x43d12Fb3AfCAd5347fA764EeAB105478337b7200),
+            hasPermit: false
+        });
+
+        spotStub = new SpotStub(0xAAA32926fcE6bE95ea2c51cB4Fcb60836D320C42);
+        VM.makePersistent(address(spotStub));
+
+        uniswap = 0xAAAE99091Fbb28D400029052821653C1C752483B;
+        uniswapRouter = SwapRouter02(uniswap);
+    }
+
+    function init() public override {
+        init(forkBlock(Network.Scroll));
+    }
+
+    function init(uint256 blockNumber) public override {
+        super.init(blockNumber);
+        fork("scroll", blockNumber);
+
+        aaveAddressProvider = IPoolAddressesProvider(_loadAddress("AavePoolAddressesProvider"));
+        aaveRewardsController = IAaveRewardsController(_loadAddress("AaveRewardsController"));
+
+        Deployment memory deployment = deployer.deployContango(this);
+        maestro = deployment.maestro;
+        vault = deployment.vault;
+        contango = deployment.contango;
+        contangoLens = deployment.contangoLens;
+        orderManager = deployment.orderManager;
+        feeManager = deployment.feeManager;
+        tsQuoter = deployment.tsQuoter;
+        positionFactory = contango.positionFactory();
+        positionNFT = contango.positionNFT();
+        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+
+        erc721Permit2 = new ERC721Permit2();
+        VM.prank(TIMELOCK_ADDRESS);
+        positionNFT.setContangoContract(address(erc721Permit2), true);
+    }
+
+}
+
+contract AvalancheEnv is Env {
+
+    constructor() Env(Network.Avalanche) {
+        _moneyMarkets.push(MM_AAVE);
+
+        // chainlink addresses for Avalanche - https://docs.chain.link/data-feeds/price-feeds/addresses?network=Avalanche&page=1
+        _erc20s[WETH] = ERC20Data({
+            symbol: WETH,
+            token: IERC20(0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB),
+            chainlinkUsdOracle: IAggregatorV2V3(0x976B3D034E162d8bD72D6b9C989d545b839003b0),
+            hasPermit: false
+        });
+        _erc20s[USDC] = ERC20Data({
+            symbol: USDC,
+            token: IERC20(0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E),
+            chainlinkUsdOracle: IAggregatorV2V3(0xF096872672F44d6EBA71458D74fe67F9a77a23B9),
+            hasPermit: false
+        });
+
+        spotStub = new SpotStub(0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD);
+        VM.makePersistent(address(spotStub));
+
+        uniswap = 0x4F54dd2F4f30347d841b7783aD08c050d8410a9d;
+        uniswapRouter = SwapRouter02(uniswap);
+    }
+
+    function init() public override {
+        init(forkBlock(Network.Avalanche));
+    }
+
+    function init(uint256 blockNumber) public override {
+        super.init(blockNumber);
+        fork("avalanche", blockNumber);
+
+        aaveAddressProvider = IPoolAddressesProvider(_loadAddress("AavePoolAddressesProvider"));
+        aaveRewardsController = IAaveRewardsController(_loadAddress("AaveRewardsController"));
 
         Deployment memory deployment = deployer.deployContango(this);
         maestro = deployment.maestro;
