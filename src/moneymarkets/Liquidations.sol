@@ -90,7 +90,7 @@ interface Liquidations {
     );
     event AbsorbDebt(address indexed absorber, address indexed borrower, uint256 basePaidOut, uint256 usdValue);
 
-    // Dolomite
+    // ====================== Dolomite ======================
 
     event LogLiquidate(
         address indexed solidAccountOwner,
@@ -104,5 +104,15 @@ interface Liquidations {
         IDolomiteMargin.BalanceUpdate liquidHeldUpdate,
         IDolomiteMargin.BalanceUpdate liquidOwedUpdate
     );
+
+    // ====================== Euler ======================
+
+    /// @notice Liquidate unhealthy account
+    /// @param liquidator Address executing the liquidation
+    /// @param violator Address holding an unhealthy borrow
+    /// @param collateral Address of the asset seized
+    /// @param repayAssets Amount of debt in assets transferred from violator to liquidator
+    /// @param yieldBalance Amount of collateral asset's balance transferred from violator to liquidator
+    event Liquidate(address indexed liquidator, address indexed violator, address collateral, uint256 repayAssets, uint256 yieldBalance);
 
 }

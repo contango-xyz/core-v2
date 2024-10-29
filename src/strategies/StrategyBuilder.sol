@@ -74,8 +74,8 @@ contract StrategyBuilder is StrategyBlocks {
 
     event StragegyExecuted(address indexed user, bytes32 indexed action, PositionId position1, PositionId position2, bytes data);
 
-    constructor(Timelock timelock, IMaestro _maestro, IERC721Permit2 _erc721Permit2, ContangoLens _lens)
-        StrategyBlocks(timelock, _maestro, _erc721Permit2, _lens)
+    constructor(Timelock timelock, IMaestro _maestro, IERC721Permit2 _erc721Permit2, ContangoLens _lens, SimpleSpotExecutor _spotExecutor)
+        StrategyBlocks(timelock, _maestro, _erc721Permit2, _lens, _spotExecutor)
     { }
 
     // ======================== Public functions ========================

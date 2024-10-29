@@ -7,7 +7,6 @@ import "./SiloBase.sol";
 import "../BaseMoneyMarket.sol";
 import "../../libraries/ERC20Lib.sol";
 import { toArray } from "../../libraries/Arrays.sol";
-import { MM_SILO } from "script/constants.sol";
 
 contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
 
@@ -20,13 +19,14 @@ contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
     ISilo public silo;
 
     constructor(
+        MoneyMarketId _moneyMarketId,
         IContango _contango,
         ISiloLens _lens,
         ISiloIncentivesController _incentivesController,
         ISilo _wstEthSilo,
         IERC20 _weth,
         IERC20 _stablecoin
-    ) BaseMoneyMarket(MM_SILO, _contango) SiloBase(_lens, _incentivesController, _wstEthSilo, _weth, _stablecoin) { }
+    ) BaseMoneyMarket(_moneyMarketId, _contango) SiloBase(_lens, _incentivesController, _wstEthSilo, _weth, _stablecoin) { }
 
     function _initialise(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal virtual override {
         if (!positionId.isPerp()) revert InvalidExpiry();

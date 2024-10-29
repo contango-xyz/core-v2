@@ -45,7 +45,7 @@ contract DecreasePositionFlashloanQuoteTest is BaseTest, GasSnapshot {
         spotExecutor = env.maestro().spotExecutor();
         router = env.uniswapRouter();
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), env.contangoLens());
+        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), env.contangoLens(), env.maestro().spotExecutor());
 
         FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
         vm.prank(TIMELOCK_ADDRESS);

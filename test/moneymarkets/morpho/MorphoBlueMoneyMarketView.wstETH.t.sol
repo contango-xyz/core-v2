@@ -52,7 +52,7 @@ contract MorphoBlueMoneyMarketViewTest is Test {
         vm.stopPrank();
 
         stubChainlinkPrice(1.15e8, 0x4F67e4d9BD67eFa28236013288737D39AeF48e79); // WSTETH/ETH
-        stubChainlinkPrice(0.001e18, 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4); // USDC/ETH
+        stubChainlinkPrice(0.001e18, CHAINLINK_USDC_ETH); // USDC/ETH
         stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle)); // ETH/USD
         address poolAddress = env.spotStub().stubPrice({
             base: instrument.baseData,

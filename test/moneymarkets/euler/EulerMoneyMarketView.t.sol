@@ -13,6 +13,9 @@ contract EulerMoneyMarketViewTest is AbstractMarketViewTest {
     IEulerVault public constant usdcVault = IEulerVault(0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9);
     // IERC20 public constant rewardToken = IERC20(0xf23a2a96C4EE7322E7b6a2EbB914c789a43eF39E);
 
+    uint16 ethId;
+    uint16 usdcId;
+
     constructor() AbstractMarketViewTest(MM_EULER) { }
 
     function setUp() public {
@@ -23,8 +26,8 @@ contract EulerMoneyMarketViewTest is AbstractMarketViewTest {
         vm.startPrank(TIMELOCK_ADDRESS);
         // mmv.rewardOperator().addLiveReward(ethVault, rewardToken);
 
-        uint16 ethId = mmv.reverseLookup().setVault(ethVault);
-        uint16 usdcId = mmv.reverseLookup().setVault(usdcVault);
+        ethId = mmv.reverseLookup().setVault(ethVault);
+        usdcId = mmv.reverseLookup().setVault(usdcVault);
         vm.stopPrank();
 
         positionId = encode(Symbol.wrap("WETHUSDC"), MM_EULER, PERP, 0, baseQuotePayload(ethId, usdcId));
@@ -52,6 +55,20 @@ contract EulerMoneyMarketViewTest is AbstractMarketViewTest {
     function testPriceInUSD() public view override {
         assertApproxEqAbsDecimal(sut.priceInUSD(instrument.base), 0, 0, 18, "Base price in USD");
         assertApproxEqAbsDecimal(sut.priceInUSD(instrument.quote), 0, 0, 18, "Quote price in USD");
+    }
+
+    function testPrices_Escrow() public {
+        vm.startPrank(TIMELOCK_ADDRESS);
+        ethId = EulerMoneyMarketView(address(sut)).reverseLookup().setVault(IEulerVault(0xb3b36220fA7d12f7055dab5c9FD18E860e9a6bF8));
+        vm.stopPrank();
+
+        positionId = encode(Symbol.wrap("WETHUSDC"), MM_EULER, PERP, 0, baseQuotePayload(ethId, usdcId));
+
+        Prices memory prices = sut.prices(positionId);
+
+        assertEqDecimal(prices.collateral, 1000e18, 18, "Collateral price");
+        assertEqDecimal(prices.debt, 1e18, 18, "Debt price");
+        assertEq(prices.unit, 10 ** 18, "Oracle Unit");
     }
 
     function testBorrowingLiquidity() public {
