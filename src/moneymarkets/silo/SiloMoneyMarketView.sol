@@ -14,19 +14,11 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
     using Math for *;
     using { isCollateralOnly } for PositionId;
 
-    struct IRMData {
-        ISilo.UtilizationData utilizationData;
-        IInterestRateModelV2.Config irmConfig;
-        uint256 protocolShareFee;
-    }
-
     struct PauseStatus {
         bool global;
         bool collateral;
         bool debt;
     }
-
-    error OracleBaseCurrencyNotUSD();
 
     ISiloPriceProvidersRepository public immutable priceProvidersRepository;
 
@@ -125,33 +117,83 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
         virtual
         override
         returns (uint256 borrowing, uint256 lending)
-    {
-        ISilo silo = getSilo(collateralAsset, debtAsset);
-        borrowing = lens.borrowAPY(silo, debtAsset);
-        lending = lens.depositAPY(silo, collateralAsset);
-    }
+    { }
 
-    function _irmRaw(PositionId, IERC20 collateralAsset, IERC20 debtAsset) internal view virtual override returns (bytes memory data) {
-        ISilo silo = getSilo(collateralAsset, debtAsset);
-        data = abi.encode(_collectIrmData(silo, collateralAsset), _collectIrmData(silo, debtAsset));
-    }
-
-    function _collectIrmData(ISilo silo, IERC20 asset) internal view virtual returns (IRMData memory data) {
-        data.utilizationData = silo.utilizationData(asset);
-        data.irmConfig = repository.getInterestRateModel(silo, asset).getConfig(silo, asset);
-        data.protocolShareFee = repository.protocolShareFee();
-    }
-
-    function _rewards(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
+    function _irmRaw(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
         internal
         view
         virtual
         override
-        returns (Reward[] memory borrowing, Reward[] memory lending)
+        returns (bytes memory data)
     {
+        data = abi.encode(rawData(positionId, collateralAsset, debtAsset));
+    }
+
+    struct RawData {
+        bool paused;
+        SiloData collateralData;
+        SiloData debtData;
+        uint256 userUnclaimedRewards;
+    }
+
+    struct SiloData {
+        ISilo.UtilizationData utilizationData;
+        IInterestRateModelV2.Config irmConfig;
+        uint256 protocolShareFee;
+        ISilo.AssetInterestData assetInterestData;
+        ISilo.AssetStorage assetStorage;
+        RewardData rewardData;
+        bool paused;
+    }
+
+    struct RewardData {
+        IERC20 siloAsset;
+        TokenData rewardToken;
+        ISiloIncentivesController.AssetData assetData;
+        uint256 claimable;
+    }
+
+    function rawData(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) public view returns (RawData memory data) {
         ISilo silo = getSilo(collateralAsset, debtAsset);
-        borrowing = _asRewards({ positionId: positionId, silo: silo, asset: debtAsset, lending: false });
-        lending = _asRewards({ positionId: positionId, silo: silo, asset: collateralAsset, lending: true });
+        return RawData({
+            paused: repository.isPaused(),
+            collateralData: _collectSiloData(positionId, silo, collateralAsset, true),
+            debtData: _collectSiloData(positionId, silo, debtAsset, false),
+            userUnclaimedRewards: _userUnclaimedRewards(positionId)
+        });
+    }
+
+    function _collectSiloData(PositionId positionId, ISilo silo, IERC20 asset, bool lending)
+        internal
+        view
+        virtual
+        returns (SiloData memory data)
+    {
+        data.utilizationData = silo.utilizationData(asset);
+        data.irmConfig = repository.getInterestRateModel(silo, asset).getConfig(silo, asset);
+        data.protocolShareFee = repository.protocolShareFee();
+        data.assetInterestData = silo.interestData(asset);
+        data.paused = repository.isSiloPaused(silo, asset);
+        data.assetStorage = silo.assetStorage(asset);
+
+        if (address(incentivesController) != address(0)) {
+            IERC20 siloAsset = lending
+                ? positionId.isCollateralOnly() ? data.assetStorage.collateralOnlyToken : data.assetStorage.collateralToken
+                : data.assetStorage.debtToken;
+
+            data.rewardData = RewardData({
+                siloAsset: siloAsset,
+                rewardToken: _asTokenData(incentivesController.REWARD_TOKEN()),
+                claimable: incentivesController.getRewardsBalance(toArray(siloAsset), _account(positionId)),
+                assetData: incentivesController.getAssetData(siloAsset)
+            });
+        }
+    }
+
+    function _userUnclaimedRewards(PositionId positionId) internal view returns (uint256 userUnclaimedRewards) {
+        if (address(incentivesController) != address(0)) {
+            userUnclaimedRewards = incentivesController.getUserUnclaimedRewards(_account(positionId));
+        }
     }
 
     function _availableActions(PositionId, IERC20 collateralAsset, IERC20 debtAsset)
@@ -184,41 +226,10 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
         }
     }
 
-    // ===== Internal Helper Functions =====
-
     function _pauseStatus(ISilo silo, IERC20 collateralAsset, IERC20 debtAsset) internal view returns (PauseStatus memory pauseStatus) {
         pauseStatus.global = repository.isPaused();
         pauseStatus.collateral = repository.isSiloPaused(silo, collateralAsset);
         pauseStatus.debt = repository.isSiloPaused(silo, debtAsset);
-    }
-
-    function _asRewards(PositionId positionId, ISilo silo, IERC20 asset, bool lending) internal view returns (Reward[] memory rewards_) {
-        IERC20 siloAsset = lending
-            ? positionId.isCollateralOnly() ? silo.assetStorage(asset).collateralOnlyToken : silo.assetStorage(asset).collateralToken
-            : silo.assetStorage(asset).debtToken;
-
-        uint256 claimable = incentivesController.getRewardsBalance(toArray(siloAsset), _account(positionId));
-        uint256 emissionPerSecond = incentivesController.getAssetData(siloAsset).emissionPerSecond;
-
-        if (emissionPerSecond == 0 && claimable == 0) return new Reward[](0);
-
-        rewards_ = new Reward[](1);
-
-        IERC20 rewardsToken = incentivesController.REWARD_TOKEN();
-
-        rewards_[0].usdPrice = priceInUSD(rewardsToken);
-        rewards_[0].token = _asTokenData(rewardsToken);
-        rewards_[0].claimable = claimable;
-
-        uint256 valueOfEmissions = emissionPerSecond * rewards_[0].usdPrice / WAD;
-        uint256 assetPrice = priceInUSD(asset);
-
-        uint256 totalAmount = lending
-            ? positionId.isCollateralOnly() ? silo.assetStorage(asset).collateralOnlyDeposits : silo.assetStorage(asset).totalDeposits
-            : silo.assetStorage(asset).totalBorrowAmount;
-
-        uint256 valueOfAssets = assetPrice * totalAmount / 10 ** asset.decimals();
-        rewards_[0].rate = _apy({ rate: valueOfEmissions * WAD / valueOfAssets, perSeconds: 1 });
     }
 
 }

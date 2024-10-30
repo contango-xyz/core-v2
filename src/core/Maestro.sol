@@ -25,7 +25,6 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
     using ERC20Lib for *;
     using { validateCreatePositionPermissions, validateModifyPositionPermissions } for PositionNFT;
 
-    bytes32 public constant UPPER_BIT_MASK = (0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
     uint256 public constant ALL = 0; // used to indicate that the full amount should be used, 0 is cheaper on calldata than type(uint256).max
 
     Timelock public immutable timelock;
@@ -63,41 +62,17 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
         return vault.depositNative{ value: msg.value }(msg.sender);
     }
 
-    function applyPermit(IERC20Permit token, EIP2098Permit calldata permit, address spender) public {
-        // Inspired by https://github.com/Uniswap/permit2/blob/main/src/libraries/SignatureVerification.sol
-        token.safePermit({
-            owner: msg.sender,
-            spender: spender,
-            value: permit.amount,
-            deadline: permit.deadline,
-            r: permit.r,
-            v: uint8(uint256(permit.vs >> 255)) + 27,
-            s: permit.vs & UPPER_BIT_MASK
-        });
+    function applyPermit(IERC20 token, EIP2098Permit calldata permit, address spender) public {
+        token.applyPermit(permit, msg.sender, spender);
     }
 
-    function depositWithPermit(IERC20Permit token, EIP2098Permit calldata permit, uint256 amount)
-        public
-        payable
-        override
-        returns (uint256)
-    {
+    function depositWithPermit(IERC20 token, EIP2098Permit calldata permit, uint256 amount) public payable override returns (uint256) {
         applyPermit(token, permit, address(vault));
-        return deposit(IERC20(address(token)), amount == ALL ? permit.amount : amount);
+        return deposit(token, amount == ALL ? permit.amount : amount);
     }
 
     function usePermit2(IERC20 token, EIP2098Permit calldata permit, uint256 amount, address to) public {
-        address sender = msg.sender;
-        permit2.permitTransferFrom({
-            permit: IPermit2.PermitTransferFrom({
-                permitted: IPermit2.TokenPermissions({ token: address(token), amount: permit.amount }),
-                nonce: uint256(keccak256(abi.encode(sender, token, permit.amount, permit.deadline))),
-                deadline: permit.deadline
-            }),
-            transferDetails: IPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount }),
-            owner: sender,
-            signature: abi.encodePacked(permit.r, permit.vs)
-        });
+        permit2.pullFundsWithPermit2(token, permit, amount, msg.sender, to);
     }
 
     // delete in next upgrade
@@ -149,7 +124,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
         override
         returns (uint256)
     {
-        applyPermit(IERC20Permit(address(tokenToSell)), permit, address(this));
+        applyPermit(tokenToSell, permit, address(this));
         return _swapAndDeposit(msg.sender, tokenToSell, tokenToDeposit, swapData);
     }
 
@@ -232,7 +207,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
         returns (PositionId, Trade memory)
     {
         _validatePermitAmount(tradeParams.cashflow, permit);
-        depositWithPermit(IERC20Permit(address(_cashflowToken(tradeParams))), permit, tradeParams.cashflow.toUint256());
+        depositWithPermit(_cashflowToken(tradeParams), permit, tradeParams.cashflow.toUint256());
         return trade(tradeParams, execParams);
     }
 
@@ -386,7 +361,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
         _validatePermitAmount(params.cashflow, permit);
 
         Instrument memory instrument = contango.instrument(params.positionId.getSymbol());
-        IERC20Permit cashflowToken = IERC20Permit(address(params.cashflowCcy == Currency.Base ? instrument.base : instrument.quote));
+        IERC20 cashflowToken = params.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
 
         depositWithPermit(cashflowToken, permit, params.cashflow.toUint256());
         return place(params);

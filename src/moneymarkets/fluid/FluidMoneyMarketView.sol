@@ -33,9 +33,8 @@ contract FluidMoneyMarketView is BaseMoneyMarketView {
         returns (Prices memory prices_)
     {
         IFluidVaultResolver.VaultEntireData memory vaultData = vaultResolver.getVaultEntireData(vault(positionId));
-        prices_.debt = 1e18;
-        prices_.collateral = vaultData.configs.oraclePriceOperate * 1e27 / (10 ** (collateralAsset.decimals() + debtAsset.decimals()));
-        prices_.unit = 1e18;
+        prices_.collateral = vaultData.configs.oraclePriceOperate * (10 ** collateralAsset.decimals()) / 1e27;
+        prices_.debt = prices_.unit = 10 ** debtAsset.decimals();
     }
 
     function _thresholds(PositionId positionId, IERC20, IERC20)

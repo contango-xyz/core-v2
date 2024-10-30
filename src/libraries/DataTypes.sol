@@ -31,6 +31,7 @@ using {
     withNumber,
     getFlags,
     getPayload,
+    getPayloadNoFlags,
     asUint
 } for PositionId global;
 
@@ -45,3 +46,10 @@ function mmEquals(MoneyMarketId a, MoneyMarketId b) pure returns (bool) {
 using { mmEquals as == } for MoneyMarketId global;
 
 type Timelock is address;
+
+struct EIP2098Permit {
+    uint256 amount;
+    uint256 deadline;
+    bytes32 r;
+    bytes32 vs;
+}

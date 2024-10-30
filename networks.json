@@ -26,24 +26,12 @@
     "Liquidations": {
       "startBlock": 137136154
     },
-    "AavePoolAddressesProvider": {
-      "address": "0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb"
-    },
     "UnderlyingPositionFactory": {
       "address": "0xDaBA83815404f5e1bc33f5885db7D96F51e127F5",
       "startBlock": 137136154
     },
-    "AaveMoneyMarket": {
-      "address": "0x302E420eC2fb4F99b651AA66D1C934B8D8bfF48D"
-    },
-    "AaveRewardsController": {
-      "address": "0x929EC64c34a17401F460460D4B9390518E5B473e"
-    },
     "BalancerFlashLoanProvider": {
       "address": "0x9E092cb431e5F1aa70e47e052773711d2Ba4917E"
-    },
-    "DolomiteFlashLoanProvider": {
-      "address": "0x54F1ce5E6bdf027C9a6016C9F52fC5A445b77ed6"
     },
     "SiloFlashLoanProvider": {
       "address": "0x0F9104Fec1a5C91e63632E215e8F5c57C8f32c77"
@@ -134,7 +122,19 @@
       "address": "0xa71cAB37c5A2FD2543f21acab3ccAe4BeB127458"
     },
     "AaveMoneyMarketView": {
-      "address": "0xEECfB98181bB519C45DBf1186638dd52d6401aaf"
+      "address": "0x8538353e5e3f816DE77c34371CF4103052AE8925"
+    },
+    "AavePoolAddressesProvider": {
+      "address": "0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb"
+    },
+    "AaveMoneyMarket": {
+      "address": "0x649984Ed3e55B196886A8f7379a1e33721039345"
+    },
+    "AaveRewardsController": {
+      "address": "0x929EC64c34a17401F460460D4B9390518E5B473e"
+    },
+    "AaveUiPoolDataProvider": {
+      "address": "0x5d4D4007A4c6336550DdAa2a7c0d5e7972eebd16"
     },
     "IPermit2": {
       "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
@@ -166,6 +166,9 @@
     },
     "RadiantPoolDataProvider": {
       "address": "0x596B0cc4c5094507C50b579a662FE7e7b094A2cC"
+    },
+    "RadiantUiPoolDataProvider": {
+      "address": "0x56D4b07292343b149E0c60c7C41B7B1eEefdD733"
     },
     "UpgradeableBeacon-Lodestar": {
       "address": "0xdCC9055000a8BF6708a0E76C15D9445f3486a4e3"
@@ -204,16 +207,16 @@
       "address": "0x8A3Eb5CF29d8B0E5153b0190E4c79a7306D0ccb5"
     },
     "SiloMoneyMarket": {
-      "address": "0xcDfc3b33996492CC8bcbCCaA2d73E710B26aAaC9"
+      "address": "0xEfa04Ac1E320707499B24Ad6CaaFd2C1120a06e0"
     },
     "SiloMoneyMarketView": {
-      "address": "0xC8CBdc7d237F9401D108FC6efdDC90D1a9737D1D"
+      "address": "0xF70C619389d02F021a775C1C1461A8D07Ff23dD3"
     },
     "SiloLens": {
       "address": "0x07b94eB6AaD663c4eaf083fBb52928ff9A15BE47"
     },
     "SiloIncentivesController": {
-      "address": "0xCC4933B0405Ae9DDFE05a54d20f56A0447c9EBcF"
+      "address": "0xbDBBf747402653A5aD6F6B8c49F2e8dCeC37fAcF"
     },
     "Silo_WSTETH_ETH": {
       "address": "0xA8897b4552c075e884BDB8e7b704eB10DB29BF0D"
@@ -263,20 +266,24 @@
     "DolomiteMoneyMarketView": {
       "address": "0x710FCBb921f0F21eb5cdb61D1634E99CECeA9F70"
     },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 240794539
+    },
     "FluidVaultResolver": {
       "address": "0x77648D39be25a1422467060e11E5b979463bEA3d"
     },
     "FluidMoneyMarketView": {
-      "address": "0x0B9aA8A67C9dFfA6172467F78187AC5080098120"
+      "address": "0x4d25409B638b9e3D8b9559e1ed4d044f4F7Cec15"
     },
     "FluidMoneyMarket": {
-      "address": "0x0A628b2f35B2e04F121B88330479c784E659275b"
+      "address": "0x05516D6C51805d2f53f98AE6A87BF3dDd4e8D801"
     },
     "FluidImmutableProxy": {
-      "address": "0x11C4e710D366CB2AAFF1Fa209aEA5326f51b10AE"
+      "address": "0xe9054d1e653937ABAE4338E30F4fc3aB40C143be"
     },
     "UpgradeableBeacon-Fluid": {
-      "address": "0x403cc0dD4831b5F896293146C96B1EB0727D30a1"
+      "address": "0xf69460b5C0A5ECa34C3100b6288Cd0d13cDb953c"
     }
   },
   "optimism": {
@@ -314,10 +321,13 @@
       "startBlock": 110323085
     },
     "AaveMoneyMarket": {
-      "address": "0x394C7ACEEbbD5F6CDf5b4DC7315933eA6CBCcb5C"
+      "address": "0x5f4434221e4E3a5B878b71FcfF42B071d1DDfD22"
     },
     "AaveRewardsController": {
       "address": "0x929EC64c34a17401F460460D4B9390518E5B473e"
+    },
+    "AaveUiPoolDataProvider": {
+      "address": "0x5598BbFA2f4fE8151f45bBA0a3edE1b54B51a0a9"
     },
     "BalancerFlashLoanProvider": {
       "address": "0x9E092cb431e5F1aa70e47e052773711d2Ba4917E"
@@ -405,7 +415,7 @@
       "address": "0x2C8ec598Db4C78779179CB518399a260cdD57A9D"
     },
     "AaveMoneyMarketView": {
-      "address": "0xC8D01bEd5CBb48184f23AbCD552195B1F9aC87AE"
+      "address": "0x1775eCc4a8D98152bA660c329E792F09Bc19C726"
     },
     "IPermit2": {
       "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
@@ -503,10 +513,10 @@
       "address": "0xE5022996397E7aaD7F19d1F4d1D88Bd588D1af10"
     },
     "CometMoneyMarket": {
-      "address": "0xd4e709E11d41c867079AB8629aBEab8FE7055713"
+      "address": "0xc3e92f4476E3Aae38FC9275B293032Ea54870B8F"
     },
     "CometMoneyMarketView": {
-      "address": "0xC4851248f4EDaF9c4699dF6F7438FCf246Fa5E0E"
+      "address": "0x87a1C2099d6cd02a1c9183BED8401ACB4Dc8929c"
     },
     "CometReverseLookup": {
       "address": "0x7546CF2F4655388aa42bFC3329B5eA910b606CE8"
@@ -525,10 +535,10 @@
       "address": "0x8539789D45ba45cf807C0e07aD0Df52a270BFF4c"
     },
     "SiloMoneyMarket": {
-      "address": "0x6bB27fd7F2F586018b602e25DD77bb9186095b79"
+      "address": "0xF5B9f085d19E86D4DA4F76a22e2E28eFF4f3024D"
     },
     "SiloMoneyMarketView": {
-      "address": "0xfE189d42177Df1F5834c154B981E70c93f9eeBa0"
+      "address": "0x41B192529C6fA93B6936b9A27383785C9e33C326"
     },
     "SiloLens": {
       "address": "0xd3De080436b9d38DC315944c16d89C050C414Fed"
@@ -544,6 +554,10 @@
     },
     "StrategyBuilder": {
       "address": "0xB1f1F142f3Ca3Eb530B305056De782750EC3e4A4"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 123726573
     },
     "UpgradeableBeacon-Moonwell": {
       "address": "0xe5CC32E4FD0a3b4033A0621A7d71dAC10B4Dad2a"
@@ -609,6 +623,9 @@
     },
     "ZeroLendFlashLoanProvider": {
       "address": "0xA48Cc0e4159C51d73B42c824f1444D1C1cbdA531"
+    },
+    "ZeroLendBTCFlashLoanProvider": {
+      "address": "0xB21a09be03Ce5318b3f3089665D917aFfA0aeA90"
     },
     "MorphoBlueFlashLoanProvider": {
       "address": "0xa0Cb4e1222d813D6e4dE79f2A7A0B7759209588F"
@@ -703,10 +720,10 @@
       "startBlock": 18634395
     },
     "AaveMoneyMarketView": {
-      "address": "0x1231F1d0173bFa60F49b34a8128ecB0CD861f441"
+      "address": "0x2EF2d9016832f24D46e64b4FDe17Cf46512F599d"
     },
     "AaveMoneyMarket": {
-      "address": "0x180Ace589c7Bb23099cc14413d7Bc188c556a5AF"
+      "address": "0x85Cc3f39Ff907dA7B11dF54cFA1dDFDbff5541C2"
     },
     "AavePoolAddressesProvider": {
       "address": "0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e"
@@ -719,6 +736,9 @@
     },
     "AaveRewardsController": {
       "address": "0x8164Cc65827dcFe994AB23944CBC90e0aa80bFcb"
+    },
+    "AaveUiPoolDataProvider": {
+      "address": "0x5c5228aC8BC1528482514aF3e27E692495148717"
     },
     "SparkMoneyMarket": {
       "address": "0x75Cb5b0123c1ac60C2b176A9D09EFF5B3d41e9B6"
@@ -735,8 +755,32 @@
     "SparkRewardsController": {
       "address": "0x4370D3b6C9588E02ce9D22e684387859c7Ff5b34"
     },
+    "SparkUiPoolDataProvider": {
+      "address": "0xF028c2F4b19898718fD0F77b9b881CbfdAa5e8Bb"
+    },
     "SparkMoneyMarketView": {
       "address": "0xB519Ab4E9842fB099DE9432968a71Fbb207f23c3"
+    },
+    "SparkSkyMoneyMarket": {
+      "address": "0x75Cb5b0123c1ac60C2b176A9D09EFF5B3d410000"
+    },
+    "SparkSkyPoolAddressesProvider": {
+      "address": "0x02C3eA4e34C0cBd694D2adFa2c690EECbC1793eE"
+    },
+    "SparkSkyImmutableProxy": {
+      "address": "0xCDA64DE5c1ABc1dc0cAf22E8FDdf348423f80000"
+    },
+    "UpgradeableBeacon-SparkSky": {
+      "address": "0x56e01dD7c6543C42eD53DF79eE26cEB37Dc90000"
+    },
+    "SparkSkyRewardsController": {
+      "address": "0x4370D3b6C9588E02ce9D22e684387859c7Ff5b34"
+    },
+    "SparkSkyUiPoolDataProvider": {
+      "address": "0xF028c2F4b19898718fD0F77b9b881CbfdAa5e8Bb"
+    },
+    "SparkSkyMoneyMarketView": {
+      "address": "0xB519Ab4E9842fB099DE9432968a71Fbb207f0000"
     },
     "AaveV2MoneyMarket": {
       "address": "0xF52D2184A943b521e7846d70a1bEbA7818C0728a"
@@ -785,16 +829,16 @@
       "address": "0xdf6B6E2b5bBE7f4cf51c678A08CefB7fb91c1f70"
     },
     "MorphoBlueMoneyMarket": {
-      "address": "0xf1a0324BB12c53119410D51B17FcCb0940FF8754"
+      "address": "0x35d117F78A8a8c20a78C6948b1176FC3862940FC"
     },
     "MorphoBlueMoneyMarketView": {
-      "address": "0x76c48d0927dCceEE555053acACe51d102c6ABfCa"
+      "address": "0x807Dd1D000578894908bC64Ea95094AEdaE1B12f"
     },
     "MorphoBlue": {
       "address": "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb"
     },
     "MorphoBlueReverseLookup": {
-      "address": "0xCafD6Aad286B881F793F68eAa77573AB7312949E"
+      "address": "0x12Ebe8f2760f71fdE4E449B2a40080D3bde2eeF9"
     },
     "DineroSwap": {
       "address": "0xfE189d42177Df1F5834c154B981E70c93f9eeBa0"
@@ -815,10 +859,10 @@
       "address": "0x26BB017EbeE1f919d766937CCbe402f8F90Bd70e"
     },
     "CometMoneyMarket": {
-      "address": "0x4eE92eA287F4EfA62B2Ea6aF87C3573E2D530E61"
+      "address": "0x2Aa3c339fd86278614e6a41590A9234F4ED487b3"
     },
     "CometMoneyMarketView": {
-      "address": "0x8fB3940194819017FE6E738b7506F0DC3cceb6CD"
+      "address": "0xa205DB527F588B3C7bd5aC0c48d618CD1FBf6bBA"
     },
     "CometReverseLookup": {
       "address": "0x94e46A68814D09a3131221eec190512a374e6BF1"
@@ -836,10 +880,10 @@
       "address": "0x6C420bEAaeC4C554800DCeB7779b84D5A735eA5f"
     },
     "SiloMoneyMarket": {
-      "address": "0xaF255D77114f4D34C78360Bb919a9C7AB0A0bb5B"
+      "address": "0x441aee7B24D463e98376dD7D51063fEaAD3b1b14"
     },
     "SiloMoneyMarketView": {
-      "address": "0xa6bED16543516838692A3E1d6EB67B771007aBE8"
+      "address": "0x7C8fC181a910A4EE0c8515319CCeb581c0cA8038"
     },
     "SiloLens": {
       "address": "0x0e466FC22386997daC23D1f89A43ecb2CB1e76E9"
@@ -854,10 +898,10 @@
       "address": "0x0000000000000000000000000000000000000000"
     },
     "AaveLidoMoneyMarketView": {
-      "address": "0x9C17b1Af57B6F3c07d0D9D1837AfbBA93906fa7E"
+      "address": "0x7ECeF61798DA5D645B0aF79C6753b1F0D553fe2f"
     },
     "AaveLidoMoneyMarket": {
-      "address": "0x5e41bd3113d71B4De06FfB3a6387978F9C5af023"
+      "address": "0x853244570b8925c72B351eb0C35c2B01627E9077"
     },
     "AaveLidoImmutableProxy": {
       "address": "0xa91d16E02a6016446E371Fb70e616567eb6f7bdF"
@@ -870,6 +914,13 @@
     },
     "AaveLidoRewardsController": {
       "address": "0x8164Cc65827dcFe994AB23944CBC90e0aa80bFcb"
+    },
+    "AaveLidoUiPoolDataProvider": {
+      "address": "0x07060168141ab016AbB8933B86D2541D66B4F74A"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 20569375
     },
     "AaveEtherFiMoneyMarketView": {
       "address": "0xA3c4Ccb9eBDa3BA16e524C6173898bf334dde693"
@@ -888,6 +939,9 @@
     },
     "AaveEtherFiRewardsController": {
       "address": "0x8164Cc65827dcFe994AB23944CBC90e0aa80bFcb"
+    },
+    "AaveEtherFiUiPoolDataProvider": {
+      "address": "0xdbbB1C304FA7feDeF5855ab993d34254BF2576A6"
     },
     "ZeroLendMoneyMarket": {
       "address": "0x81372b6C8fF25A83b3B82e3B380Dc271ac5ED1a6"
@@ -908,6 +962,9 @@
     "ZeroLendRewardsController": {
       "address": "0x5be89bB10E2234204A2607765714916Ed95a73a2"
     },
+    "ZeroLendUiPoolDataProvider": {
+      "address": "0xa6EA08D16d47feE408505fda73520EbefC68Ef01"
+    },
     "UpgradeableBeacon-Silo2": {
       "address": "0xE4603198474D4c4A03e3B668C5BA257f9b360b6a"
     },
@@ -915,10 +972,10 @@
       "address": "0xB7D0aB4A48b30b0Fd84184A34d8a914A55A5D0b5"
     },
     "Silo2MoneyMarket": {
-      "address": "0xCF29468c20D402366956ED77391aD383D6C79B17"
+      "address": "0xA8C6058A32843020A59e8e65be38d60e81af5048"
     },
     "Silo2MoneyMarketView": {
-      "address": "0xc410B0f43f65041d5B4Affe600F017faA86a8dc3"
+      "address": "0x59B05ca7f910F09072A9A521F691040ba7Bbc353"
     },
     "Silo2Lens": {
       "address": "0x331243a425F7EE2468f0FddCe5cD83f58733Cc1C"
@@ -933,7 +990,7 @@
       "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
     },
     "EulerMoneyMarketView": {
-      "address": "0xCdFE200930A1E54a6f99c6CcA24fcf10300D2785"
+      "address": "0x4c4156581914912872d8661c61910dA571d3Da4F"
     },
     "EulerMoneyMarket": {
       "address": "0xEC5c85EadB6f810C940E6B3aD571F2FA9865e87d"
@@ -975,16 +1032,35 @@
       "address": "0x58f24b9fcEF1847d4ec43AF62ff1ac72066c5480"
     },
     "FluidMoneyMarketView": {
-      "address": "0x0B9aA8A67C9dFfA6172467F78187AC5080098120"
+      "address": "0xB8C082654bC73bba8e482BE4C7827BB83c53dc4d"
     },
     "FluidMoneyMarket": {
-      "address": "0x0A628b2f35B2e04F121B88330479c784E659275b"
+      "address": "0xa3D89401D1e68aFdFA62Ed6Ede9b69E0FFDFc6Ed"
     },
     "FluidImmutableProxy": {
-      "address": "0x11C4e710D366CB2AAFF1Fa209aEA5326f51b10AE"
+      "address": "0xD7646011FA3d5cE8787AA86CF723FAd0DB1F074e"
     },
     "UpgradeableBeacon-Fluid": {
+      "address": "0x6a28716e270f40B8963aA70b5a77F9FdEB07bBd3"
+    },
+    "ZeroLendBTCMoneyMarket": {
+      "address": "0x0A628b2f35B2e04F121B88330479c784E659275b"
+    },
+    "UpgradeableBeacon-ZeroLendBTC": {
       "address": "0x403cc0dD4831b5F896293146C96B1EB0727D30a1"
+    },
+    "ZeroLendBTCImmutableProxy": {
+      "address": "0x11C4e710D366CB2AAFF1Fa209aEA5326f51b10AE"
+    },
+    "ZeroLendBTCMoneyMarketView": {
+      "address": "0x0B9aA8A67C9dFfA6172467F78187AC5080098120"
+    },
+    "ZeroLendBTCPoolAddressesProvider": {
+      "address": "0x17878AFdD5772F4Ec93c265Ac7Ad8E2b29abB857",
+      "startBlock": 20670788
+    },
+    "ZeroLendBTCRewardsController": {
+      "address": "0x938e23c10C501CE5D42Bc516eCFDf5AbD9C51d2b"
     }
   },
   "matic": {
@@ -1022,10 +1098,13 @@
       "startBlock": 48665181
     },
     "AaveMoneyMarket": {
-      "address": "0xFe536196c205256b251A58608E630783dC306fFD"
+      "address": "0xd4e709E11d41c867079AB8629aBEab8FE7055713"
     },
     "AaveRewardsController": {
       "address": "0x929EC64c34a17401F460460D4B9390518E5B473e"
+    },
+    "AaveUiPoolDataProvider": {
+      "address": "0x5598BbFA2f4fE8151f45bBA0a3edE1b54B51a0a9"
     },
     "BalancerFlashLoanProvider": {
       "address": "0x9E092cb431e5F1aa70e47e052773711d2Ba4917E"
@@ -1105,7 +1184,7 @@
       "address": "0xF72bf33a860E64a6F897d1fD24d754655F3E524c"
     },
     "AaveMoneyMarketView": {
-      "address": "0x3f1A8961f3f37a89514c2f0082DfF7F59773D7dA"
+      "address": "0x40EcBf16Ea85FF6edF62896EcF45536fC5121430"
     },
     "IPermit2": {
       "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
@@ -1167,6 +1246,10 @@
     },
     "CompOracle": {
       "address": "0x2A8758b7257102461BC958279054e372C2b1bDE6"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 60817708
     }
   },
   "gnosis": {
@@ -1296,11 +1379,34 @@
       "address": "0xfF7b4D89617D8ac9698632B14127aac55895d21e"
     },
     "SparkPoolAddressesProvider": {
-      "address": "0xA98DaCB3fC964A6A0d2ce3B77294241585EAbA6d",
-      "startBlock": 30774573
+      "address": "0xA98DaCB3fC964A6A0d2ce3B77294241585EAbA6d"
     },
     "SparkRewardsController": {
       "address": "0x98e6BcBA7d5daFbfa4a92dAF08d3d7512820c30C"
+    },
+    "SparkUiPoolDataProvider": {
+      "address": "0xF028c2F4b19898718fD0F77b9b881CbfdAa5e8Bb"
+    },
+    "SparkSkyMoneyMarket": {
+      "address": "0x5a0a527c371DC5f9a8975BF3942db69f2eaD69B7"
+    },
+    "UpgradeableBeacon-SparkSky": {
+      "address": "0x39a4C4aCD154e14D7d84562a93e2214A3aCAF687"
+    },
+    "SparkSkyImmutableProxy": {
+      "address": "0xf7E650427575c88343f3989f3c722854912816b8"
+    },
+    "SparkSkyMoneyMarketView": {
+      "address": "0x163046ca3A4179038e3A8c07915D0ACC7F5081Bc"
+    },
+    "SparkSkyPoolAddressesProvider": {
+      "address": "0xA98DaCB3fC964A6A0d2ce3B77294241585EAbA6d"
+    },
+    "SparkSkyRewardsController": {
+      "address": "0x98e6BcBA7d5daFbfa4a92dAF08d3d7512820c30C"
+    },
+    "SparkSkyUiPoolDataProvider": {
+      "address": "0xF028c2F4b19898718fD0F77b9b881CbfdAa5e8Bb"
     },
     "AgaveMoneyMarket": {
       "address": "0x11d730506B3955b6152D51E6fFaAcE5514BC260C"
@@ -1324,7 +1430,7 @@
       "address": "0xfa255f5104f129B78f477e9a6D050a02f31A5D86"
     },
     "AaveMoneyMarket": {
-      "address": "0xaC7c880dAC687640Ec4965f8854BA48842fcB6cF"
+      "address": "0xD915a274Dfc25535fe64bEAa9F1Ce032eb341945"
     },
     "UpgradeableBeacon-Aave": {
       "address": "0x363047035C17FCbD595235b4e701Fe93108Fd58E"
@@ -1333,7 +1439,7 @@
       "address": "0x97f4Ce94aB5d92CA171Dc52c46aaCC78Fecc9391"
     },
     "AaveMoneyMarketView": {
-      "address": "0x02ef55AD73Ce24fa3d0b33DaBcd4f27e0604e63b"
+      "address": "0x3c17C35ffCb41bC01Eb9fF7f92126D5777c213F1"
     },
     "AavePoolAddressesProvider": {
       "address": "0x36616cf17557639614c1cdDb356b1B83fc0B2132",
@@ -1341,6 +1447,9 @@
     },
     "AaveRewardsController": {
       "address": "0xaD4F91D26254B6B0C6346b390dDA2991FDE2F20d"
+    },
+    "AaveUiPoolDataProvider": {
+      "address": "0xc851e6147dcE6A469CC33BE3121b6B2D4CaD2763"
     },
     "ChainlinkNativeUsdOracle": {
       "address": "0x678df3415fc31947dA4324eC63212874be5a82f8"
@@ -1350,6 +1459,10 @@
     },
     "StrategyBuilder": {
       "address": "0xB1f1F142f3Ca3Eb530B305056De782750EC3e4A4"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 35576707
     }
   },
   "base": {
@@ -1476,7 +1589,7 @@
       "address": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
     },
     "AaveMoneyMarket": {
-      "address": "0x5A1aF731567EAB170df6118ea530335b9d697A0a"
+      "address": "0xd81969C39BA010F857d2977D4F7a9c9f41fC2b8A"
     },
     "UpgradeableBeacon-Aave": {
       "address": "0xD1e452d6a78182135FE3455005A60BCC6a119905"
@@ -1485,7 +1598,7 @@
       "address": "0x0e7BC0e96bC7068866E46fAE9474a9366957228C"
     },
     "AaveMoneyMarketView": {
-      "address": "0x703F8334f10e166E9f00F49443f2E8c226DcA123"
+      "address": "0x0E3459F801C7b769D416E025eE9B42586d007B3d"
     },
     "AavePoolAddressesProvider": {
       "address": "0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D",
@@ -1493,6 +1606,9 @@
     },
     "AaveRewardsController": {
       "address": "0xf9cc4F0D883F1a1eb2c253bdb46c254Ca51E1F44"
+    },
+    "AaveUiPoolDataProvider": {
+      "address": "0x5d4D4007A4c6336550DdAa2a7c0d5e7972eebd16"
     },
     "UpgradeableBeacon-Sonne": {
       "address": "0x74dd7C8AFe96938e8e82De2477a3a7C656a89B06"
@@ -1522,16 +1638,16 @@
       "address": "0xc8F25b156487CD7F58fcA98C80cc7B280a34CD95"
     },
     "MoonwellMoneyMarket": {
-      "address": "0x485A129392104c4B83322E98cF8632953F147Bf5"
+      "address": "0x96E9198c47c645632FC0B60319A718fB71Db71B4"
     },
     "MoonwellMoneyMarketView": {
-      "address": "0xA0BAEd2Ec2E506AB33b756B42aB37d3420A3857b"
+      "address": "0x20425C742a452A60c8e271A6C23320fa9D2484E6"
     },
     "MoonwellComptroller": {
       "address": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C"
     },
     "MoonwellReverseLookup": {
-      "address": "0xD4A36f40657899e566F48B81339b49fA6eF50142"
+      "address": "0xC998071382DB38187010e3db130f5C4B6A5Ea692"
     },
     "MoonwellBridgedRewardsOracle": {
       "address": "0xffA3F8737C39e36dec4300B162c2153c67c8352f"
@@ -1561,10 +1677,10 @@
       "address": "0xAe0735A2C2cD077084c431766e61C5f5ae4C15C2"
     },
     "CometMoneyMarket": {
-      "address": "0x5a0a527c371DC5f9a8975BF3942db69f2eaD69B7"
+      "address": "0x9d11793b812E1670A6e1DFbc9fE908821f880b4a"
     },
     "CometMoneyMarketView": {
-      "address": "0xE6e7447B98c488DDd7971335B2F53B16426493dc"
+      "address": "0xaa975a0Ec61dFf527B75ed71Ac56E94F6907F3B6"
     },
     "CometReverseLookup": {
       "address": "0xD915a274Dfc25535fe64bEAa9F1Ce032eb341945"
@@ -1582,16 +1698,16 @@
       "address": "0xc275345829a066037B776D71C4414d0c7a0cA465"
     },
     "MorphoBlueMoneyMarket": {
-      "address": "0xfE74343CB51CE4D8Cf348AeF1044751A6aE817c5"
+      "address": "0x0f1B90870D8AC8918517F7a6F5078A2FE190E91C"
     },
     "MorphoBlueMoneyMarketView": {
-      "address": "0x3547E9b3Dbc103A52b9560D497F4affd595F9487"
+      "address": "0xf7D5046EB8e0Abad105cd69fc08fCfd3196422aC"
     },
     "MorphoBlue": {
       "address": "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb"
     },
     "MorphoBlueReverseLookup": {
-      "address": "0x36a7118946F96145Fe632d48DC14f8d3DE1183F3"
+      "address": "0x6bB27fd7F2F586018b602e25DD77bb9186095b79"
     },
     "RadiantMoneyMarket": {
       "address": "0xF52D2184A943b521e7846d70a1bEbA7818C0728a"
@@ -1611,20 +1727,51 @@
     "RadiantPoolDataProvider": {
       "address": "0x07d2DC09A1CbDD01e5f6Ca984b060A3Ff31b9EAF"
     },
+    "RadiantUiPoolDataProvider": {
+      "address": "0xE3809A8Ba9C5592D9Dfe5b2500cCeDB6b3f9996C"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 18681280
+    },
     "FluidVaultResolver": {
       "address": "0x94695A9d0429aD5eFec0106a467aDEaDf71762F9"
     },
     "FluidMoneyMarketView": {
-      "address": "0xc52Bd19Bf425Dec8a1308Aa4132158A3e1233E98"
+      "address": "0xCafD6Aad286B881F793F68eAa77573AB7312949E"
     },
     "FluidMoneyMarket": {
-      "address": "0xC8D01bEd5CBb48184f23AbCD552195B1F9aC87AE"
+      "address": "0x763a7EA9e634B63EeF2b9c479f322C7191335662"
     },
     "FluidImmutableProxy": {
       "address": "0x12158F171c77F6341443B0700E2d094cdeabAA9d"
     },
     "UpgradeableBeacon-Fluid": {
       "address": "0x394C7ACEEbbD5F6CDf5b4DC7315933eA6CBCcb5C"
+    },
+    "UpgradeableBeacon-Silo": {
+      "address": "0x40EcBf16Ea85FF6edF62896EcF45536fC5121430"
+    },
+    "SiloImmutableProxy": {
+      "address": "0xd4e709E11d41c867079AB8629aBEab8FE7055713"
+    },
+    "SiloMoneyMarket": {
+      "address": "0x9F91E9AdDd383f2368D034C8Ee04f22b51f36132"
+    },
+    "SiloMoneyMarketView": {
+      "address": "0xC4851248f4EDaF9c4699dF6F7438FCf246Fa5E0E"
+    },
+    "SiloLens": {
+      "address": "0x196D312fd81412B6443620Ca81B41103b4E123FD"
+    },
+    "SiloIncentivesController": {
+      "address": "0x626e6A8D4EB33D77A8b631ABfE2E98dA69E3100e"
+    },
+    "Silo_WSTETH_ETH": {
+      "address": "0xEB42de7d17dfAFfD03AF48c2A51c3FB7274d3396"
+    },
+    "SiloStable": {
+      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     }
   },
   "bsc": {
@@ -1748,6 +1895,9 @@
     "AaveRewardsController": {
       "address": "0xC206C2764A9dBF27d599613b8F9A63ACd1160ab4"
     },
+    "AaveUiPoolDataProvider": {
+      "address": "0x78F8Bd884C3D738B74B420540659c82f392820e0"
+    },
     "ChainlinkNativeUsdOracle": {
       "address": "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE"
     },
@@ -1759,6 +1909,10 @@
     },
     "NativeToken": {
       "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 41526854
     }
   },
   "linea": {
@@ -1864,7 +2018,7 @@
       "startBlock": 8030000
     },
     "ZeroLendMoneyMarket": {
-      "address": "0xa14d9244504cB771457FFa45AF56C1685c25086A"
+      "address": "0x36a7118946F96145Fe632d48DC14f8d3DE1183F3"
     },
     "UpgradeableBeacon-ZeroLend": {
       "address": "0xBB44A894692D8A2262766B5De147eEaE11EDE564"
@@ -1873,7 +2027,7 @@
       "address": "0x06Cf0b17cA0e684D12a45C44421056F2C88bC3d7"
     },
     "ZeroLendMoneyMarketView": {
-      "address": "0xCB8E5A64ca64dFA3bcc04a00d1eEB3f1043C78CB"
+      "address": "0xAD36c8C2c78A6668fB9BF6c310F65b6B6802a335"
     },
     "ZeroLendPoolAddressesProvider": {
       "address": "0xC44827C51d00381ed4C52646aeAB45b455d200eB",
@@ -1881,6 +2035,9 @@
     },
     "ZeroLendRewardsController": {
       "address": "0x28F6899fF643261Ca9766ddc251b359A2d00b945"
+    },
+    "ZeroLendUiPoolDataProvider": {
+      "address": "0x81b3184A3B5d4612F2c26A53Da8D99474B91B2D2"
     },
     "ChainlinkNativeUsdOracle": {
       "address": "0x3c6Cd9Cc7c7a4c2Cf5a82734CD249D7D593354dA"
@@ -1893,6 +2050,10 @@
     },
     "NativeToken": {
       "address": "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 8372839
     }
   },
   "scroll": {
@@ -1998,7 +2159,7 @@
       "startBlock": 8225281
     },
     "AaveMoneyMarket": {
-      "address": "0x00b98a7fA3eAF0E35B9fD353Fe58306B61D2BdD4"
+      "address": "0x9F186fD72fe77477115073185624542Fb3B1a488"
     },
     "UpgradeableBeacon-Aave": {
       "address": "0xBAc24833111fBe7EA08Fb3De74Ac79E96b3e4b57"
@@ -2007,7 +2168,7 @@
       "address": "0xC0d5f52E248a991B98C8a3787Cfeec0094Ed8E5C"
     },
     "AaveMoneyMarketView": {
-      "address": "0x4D65F4d5fCcD8fd0c85e0F8a93175cA9FDdfa835"
+      "address": "0x807073F955439fa0eF808a9B50007696b5dCE971"
     },
     "AavePoolAddressesProvider": {
       "address": "0x69850D0B276776781C063771b161bd8894BCdD04",
@@ -2015,6 +2176,9 @@
     },
     "AaveRewardsController": {
       "address": "0xC206C2764A9dBF27d599613b8F9A63ACd1160ab4"
+    },
+    "AaveUiPoolDataProvider": {
+      "address": "0xc851e6147dcE6A469CC33BE3121b6B2D4CaD2763"
     },
     "ChainlinkNativeUsdOracle": {
       "address": "0x6bF14CB0A831078629D993FDeBcB182b21A8774C"
@@ -2051,6 +2215,10 @@
     },
     "CompOracle": {
       "address": "0x6726C678feE07B25BBE67bC720728652E4129369"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 8542312
     }
   },
   "avalanche": {
@@ -2112,7 +2280,7 @@
       "startBlock": 49059780
     },
     "Maestro": {
-      "address": "0xA9A04F40101F62397A24B3cEebbdC9660898e172"
+      "address": "0x485A129392104c4B83322E98cF8632953F147Bf5"
     },
     "FeeManagerProxy": {
       "address": "0xA362611E47eb1888e0f6fD4b5a65A42d7C3eA3A4",
@@ -2152,11 +2320,11 @@
       "address": "0x3D31eddd017d4C9F3aD291b51Fb18A44CE456494"
     },
     "SimpleSpotExecutor": {
-      "address": "0x94C8C29C9C7EE1b0d38557B1EeC44f608a4DEDe6",
-      "startBlock": 49053214
+      "address": "0x38b527D1f4d8d3aCfb7e4893D3733e09B4D76a79",
+      "startBlock": 50613539
     },
     "AaveMoneyMarket": {
-      "address": "0x00b98a7fA3eAF0E35B9fD353Fe58306B61D2BdD4"
+      "address": "0x5A1aF731567EAB170df6118ea530335b9d697A0a"
     },
     "UpgradeableBeacon-Aave": {
       "address": "0xBAc24833111fBe7EA08Fb3De74Ac79E96b3e4b57"
@@ -2165,7 +2333,7 @@
       "address": "0xC0d5f52E248a991B98C8a3787Cfeec0094Ed8E5C"
     },
     "AaveMoneyMarketView": {
-      "address": "0x8e9aD87AA0770b30a02Fe3fF49D0162f050aC84B"
+      "address": "0xF9E68e8Ec59257DEf066e5a21601e4127C2D9cFE"
     },
     "AavePoolAddressesProvider": {
       "address": "0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb",
@@ -2174,6 +2342,9 @@
     "AaveRewardsController": {
       "address": "0x929EC64c34a17401F460460D4B9390518E5B473e"
     },
+    "AaveUiPoolDataProvider": {
+      "address": "0x5598BbFA2f4fE8151f45bBA0a3edE1b54B51a0a9"
+    },
     "ChainlinkNativeUsdOracle": {
       "address": "0x976B3D034E162d8bD72D6b9C989d545b839003b0"
     },
@@ -2181,10 +2352,14 @@
       "startBlock": 49053214
     },
     "StrategyBuilder": {
-      "address": "0x321E0798FB3AB9E8CE3c5a3fb025379e05Dc182c"
+      "address": "0x14334B85Ca27a11e32d80c898c9a9892bcb62fe6"
     },
     "NativeToken": {
       "address": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 49487376
     }
   },
   "localhost-arbitrum": {
@@ -2462,6 +2637,10 @@
     },
     "DolomiteMoneyMarketView": {
       "address": "0x710FCBb921f0F21eb5cdb61D1634E99CECeA9F70"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 237327032
     }
   },
   "localhost-optimism": {
@@ -2695,6 +2874,10 @@
     },
     "StrategyBuilder": {
       "address": "0x763a7EA9e634B63EeF2b9c479f322C7191335662"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 123334767
     }
   },
   "localhost-mainnet": {
@@ -2973,6 +3156,10 @@
     },
     "CompOracle": {
       "address": "0xdbd020CAeF83eFd542f4De03e3cF0C28A4428bd5"
+    },
+    "UniversalRewardsDistributorFactory": {
+      "address": "0xeeb626b2Aa026921D36A3bfE58b6FbE7f9ed258A",
+      "startBlock": 20413237
     }
   }
 }

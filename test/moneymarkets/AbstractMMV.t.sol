@@ -206,4 +206,8 @@ contract AbstractMarketViewTest is Test {
         assertEqDecimal(limits.minLendingForRewards, 0, instrument.baseDecimals, "Min lending for rewards");
     }
 
+    function testIrmRaw() public virtual {
+        sut.irmRaw(positionId);
+    }
+
 }

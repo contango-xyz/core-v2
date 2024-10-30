@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 import { IPool } from "./IPool.sol";
 import { IAaveOracle } from "./IAaveOracle.sol";
-import { IPoolDataProvider } from "./IPoolDataProvider.sol";
+import { IPoolDataProviderV3 } from "./IPoolDataProviderV3.sol";
 
 /**
  * @title IPoolAddressesProvider
@@ -215,7 +215,7 @@ interface IPoolAddressesProvider {
      * @notice Returns the address of the data provider.
      * @return The address of the DataProvider
      */
-    function getPoolDataProvider() external view returns (IPoolDataProvider);
+    function getPoolDataProvider() external view returns (IPoolDataProviderV3);
 
     /**
      * @notice Updates the address of the data provider.

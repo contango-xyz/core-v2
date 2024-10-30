@@ -10,11 +10,13 @@ import "src/libraries/DataTypes.sol";
 
 contract PositionIdExtTest is Test {
 
-    function testEncodeDecode(Symbol s, uint8 mmId, uint32 e, uint48 n, bytes1 flags) public pure {
+    function testEncodeDecode(Symbol s, uint8 mmId, uint32 e, uint48 n, bytes1 flags, bytes4 purePayload) public pure {
         vm.assume(e != 0);
         MoneyMarketId m = MoneyMarketId.wrap(mmId);
 
-        PositionId positionId = encode(s, m, e, n, flags);
+        bytes5 payload = bytes5(abi.encodePacked(flags, purePayload));
+
+        PositionId positionId = encode(s, m, e, n, Payload.wrap(payload));
         (Symbol _s, MoneyMarketId _m, uint256 _e, uint256 _n) = positionId.decode();
 
         assertEq(Symbol.unwrap(_s), Symbol.unwrap(s), "symbol");
@@ -29,6 +31,8 @@ contract PositionIdExtTest is Test {
         else assertFalse(positionId.isPerp(), "perp");
         assertEq(positionId.getNumber(), n, "n");
         assertEq(flags, positionId.getFlags(), "flags");
+        assertEq(payload, Payload.unwrap(positionId.getPayload()), "payload");
+        assertEq(purePayload, positionId.getPayloadNoFlags(), "purePayload");
     }
 
     function testEncodeBoundaries() public pure {

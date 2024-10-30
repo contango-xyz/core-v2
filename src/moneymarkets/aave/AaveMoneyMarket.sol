@@ -3,16 +3,15 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "./dependencies/IPool.sol";
+import "./dependencies/IPoolAddressesProvider.sol";
 import "./dependencies/IFlashLoanReceiver.sol";
 import "./dependencies/IAaveRewardsController.sol";
-import "./dependencies/IPoolDataProvider.sol";
 import "./dependencies/AaveDataTypes.sol";
 
 import "../BaseMoneyMarket.sol";
 import "../interfaces/IFlashBorrowProvider.sol";
 import "../../libraries/ERC20Lib.sol";
-import "../../libraries/Arrays.sol";
+import { toArray } from "../../libraries/Arrays.sol";
 import { isBitSet } from "../../libraries/BitFlags.sol";
 
 uint256 constant E_MODE = 0;
@@ -25,33 +24,32 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
 
     bool public constant override NEEDS_ACCOUNT = true;
 
-    IPool public immutable pool;
-    IPoolDataProvider public immutable dataProvider;
+    IPoolAddressesProvider public immutable poolAddressesProvider;
     IAaveRewardsController public immutable rewardsController;
+    bool public immutable flashBorrowEnabled;
 
     constructor(
         MoneyMarketId _moneyMarketId,
         IContango _contango,
-        IPool _pool,
-        IPoolDataProvider _dataProvider,
-        IAaveRewardsController _rewardsController
+        IPoolAddressesProvider _poolAddressesProvider,
+        IAaveRewardsController _rewardsController,
+        bool _flashBorrowEnabled
     ) BaseMoneyMarket(_moneyMarketId, _contango) {
-        pool = _pool;
-        dataProvider = _dataProvider;
+        poolAddressesProvider = _poolAddressesProvider;
         rewardsController = _rewardsController;
+        flashBorrowEnabled = _flashBorrowEnabled;
     }
 
     // ====== IMoneyMarket =======
 
     function _initialise(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal virtual override {
-        if (!positionId.isPerp()) revert InvalidExpiry();
+        require(positionId.isPerp(), InvalidExpiry());
 
-        if (isBitSet(positionId.getFlags(), E_MODE)) {
-            pool.setUserEMode(uint8(dataProvider.getReserveEModeCategory(address(collateralAsset))));
-        }
+        IPool _pool = pool();
+        if (isBitSet(positionId.getFlags(), E_MODE)) _pool.setUserEMode(uint8(uint32(positionId.getPayloadNoFlags())));
 
-        collateralAsset.forceApprove(address(pool), type(uint256).max);
-        debtAsset.forceApprove(address(pool), type(uint256).max);
+        collateralAsset.forceApprove(address(_pool), type(uint256).max);
+        debtAsset.forceApprove(address(_pool), type(uint256).max);
     }
 
     function _collateralBalance(PositionId, IERC20 asset) internal view virtual override returns (uint256 balance) {
@@ -70,11 +68,11 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
     {
         actualAmount = asset.transferOut(payer, address(this), amount);
         _supply(asset, amount);
-        if (isBitSet(positionId.getFlags(), ISOLATION_MODE)) pool.setUserUseReserveAsCollateral(address(asset), true);
+        if (isBitSet(positionId.getFlags(), ISOLATION_MODE)) pool().setUserUseReserveAsCollateral(address(asset), true);
     }
 
     function _borrow(PositionId, IERC20 asset, uint256 amount, address to) internal virtual override returns (uint256 actualAmount) {
-        pool.borrow({
+        pool().borrow({
             asset: address(asset),
             amount: amount,
             interestRateMode: uint8(AaveDataTypes.InterestRateMode.VARIABLE),
@@ -94,7 +92,7 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         actualAmount = Math.min(amount, _debtBalance(positionId, asset));
         if (actualAmount > 0) {
             asset.transferOut(payer, address(this), actualAmount);
-            actualAmount = pool.repay({
+            actualAmount = pool().repay({
                 asset: address(asset),
                 amount: actualAmount,
                 interestRateMode: uint8(AaveDataTypes.InterestRateMode.VARIABLE),
@@ -104,7 +102,7 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
     }
 
     function _withdraw(PositionId, IERC20 asset, uint256 amount, address to) internal virtual override returns (uint256 actualAmount) {
-        actualAmount = pool.withdraw({ asset: address(asset), amount: amount, to: to });
+        actualAmount = pool().withdraw({ asset: address(asset), amount: amount, to: to });
     }
 
     function _claimRewards(PositionId, IERC20 collateralAsset, IERC20 debtAsset, address to) internal virtual override {
@@ -112,11 +110,11 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
     }
 
     function _aToken(IERC20 asset) internal view virtual returns (IERC20 aToken) {
-        aToken = IERC20(pool.getReserveData(asset).aTokenAddress);
+        aToken = IERC20(pool().getReserveData(asset).aTokenAddress);
     }
 
     function _vToken(IERC20 asset) internal view virtual returns (IERC20 vToken) {
-        vToken = IERC20(pool.getReserveData(asset).variableDebtTokenAddress);
+        vToken = IERC20(pool().getReserveData(asset).variableDebtTokenAddress);
     }
 
     // ===== IFlashBorrowProvider =====
@@ -134,11 +132,12 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         bytes calldata params,
         function(IERC20, uint256, bytes memory) external returns (bytes memory) callback
     ) public virtual override returns (bytes memory result) {
+        require(flashBorrowEnabled, UnsupportedOperation());
         return _flashBorrow(asset, amount, abi.encode(MetaParams({ params: params, callback: callback })));
     }
 
     function _flashBorrow(IERC20 asset, uint256 amount, bytes memory metaParams) internal onlyContango returns (bytes memory result) {
-        pool.flashLoan({
+        pool().flashLoan({
             receiverAddress: address(this),
             assets: toArray(address(asset)),
             amounts: toArray(amount),
@@ -159,7 +158,8 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         address initiator,
         bytes calldata metaParams
     ) public virtual override returns (bool) {
-        if (msg.sender != address(pool) || initiator != address(this)) revert InvalidSenderOrInitiator();
+        require(flashBorrowEnabled, UnsupportedOperation());
+        if (msg.sender != address(pool()) || initiator != address(this)) revert InvalidSenderOrInitiator();
 
         (
             IERC20 asset,
@@ -192,12 +192,17 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         params = metaParams.params;
     }
 
-    function supportsInterface(bytes4 interfaceId) public pure virtual override returns (bool) {
-        return interfaceId == type(IMoneyMarket).interfaceId || interfaceId == type(IFlashBorrowProvider).interfaceId;
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return
+            interfaceId == type(IMoneyMarket).interfaceId || (flashBorrowEnabled && interfaceId == type(IFlashBorrowProvider).interfaceId);
     }
 
     function _supply(IERC20 asset, uint256 amount) internal virtual {
-        pool.supply({ asset: address(asset), amount: amount, onBehalfOf: address(this), referralCode: 0 });
+        pool().supply({ asset: address(asset), amount: amount, onBehalfOf: address(this), referralCode: 0 });
+    }
+
+    function pool() public view virtual returns (IPool) {
+        return poolAddressesProvider.getPool();
     }
 
 }

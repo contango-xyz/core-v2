@@ -179,7 +179,7 @@ contract CometMoneyMarketViewPolygonTest is AbstractMarketViewTest {
         assertEqDecimal(limits.minLendingForRewards, 0, instrument.baseDecimals, "Min lending for rewards");
     }
 
-    function testIrmRaw() public view {
+    function testIrmRaw() public view override {
         CometMoneyMarketView.IRMData memory irmData = abi.decode(sut.irmRaw(positionId), (CometMoneyMarketView.IRMData));
 
         assertEq(irmData.totalSupply, comet.totalSupply(), "Total supply");

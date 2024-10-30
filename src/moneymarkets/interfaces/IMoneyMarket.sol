@@ -13,6 +13,7 @@ interface IMoneyMarket is IERC165 {
     event Repaid(PositionId indexed positionId, IERC20 indexed asset, uint256 amount);
     event Withdrawn(PositionId indexed positionId, IERC20 indexed asset, uint256 amount);
     event RewardsClaimed(PositionId indexed positionId, address to);
+    event RewardsClaimed(PositionId indexed positionId, IERC20 indexed rewardsToken, address to, uint256 rewardsAmount);
     event Retrieved(PositionId indexed positionId, IERC20 indexed token, uint256 amount);
 
     error InvalidMoneyMarketId();

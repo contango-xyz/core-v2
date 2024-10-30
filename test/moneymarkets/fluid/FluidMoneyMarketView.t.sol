@@ -12,7 +12,7 @@ contract FluidMoneyMarketViewTest is AbstractMarketViewTest {
     constructor() AbstractMarketViewTest(MM_FLUID) { }
 
     function setUp() public {
-        super.setUp(Network.Mainnet, 20_714_976, WETH, 1000e8, USDC, 1e8, 18);
+        super.setUp(Network.Mainnet, 20_714_976, WETH, 1000e8, USDC, 1e8, 6);
 
         stubChainlinkPrice(0.001e18, CHAINLINK_USDC_ETH);
 

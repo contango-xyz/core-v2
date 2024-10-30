@@ -2,15 +2,22 @@
 pragma solidity ^0.8.20;
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
 import "../dependencies/IWETH9.sol";
+import { IPermit2 } from "../dependencies/Uniswap.sol";
+
+import "./DataTypes.sol";
 
 library ERC20Lib {
 
     using Address for address payable;
-    using SafeERC20 for IERC20;
+    using SafeERC20 for *;
     using SafeCast for *;
+
+    bytes32 internal constant UPPER_BIT_MASK = (0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
 
     error ZeroPayer();
     error ZeroDestination();
@@ -61,6 +68,36 @@ library ERC20Lib {
 
     function infiniteApproval(IERC20 token, address addr) internal {
         token.forceApprove(addr, type(uint256).max);
+    }
+
+    function applyPermit(IERC20 token, EIP2098Permit memory permit, address owner, address spender) internal {
+        // Inspired by https://github.com/Uniswap/permit2/blob/main/src/libraries/SignatureVerification.sol
+        IERC20Permit(address(token)).safePermit({
+            owner: owner,
+            spender: spender,
+            value: permit.amount,
+            deadline: permit.deadline,
+            r: permit.r,
+            v: uint8(uint256(permit.vs >> 255)) + 27,
+            s: permit.vs & UPPER_BIT_MASK
+        });
+    }
+
+    function pullFundsWithPermit2(IPermit2 permit2, IERC20 token, EIP2098Permit memory permit, uint256 amount, address owner, address to)
+        internal
+        returns (uint256)
+    {
+        permit2.permitTransferFrom({
+            permit: IPermit2.PermitTransferFrom({
+                permitted: IPermit2.TokenPermissions({ token: address(token), amount: permit.amount }),
+                nonce: uint256(keccak256(abi.encode(owner, token, permit.amount, permit.deadline))),
+                deadline: permit.deadline
+            }),
+            transferDetails: IPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount }),
+            owner: owner,
+            signature: abi.encodePacked(permit.r, permit.vs)
+        });
+        return amount;
     }
 
 }

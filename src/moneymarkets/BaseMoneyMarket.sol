@@ -66,7 +66,8 @@ abstract contract BaseMoneyMarket is IMoneyMarket {
 
     function retrieve(PositionId positionId, IERC20 token) external override returns (uint256 amount) {
         if (contango.positionFactory().moneyMarket(positionId) != this) revert InvalidPositionId(positionId);
-        address owner = contango.positionNFT().positionOwner(positionId);
+        PositionNFT positionNFT = contango.positionNFT();
+        address owner = positionNFT.exists(positionId) ? positionNFT.positionOwner(positionId) : contango.lastOwner(positionId);
 
         // If we allow any ERC20, an attacker may transfer collateral tokens, not a security problem, but 1x positions suddenly being empty wouldn't be nice
         if (IERC20(address(0)) != token && !contango.vault().isTokenSupported(token)) revert TokenCantBeRetrieved(token);
@@ -88,7 +89,7 @@ abstract contract BaseMoneyMarket is IMoneyMarket {
         return _debtBalance(positionId, asset);
     }
 
-    function supportsInterface(bytes4 interfaceId) external pure virtual override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) external view virtual override returns (bool) {
         return interfaceId == type(IMoneyMarket).interfaceId;
     }
 

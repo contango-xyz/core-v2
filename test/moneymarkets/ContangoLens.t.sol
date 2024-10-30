@@ -15,7 +15,7 @@ contract ContangoLensTest is Test {
 
     function setUp() public {
         env = provider(Network.Arbitrum);
-        env.init(152_284_580);
+        env.init(254_125_507);
 
         sut = env.contangoLens();
         positionNFT = sut.positionNFT();

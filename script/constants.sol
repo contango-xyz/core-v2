@@ -14,6 +14,7 @@ address payable constant TIMELOCK_ADDRESS = payable(0xc0939a4Ed0129bc5162F6f6939
 Timelock constant TIMELOCK = Timelock.wrap(TIMELOCK_ADDRESS);
 address constant POSITION_NFT = 0xC2462f03920D47fC5B9e2C5F0ba5D2ded058fD78;
 address constant UNDERLYING_POSITION_FACTORY = 0xDaBA83815404f5e1bc33f5885db7D96F51e127F5;
+address constant TANGO_ADDRESS = 0xC760F9782F8ceA5B06D862574464729537159966;
 
 function proxyAddress(string memory name) pure returns (address payable) {
     bytes memory _name = abi.encodePacked(name);
@@ -35,7 +36,7 @@ MoneyMarketId constant MM_COMPOUND = MoneyMarketId.wrap(2);
 MoneyMarketId constant MM_EXACTLY = MoneyMarketId.wrap(4);
 MoneyMarketId constant MM_SONNE = MoneyMarketId.wrap(5);
 // MoneyMarketId constant MM_MAKER = MoneyMarketId.wrap(6); // not gonna happen
-MoneyMarketId constant MM_SPARK = MoneyMarketId.wrap(7);
+// MoneyMarketId constant MM_SPARK = MoneyMarketId.wrap(7); // Replace with MM_SPARK_SKY
 MoneyMarketId constant MM_MORPHO_BLUE = MoneyMarketId.wrap(8);
 MoneyMarketId constant MM_AGAVE = MoneyMarketId.wrap(9); // discontinued
 MoneyMarketId constant MM_AAVE_V2 = MoneyMarketId.wrap(10);
@@ -43,13 +44,17 @@ MoneyMarketId constant MM_RADIANT = MoneyMarketId.wrap(11);
 MoneyMarketId constant MM_LODESTAR = MoneyMarketId.wrap(12);
 MoneyMarketId constant MM_MOONWELL = MoneyMarketId.wrap(13);
 MoneyMarketId constant MM_COMET = MoneyMarketId.wrap(14);
-MoneyMarketId constant MM_GRANARY = MoneyMarketId.wrap(15);
+// MoneyMarketId constant MM_GRANARY = MoneyMarketId.wrap(15); Delisted
 MoneyMarketId constant MM_SILO = MoneyMarketId.wrap(16);
 MoneyMarketId constant MM_DOLOMITE = MoneyMarketId.wrap(17);
 MoneyMarketId constant MM_ZEROLEND = MoneyMarketId.wrap(18);
 MoneyMarketId constant MM_AAVE_LIDO = MoneyMarketId.wrap(19);
+MoneyMarketId constant MM_SILO_2 = MoneyMarketId.wrap(28);
+MoneyMarketId constant MM_AAVE_ETHERFI = MoneyMarketId.wrap(29);
 MoneyMarketId constant MM_EULER = MoneyMarketId.wrap(30);
 MoneyMarketId constant MM_FLUID = MoneyMarketId.wrap(31);
+MoneyMarketId constant MM_ZEROLEND_BTC = MoneyMarketId.wrap(32);
+MoneyMarketId constant MM_SPARK_SKY = MoneyMarketId.wrap(33);
 
 uint32 constant PERP = type(uint32).max;
 uint256 constant DEFAULT_SLIPPAGE_TOLERANCE = 0.001e4;

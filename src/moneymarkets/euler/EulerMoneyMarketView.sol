@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.27;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -103,20 +103,21 @@ contract EulerMoneyMarketView is BaseMoneyMarketView {
     // This function is here to make our life easier on the wagmi/viem side
     function rawData(PositionId positionId) public view returns (RawData memory data) {
         IEulerVault baseVault = reverseLookup.base(positionId);
+        data.baseData = lens.getVaultInfoFull(baseVault);
+        data.quoteData = lens.getVaultInfoFull(reverseLookup.quote(positionId));
+
         IRewardStreams rewardStreams = rewardOperator.rewardStreams();
         uint256 currentEpoch = rewardStreams.currentEpoch();
         address account = _account(positionId);
-        IERC20[] memory enabledRewards = rewardStreams.enabledRewards(account, baseVault);
+        address[] memory enabledRewards =
+            positionId.getNumber() == 0 ? rewardOperator.liveRewards(baseVault) : rewardStreams.enabledRewards(account, baseVault);
         data.rewardsData = new RewardsData[](enabledRewards.length);
         for (uint256 i; i < enabledRewards.length; i++) {
-            IERC20 reward = enabledRewards[i];
+            IERC20 reward = IERC20(enabledRewards[i]);
             data.rewardsData[i].rewardData = lens.getRewardVaultInfo(baseVault, reward, currentEpoch);
             data.rewardsData[i].claimable = rewardStreams.earnedReward(account, baseVault, reward, false);
             data.rewardsData[i].currentEpoch = currentEpoch;
         }
-
-        data.baseData = lens.getVaultInfoFull(reverseLookup.base(positionId));
-        data.quoteData = lens.getVaultInfoFull(reverseLookup.quote(positionId));
     }
 
     // So these functions can't be implemented

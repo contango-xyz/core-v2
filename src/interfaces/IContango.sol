@@ -114,6 +114,7 @@ interface IContango is IContangoEvents, IContangoErrors {
     function positionNFT() external view returns (PositionNFT);
     function vault() external view returns (IVault);
     function feeManager() external view returns (IFeeManager);
+    function lastOwner(PositionId id) external view returns (address);
 
     // ======== Admin ========
 

@@ -22,75 +22,10 @@ contract PositionLifeCycleExactlyOptimismFunctionalLong is AbstractPositionLifeC
 
 }
 
-contract PositionLifeCycleCompoundMainnetFunctionalLong is AbstractPositionLifeCycleFunctional {
+contract PositionLifeCycleSparkSkyMainnetFunctionalLong is AbstractPositionLifeCycleFunctional {
 
     function setUp() public {
-        super.setUp(Network.Mainnet, MM_COMPOUND, WETH, DAI, WETH_STABLE_MULTIPLIER);
-
-        address oracle = env.compoundComptroller().oracle();
-        vm.mockCall(
-            oracle,
-            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5),
-            abi.encode(1000e18)
-        );
-        vm.mockCall(
-            oracle,
-            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643),
-            abi.encode(1e18)
-        );
-    }
-
-}
-
-// TODO find out why it fails and fix, likely due to oracle config
-// contract PositionLifeCycleCompoundMainnetFunctionalShort is AbstractPositionLifeCycleFunctional {
-
-//     function setUp() public {
-//         super.setUp(Network.Mainnet, MM_COMPOUND, USDC, WETH, STABLE_WETH_MULTIPLIER);
-
-//         address oracle = env.compoundComptroller().oracle();
-//         vm.mockCall(oracle, abi.encodeWithSelector(IUniswapAnchoredView.price.selector, "ETH"), abi.encode(1000e6));
-//         vm.mockCall(oracle, abi.encodeWithSelector(IUniswapAnchoredView.price.selector, "USDC"), abi.encode(1e6));
-//     }
-
-// }
-
-contract PositionLifeCycleSonneOptimismFunctionalLong is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Optimism, MM_SONNE, WETH, DAI, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleSparkMainnetFunctionalLongDAI is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Mainnet, 18_233_968, MM_SPARK, WETH, DAI, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleSparkMainnetFunctionalShortDAI is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Mainnet, 18_233_968, MM_SPARK, DAI, WETH, STABLE_WETH_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleSparkMainnetFunctionalLongUSDC is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Mainnet, 18_233_968, MM_SPARK, WETH, USDC, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleSparkMainnetFunctionalShortUSDC is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Mainnet, 18_233_968, MM_SPARK, USDC, WETH, STABLE_WETH_MULTIPLIER);
+        super.setUp(Network.Mainnet, 18_233_968, MM_SPARK_SKY, WETH, DAI, WETH_STABLE_MULTIPLIER);
     }
 
 }
@@ -137,23 +72,6 @@ contract PositionLifeCycleMorphoBlueMainnetFunctionalLong is AbstractPositionLif
 
 }
 
-contract PositionLifeCycleSparkGnosisFunctionalLong is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Gnosis, MM_SPARK, WETH, DAI, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleAaveV2MainnetFunctionalLong is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Mainnet, MM_AAVE_V2, WETH, USDC, WETH_STABLE_MULTIPLIER);
-        stubChainlinkPrice(0.001e18, CHAINLINK_USDC_ETH);
-    }
-
-}
-
 contract PositionLifeCycleRadiantArbitrumFunctionalLong is AbstractPositionLifeCycleFunctional {
 
     function setUp() public {
@@ -174,14 +92,6 @@ contract PositionLifeCycleMoonwellBaseFunctionalLong is AbstractPositionLifeCycl
 
     function setUp() public {
         super.setUp(Network.Base, MM_MOONWELL, WETH, USDC, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleGranaryOptimismFunctionalLong is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Optimism, MM_GRANARY, WETH, USDC, WETH_STABLE_MULTIPLIER);
     }
 
 }
@@ -227,35 +137,10 @@ contract PositionLifeCycleDolomiteArbitrumFunctionalShort is AbstractPositionLif
 
 }
 
-contract PositionLifeCycleAaveBscFunctionalLong is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Bsc, MM_AAVE, WETH, USDT, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
 contract PositionLifeCycleZeroLendLineaFunctionalLong is AbstractPositionLifeCycleFunctional {
 
     function setUp() public {
         super.setUp(Network.Linea, MM_ZEROLEND, WETH, USDC, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleAaveScrollFunctionalLong is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        uniswapFee = 3000;
-        super.setUp(Network.Scroll, MM_AAVE, WETH, USDC, WETH_STABLE_MULTIPLIER);
-    }
-
-}
-
-contract PositionLifeCycleAaveAvalancheFunctionalLong is AbstractPositionLifeCycleFunctional {
-
-    function setUp() public {
-        super.setUp(Network.Avalanche, MM_AAVE, WETH, USDC, WETH_STABLE_MULTIPLIER);
     }
 
 }

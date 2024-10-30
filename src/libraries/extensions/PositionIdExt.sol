@@ -58,6 +58,10 @@ function getPayload(PositionId positionId) pure returns (Payload) {
     return Payload.wrap(bytes5(PositionId.unwrap(positionId) << 168));
 }
 
+function getPayloadNoFlags(PositionId positionId) pure returns (bytes4) {
+    return bytes4(PositionId.unwrap(positionId) << 176);
+}
+
 function asUint(PositionId positionId) pure returns (uint256) {
     return uint256(PositionId.unwrap(positionId));
 }

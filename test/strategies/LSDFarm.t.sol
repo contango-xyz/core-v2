@@ -59,7 +59,7 @@ contract LSDFarmTest is Test, GasSnapshot {
         stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
         stubChainlinkPrice(1.15e18, 0xe59EBa0D492cA53C6f46015EEa00517F2707dc77); // Lido: Chainlink wstETH-ETH exchange rate
 
-        _longPositionId = env.encoder().encodePositionId(longInstrument.symbol, MM_AAVE, PERP, 0);
+        _longPositionId = encode(longInstrument.symbol, MM_AAVE, PERP, 0, flagsAndPayload(setBit("", E_MODE), bytes4(uint32(2))));
         _shortPositionId = env.encoder().encodePositionId(shortInstrument.symbol, MM_SONNE, PERP, 0);
 
         FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
