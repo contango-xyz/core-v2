@@ -1,23 +1,23 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import "src/moneymarkets/aave/dependencies/IPoolDataProvider.sol";
+import "src/moneymarkets/aave/dependencies/IPoolDataProviderV3.sol";
 
 import { IContango, IERC20, Instrument } from "src/interfaces/IContango.sol";
 import { PositionId, Payload, Symbol, MoneyMarketId, InvalidExpiry, InvalidUInt32, InvalidUInt48 } from "src/libraries/DataTypes.sol";
-import { MM_AAVE, MM_SPARK, MM_MORPHO_BLUE, MM_COMET, MM_EULER, MM_FLUID } from "script/constants.sol";
+import { MM_AAVE, MM_SPARK_SKY, MM_MORPHO_BLUE, MM_COMET, MM_EULER, MM_FLUID } from "script/constants.sol";
 import { E_MODE, ISOLATION_MODE } from "src/moneymarkets/aave/AaveMoneyMarket.sol";
 import { InvalidUInt8 } from "src/libraries/BitFlags.sol";
 
 contract Encoder {
 
     IContango public immutable contango;
-    IPoolDataProvider public immutable aaveDataProvider;
-    IPoolDataProvider public immutable sparkDataProvider;
+    IPoolDataProviderV3 public immutable aaveDataProvider;
+    IPoolDataProviderV3 public immutable sparkDataProvider;
 
     Payload public payload;
 
-    constructor(IContango _contango, IPoolDataProvider _aaveDataProvider, IPoolDataProvider _sparkDataProvider) {
+    constructor(IContango _contango, IPoolDataProviderV3 _aaveDataProvider, IPoolDataProviderV3 _sparkDataProvider) {
         contango = _contango;
         aaveDataProvider = _aaveDataProvider;
         sparkDataProvider = _sparkDataProvider;
@@ -42,8 +42,7 @@ contract Encoder {
         returns (PositionId positionId)
     {
         bytes1 flags;
-        if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_AAVE)) flags = _aaveFlags(aaveDataProvider, symbol);
-        if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_SPARK)) flags = _aaveFlags(sparkDataProvider, symbol);
+        if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_SPARK_SKY)) flags = _aaveFlags(sparkDataProvider, symbol);
         if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_MORPHO_BLUE)) return encode(symbol, mm, expiry, number, payload);
         if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_COMET)) return encode(symbol, mm, expiry, number, payload);
         if (MoneyMarketId.unwrap(mm) == MoneyMarketId.unwrap(MM_EULER)) return encode(symbol, mm, expiry, number, payload);
@@ -52,7 +51,7 @@ contract Encoder {
         return encode(symbol, mm, expiry, number, flags);
     }
 
-    function _aaveFlags(IPoolDataProvider dataProvider, Symbol symbol) private view returns (bytes1 flags) {
+    function _aaveFlags(IPoolDataProviderV3 dataProvider, Symbol symbol) private view returns (bytes1 flags) {
         Instrument memory instrument = contango.instrument(symbol);
 
         uint256 debtCeiling = dataProvider.getDebtCeiling(address(instrument.base));
@@ -96,4 +95,8 @@ function setBit(bytes1 flags, uint256 bit) pure returns (bytes1) {
 
 function baseQuotePayload(uint16 part1, uint16 part2) pure returns (Payload) {
     return Payload.wrap(bytes5(bytes2(part1)) >> 8 | bytes5(bytes2(part2)) >> 24);
+}
+
+function flagsAndPayload(bytes1 flags, bytes4 payload) pure returns (Payload) {
+    return Payload.wrap(bytes5(flags) | bytes5(payload) >> 8);
 }

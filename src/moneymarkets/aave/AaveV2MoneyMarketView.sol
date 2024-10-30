@@ -3,22 +3,21 @@ pragma solidity ^0.8.20;
 
 import "./dependencies/IPoolV2.sol";
 import "./dependencies/IPoolDataProviderV2.sol";
+import "./dependencies/IPoolAddressesProviderV2.sol";
 
 import "./AaveMoneyMarketView.sol";
 
 contract AaveV2MoneyMarketView is AaveMoneyMarketView {
 
-    IPoolV2 public immutable poolV2;
-    IPoolDataProviderV2 public immutable dataProviderV2;
     uint256 public immutable oracleUnit;
+    IPoolDataProviderV2 public immutable dataProviderV2;
 
     constructor(
         MoneyMarketId _moneyMarketId,
         string memory _moneyMarketName,
         IContango _contango,
-        IPool _pool,
-        IPoolDataProvider _dataProvider,
-        IAaveOracle _oracle,
+        IPoolAddressesProvider _poolAddressesProvider,
+        IPoolDataProviderV2 _dataProviderV2,
         uint256 __oracleUnit,
         IWETH9 _nativeToken,
         IAggregatorV2V3 _nativeUsdOracle
@@ -27,17 +26,15 @@ contract AaveV2MoneyMarketView is AaveMoneyMarketView {
             _moneyMarketId,
             _moneyMarketName,
             _contango,
-            _pool,
-            _dataProvider,
-            _oracle,
+            _poolAddressesProvider,
             IAaveRewardsController(address(0)),
             _nativeToken,
-            _nativeUsdOracle
+            _nativeUsdOracle,
+            Version.V2
         )
     {
-        poolV2 = IPoolV2(address(_pool));
-        dataProviderV2 = IPoolDataProviderV2(address(_dataProvider));
         oracleUnit = __oracleUnit;
+        dataProviderV2 = _dataProviderV2;
     }
 
     // ====== IMoneyMarketView =======
@@ -68,11 +65,11 @@ contract AaveV2MoneyMarketView is AaveMoneyMarketView {
         override
         returns (uint256 borrowing, uint256 lending)
     {
-        borrowing = _apy({ rate: poolV2.getReserveData(address(debtAsset)).currentVariableBorrowRate / 1e9, perSeconds: 365 days });
-        lending = _apy({ rate: poolV2.getReserveData(address(collateralAsset)).currentLiquidityRate / 1e9, perSeconds: 365 days });
+        borrowing = _apy({ rate: poolV2().getReserveData(address(debtAsset)).currentVariableBorrowRate / 1e9, perSeconds: 365 days });
+        lending = _apy({ rate: poolV2().getReserveData(address(collateralAsset)).currentLiquidityRate / 1e9, perSeconds: 365 days });
     }
 
-    function _collectIrmData(IERC20 asset) internal view override returns (IRMData memory data) {
+    function collectIrmDataV2V3(IERC20 asset) public view override returns (IRMData memory data) {
         {
             (, data.totalStableDebt, data.totalVariableDebt,,,, data.averageStableBorrowRate,,,) =
                 dataProviderV2.getReserveData(address(asset));
@@ -87,7 +84,7 @@ contract AaveV2MoneyMarketView is AaveMoneyMarketView {
         }
 
         {
-            IDefaultReserveInterestRateStrategyV2 irStrategy = poolV2.getReserveData(address(asset)).interestRateStrategyAddress;
+            IDefaultReserveInterestRateStrategyV2 irStrategy = poolV2().getReserveData(address(asset)).interestRateStrategyAddress;
             data.optimalUsageRatio = irStrategy.OPTIMAL_UTILIZATION_RATE();
             data.maxExcessUsageRatio = irStrategy.EXCESS_UTILIZATION_RATE();
             data.variableRateSlope1 = irStrategy.variableRateSlope1();
@@ -103,7 +100,7 @@ contract AaveV2MoneyMarketView is AaveMoneyMarketView {
         override
         returns (uint256 ltv, uint256 liquidationThreshold)
     {
-        (, ltv, liquidationThreshold,,,,,,,) = dataProvider.getReserveConfigurationData(address(collateralAsset));
+        (, ltv, liquidationThreshold,,,,,,,) = dataProvider().getReserveConfigurationData(address(collateralAsset));
 
         ltv *= 1e14;
         liquidationThreshold *= 1e14;
@@ -121,7 +118,7 @@ contract AaveV2MoneyMarketView is AaveMoneyMarketView {
     }
 
     function _borrowingLiquidity(IERC20 asset) internal view virtual override returns (uint256 borrowingLiquidity_) {
-        IPoolV2.ReserveData memory reserve = poolV2.getReserveData(address(asset));
+        IPoolV2.ReserveData memory reserve = poolV2().getReserveData(address(asset));
         borrowingLiquidity_ = asset.balanceOf(reserve.aTokenAddress);
     }
 
@@ -138,15 +135,27 @@ contract AaveV2MoneyMarketView is AaveMoneyMarketView {
     {
         bool usageAsCollateralEnabled;
         bool borrowingEnabled;
-        (,,,,, usageAsCollateralEnabled, borrowingEnabled,, isActive, isFrozen) = dataProvider.getReserveConfigurationData(address(asset));
+        (,,,,, usageAsCollateralEnabled, borrowingEnabled,, isActive, isFrozen) = dataProvider().getReserveConfigurationData(address(asset));
         enabled = borrowing ? borrowingEnabled : usageAsCollateralEnabled;
 
-        isPaused = poolV2.paused();
+        isPaused = poolV2().paused();
     }
 
     function _getTokenSupply(IERC20 asset, bool borrowing) internal view override returns (uint256 tokenSupply) {
         (uint256 availableLiquidity,, uint256 totalVariableDebt,,,,,,,) = dataProviderV2.getReserveData(address(asset));
         tokenSupply = borrowing ? totalVariableDebt : availableLiquidity + totalVariableDebt;
+    }
+
+    function pool() public view override returns (IPool) {
+        return IPool(address(poolV2()));
+    }
+
+    function poolV2() public view returns (IPoolV2) {
+        return IPoolAddressesProviderV2(address(poolAddressesProvider)).getLendingPool();
+    }
+
+    function dataProvider() public view override returns (IPoolDataProviderV3) {
+        return IPoolDataProviderV3(address(dataProviderV2));
     }
 
 }

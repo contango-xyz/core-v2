@@ -27,7 +27,7 @@ interface IRewardStreams {
     /// @param account The address of the account.
     /// @param rewarded The address of the rewarded token.
     /// @return An array of addresses representing the enabled reward tokens.
-    function enabledRewards(address account, IEulerVault rewarded) external view returns (IERC20[] memory);
+    function enabledRewards(address account, IEulerVault rewarded) external view returns (address[] memory);
 
     /// @notice Claims earned reward.
     /// @dev Rewards are only transferred to the recipient if the recipient is non-zero.

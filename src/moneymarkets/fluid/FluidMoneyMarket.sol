@@ -40,12 +40,12 @@ contract FluidMoneyMarket is BaseMoneyMarket {
 
     function _collateralBalance(PositionId, IERC20) internal view override returns (uint256 balance) {
         (IFluidVaultResolver.UserPosition memory userPosition,) = resolver.positionByNftId(nftId());
-        return userPosition.supply;
+        balance = userPosition.supply;
     }
 
     function _debtBalance(PositionId, IERC20) internal view override returns (uint256 balance) {
         (IFluidVaultResolver.UserPosition memory userPosition,) = resolver.positionByNftId(nftId());
-        return userPosition.borrow;
+        balance = userPosition.borrow;
     }
 
     function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
@@ -87,8 +87,10 @@ contract FluidMoneyMarket is BaseMoneyMarket {
 
     function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
         bool isNative = asset == nativeToken;
+        // Fluid has rounding issues, so sometimes they report a balance that can't actually be withdrawn
+        int256 withdrawAmount = amount == _collateralBalance(positionId, asset) ? type(int256).min : -amount.toInt256();
 
-        (, int256 withdrawn,) = vault(positionId).operate(nftId(), -amount.toInt256(), 0, isNative ? address(this) : to);
+        (, int256 withdrawn,) = vault(positionId).operate(nftId(), withdrawAmount, 0, isNative ? address(this) : to);
         actualAmount = (-withdrawn).toUint256();
 
         if (isNative) nativeToken.transferOut(address(this), to, actualAmount);

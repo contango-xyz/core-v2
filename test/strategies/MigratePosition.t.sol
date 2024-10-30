@@ -34,7 +34,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
 
     function setUp() public {
         env = provider(Network.Mainnet);
-        env.init(19_520_451);
+        env.init(20_778_743);
 
         contango = env.contango();
         lens = env.contangoLens();
@@ -109,7 +109,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
         uint256 borrowingRatePer10Mins = WAD + meta.rates.borrowing / 52_560;
         uint256 flashLoanAmount = meta.balances.debt * borrowingRatePer10Mins / WAD;
         uint256 flashLoanFee = flashLoanProvider.flashFee(address(ethUsdc.quote), flashLoanAmount);
-        PositionId newPosition = env.encoder().encodePositionId(ethUsdc.symbol, MM_SPARK, PERP, 0);
+        PositionId newPosition = env.encoder().encodePositionId(ethUsdc.symbol, MM_COMPOUND, PERP, 0);
 
         steps.push(StepCall(Step.TakeFlashloan, abi.encode(flashLoanProvider, ethUsdc.quote, flashLoanAmount)));
         steps.push(StepCall(Step.VaultDeposit, abi.encode(ethUsdc.quote, flashLoanAmount)));
@@ -240,7 +240,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
         assertApproxEqAbsDecimal(newBalances.debt, repayAmountInDaiWithBuffer, 1, 18, "debt");
         assertGeDecimal(newBalances.collateral, meta.balances.collateral, ethUsdc.baseDecimals, "collateral");
 
-        assertApproxEqAbsDecimal(ethUsdc.quote.balanceOf(trader), 12.650544e6, 1, ethUsdc.quoteDecimals, "buffer");
+        assertApproxEqAbsDecimal(ethUsdc.quote.balanceOf(trader), 12.639863e6, 1, ethUsdc.quoteDecimals, "buffer");
     }
 
     function testMigrateDifferentQuoteDifferentMarket() public invariants {
@@ -256,7 +256,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
         uint256 borrowingRatePer10Mins = WAD + meta.rates.borrowing / 52_560;
         uint256 flashLoanAmount = meta.balances.debt * borrowingRatePer10Mins / WAD;
         uint256 flashLoanFee = flashLoanProvider.flashFee(address(ethUsdc.quote), flashLoanAmount);
-        PositionId newPosition = env.encoder().encodePositionId(ethDai.symbol, MM_SPARK, PERP, 0);
+        PositionId newPosition = env.encoder().encodePositionId(ethDai.symbol, MM_COMPOUND, PERP, 0);
         uint256 repayAmount = flashLoanAmount + flashLoanFee;
         uint256 repayAmountInDai = repayAmount * 1e12;
         uint256 repayAmountInDaiWithBuffer = repayAmountInDai * 1.001e18 / WAD;
@@ -291,7 +291,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
         assertEqDecimal(newBalances.debt, repayAmountInDaiWithBuffer, ethDai.quoteDecimals, "debt");
         assertGeDecimal(newBalances.collateral, meta.balances.collateral, ethUsdc.baseDecimals, "collateral");
 
-        assertApproxEqAbsDecimal(ethUsdc.quote.balanceOf(trader), 12.650544e6, 1, ethUsdc.quoteDecimals, "buffer");
+        assertApproxEqAbsDecimal(ethUsdc.quote.balanceOf(trader), 12.639863e6, 1, ethUsdc.quoteDecimals, "buffer");
     }
 
     function testMigrateDifferentBaseDifferentQuoteDifferentMarket() public invariants {
@@ -307,7 +307,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
         uint256 borrowingRatePer10Mins = WAD + meta.rates.borrowing / 52_560;
         uint256 flashLoanAmount = meta.balances.debt * borrowingRatePer10Mins / WAD;
         uint256 flashLoanFee = flashLoanProvider.flashFee(address(ethUsdc.quote), flashLoanAmount);
-        PositionId newPosition = env.encoder().encodePositionId(wstethDai.symbol, MM_SPARK, PERP, 0);
+        PositionId newPosition = env.encoder().encodePositionId(wstethDai.symbol, MM_SPARK_SKY, PERP, 0);
         uint256 repayAmount = flashLoanAmount + flashLoanFee;
         uint256 repayAmountInDai = repayAmount * 1e12;
         uint256 repayAmountInDaiWithBuffer = repayAmountInDai * 1.001e18 / WAD;
@@ -348,7 +348,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
         assertEqDecimal(newBalances.debt, repayAmountInDaiWithBuffer, ethUsdc.quoteDecimals, "debt");
         assertEqDecimal(newBalances.collateral, 8.695652173913043478e18, 18);
 
-        assertApproxEqAbsDecimal(ethUsdc.quote.balanceOf(trader), 12.650544e6, 1, ethUsdc.quoteDecimals, "buffer");
+        assertApproxEqAbsDecimal(ethUsdc.quote.balanceOf(trader), 12.639863e6, 1, ethUsdc.quoteDecimals, "buffer");
     }
 
 }

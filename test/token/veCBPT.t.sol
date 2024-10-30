@@ -3,86 +3,73 @@ pragma solidity ^0.8.20;
 
 import "../BaseTest.sol";
 
-import "./dependencies/ILaunchpad.sol";
+import { IBalancerVault } from "../dependencies/Balancer.sol";
 import "./dependencies/IVotingEscrow.sol";
 import "./dependencies/IRewardDistributor.sol";
 import "./dependencies/IRewardFaucet.sol";
 
 import { ERC20Mock } from "../stub/ERC20Mock.sol";
 
-contract VeTangoTest is BaseTest, Addresses {
+contract VeCbptTest is BaseTest {
 
-    Env internal env;
-    ILaunchpad internal launchpad = ILaunchpad(0x665a23707e9cFCe7bf07C52D375f5274ceDd6eB4);
-    IVotingEscrow internal veTANGO;
-    IRewardDistributor internal rewardDistributor;
-    IRewardFaucet internal rewardFaucet;
+    IBalancerVault constant balancerVault = IBalancerVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
+    IVotingEscrow constant veCBPT = IVotingEscrow(0x96Aa72542cE42F99F93de51e2F24Cc2601c6221a);
+    IRewardDistributor constant rewardDistributor = IRewardDistributor(0xB35B3004125E342D9A996E1B274fe85Cc22D46f2);
+    IRewardFaucet constant rewardFaucet = IRewardFaucet(0x57aF8e6567AdAcee07aced7873d17BD0E4D90eCc);
+    address constant owner = 0x4577b1417BDd10bF1BBFC8CF29180f592b0c3190;
+    IERC20 constant CBPT = IERC20(0x1ed1e6FA76E3dD9eA68D1FD8c4b8626EA5648DfA);
 
-    ERC20Mock internal TANGO_LP;
     ERC20Mock internal REWARD_TOKEN;
 
     address internal LP1;
     address internal LP2;
     address internal LP3;
     address internal keeper;
-    address internal owner;
 
-    uint256 rewardDistributorStartTime = 1_720_051_200; // Thursday, 4 July 2024 00:00:00
+    uint256 rewardDistributorStartTime = 1_732_147_200; // Thursday, 21 November 2024 00:00:00
 
     function setUp() public {
-        env = provider(Network.Arbitrum);
-        env.init(228_097_806); // Jul-02-2024 08:34:12 PM +UTC
+        vm.createSelectFork("arbitrum", 269_189_138); // Oct-30-2024 10:00:54
+        skip(20 days); // Nov-19-2024 10:00:54 - tests were originally written for a mock locker that would start rewards distribution a couple days after
 
-        TANGO_LP = new ERC20Mock();
         REWARD_TOKEN = new ERC20Mock();
         LP1 = makeAddr("LP1");
         LP2 = makeAddr("LP2");
         LP3 = makeAddr("LP3");
         keeper = makeAddr("keeper");
-        owner = makeAddr("owner");
-
-        // vm.prank(owner);
-        (veTANGO, rewardDistributor, rewardFaucet) = launchpad.deploy(
-            address(TANGO_LP),
-            "TANGO Voting Escrow",
-            "veTANGO80-WETH20",
-            365 days,
-            rewardDistributorStartTime,
-            address(0),
-            address(0),
-            address(0)
-        );
 
         address smartWalletChecker = makeAddr("SmartWalletChecker");
-        veTANGO.commit_smart_wallet_checker(smartWalletChecker);
-        veTANGO.apply_smart_wallet_checker();
         vm.mockCall(smartWalletChecker, abi.encodeWithSelector(SmartWalletChecker.check.selector), abi.encode(true));
 
+        vm.startPrank(owner);
+        veCBPT.commit_smart_wallet_checker(smartWalletChecker);
+        veCBPT.apply_smart_wallet_checker();
         rewardDistributor.addAllowedRewardTokens(toArray(REWARD_TOKEN));
+        vm.stopPrank();
     }
 
     function testLockedBalances_OneYear() public {
         _createLock(LP1, 10e18, 52 weeks);
 
-        assertEqDecimal(veTANGO.balanceOf(LP1), 9.812134703176361676e18, 18, "Balance at creation");
+        assertEqDecimal(veCBPT.balanceOf(LP1), 9.824183789934328002e18, 18, "Balance at creation");
         skip(4 weeks);
-        assertEqDecimal(veTANGO.balanceOf(LP1), 9.045011415506691276e18, 18, "Balance after 4 weeks");
+        assertEqDecimal(veCBPT.balanceOf(LP1), 9.057060502264657602e18, 18, "Balance after 4 weeks");
         skip(22 weeks); // 4 + 22 = 26
-        assertEqDecimal(veTANGO.balanceOf(LP1), 4.825833333323504076e18, 18, "Balance after 6 months");
+        assertEqDecimal(veCBPT.balanceOf(LP1), 4.837882420081470402e18, 18, "Balance after 6 months");
         skip(13 weeks); // 26 + 13 = 39
-        assertEqDecimal(veTANGO.balanceOf(LP1), 2.332682648397075276e18, 18, "Balance after 9 months");
+        assertEqDecimal(veCBPT.balanceOf(LP1), 2.344731735155041602e18, 18, "Balance after 9 months");
         skip(13 weeks); // 39 + 13 = 52
-        assertEqDecimal(veTANGO.balanceOf(LP1), 0, 18, "Balance after 1 year");
+        assertEqDecimal(veCBPT.balanceOf(LP1), 0, 18, "Balance after 1 year");
     }
 
     function testLockedBalances_HalfYear() public {
         _createLock(LP1, 10e18, 26 weeks);
 
-        assertEqDecimal(veTANGO.balanceOf(LP1), 4.825833333323504076e18, 18, "Balance at creation");
+        assertEqDecimal(veCBPT.balanceOf(LP1), 4.837882420081470402e18, 18, "Balance at creation");
         skip(13 weeks);
-        assertEqDecimal(veTANGO.balanceOf(LP1), 2.332682648397075276e18, 18, "Balance after 3 months");
+        assertEqDecimal(veCBPT.balanceOf(LP1), 2.344731735155041602e18, 18, "Balance after 3 months");
         skip(13 weeks); // 13 + 13 = 26
-        assertEqDecimal(veTANGO.balanceOf(LP1), 0, 18, "Balance after 6 months");
+        assertEqDecimal(veCBPT.balanceOf(LP1), 0, 18, "Balance after 6 months");
     }
 
     function testRewardsDistribution_AllSameLock_DiffAmounts() public {
@@ -115,10 +102,10 @@ contract VeTangoTest is BaseTest, Addresses {
         _createLock(LP2, 10e18, 26 weeks);
         _createLock(LP3, 10e18, 4 weeks);
 
-        assertEqDecimal(veTANGO.balanceOf(LP1), 9.812134703176361676e18, 18, "LP1 balance");
-        assertEqDecimal(veTANGO.balanceOf(LP2), 4.825833333323504076e18, 18, "LP2 balance");
-        assertEqDecimal(veTANGO.balanceOf(LP3), 0.606655251140316876e18, 18, "LP3 balance");
-        assertEqDecimal(veTANGO.totalSupply(), 15.244623287640182628e18, 18, "Total supply");
+        assertEqDecimal(veCBPT.balanceOf(LP1), 9.824183789934328002e18, 18, "LP1 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP2), 4.837882420081470402e18, 18, "LP2 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP3), 0.618704337898283202e18, 18, "LP3 balance");
+        assertEqDecimal(veCBPT.totalSupply(), 15.280770547914081606e18, 18, "Total supply");
 
         vm.warp(rewardDistributorStartTime + 1);
 
@@ -135,9 +122,9 @@ contract VeTangoTest is BaseTest, Addresses {
         // Rewards deposited on week N are claimable on week N+1
         skip(1 weeks + 1 days);
 
-        // LP1: 9.812134703176361676e18 * 10e18 / 15.244623287640182628e18 = 6.45e18
-        // LP2: 4.825833333323504076e18 * 10e18 / 15.244623287640182628e18 = 3.16e18
-        // LP3: 0.606655251140316876e18 * 10e18 / 15.244623287640182628e18 = 0.39e18
+        // LP1: 9.824183789934328002e18 * 10e18 / 15.280770547914081606e18 = 6.45e18
+        // LP2: 4.837882420081470402e18 * 10e18 / 15.280770547914081606e18 = 3.16e18
+        // LP3: 0.618704337898283202e18 * 10e18 / 15.280770547914081606e18 = 0.39e18
         // 6.45 + 3.16 + 0.39 = 10
 
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP1, REWARD_TOKEN), 6.45e18, 0.1e18, 18, "LP1 rewards");
@@ -212,10 +199,10 @@ contract VeTangoTest is BaseTest, Addresses {
 
         vm.warp(rewardDistributorStartTime + 1);
 
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP1), 0.57e18, 0.1e18, 18, "LP1 balance");
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP2), 0.38e18, 0.1e18, 18, "LP2 balance");
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP3), 0.19e18, 0.1e18, 18, "LP3 balance");
-        assertApproxEqAbsDecimal(veTANGO.totalSupply(), 1.14e18, 0.1e18, 18, "Total supply");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP1), 0.57e18, 0.1e18, 18, "LP1 balance");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP2), 0.38e18, 0.1e18, 18, "LP2 balance");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP3), 0.19e18, 0.1e18, 18, "LP3 balance");
+        assertApproxEqAbsDecimal(veCBPT.totalSupply(), 1.14e18, 0.1e18, 18, "Total supply");
 
         REWARD_TOKEN.mint(keeper, 10e18);
         vm.startPrank(keeper);
@@ -244,10 +231,10 @@ contract VeTangoTest is BaseTest, Addresses {
         // Rewards deposited on week N are claimable on week N+1
         skip(1 weeks);
 
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP1), 0.38e18, 0.1e18, 18, "LP1 balance");
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP2), 0.19e18, 0.1e18, 18, "LP2 balance");
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP3), 0, 0.1e18, 18, "LP3 balance");
-        assertApproxEqAbsDecimal(veTANGO.totalSupply(), 0.57e18, 0.1e18, 18, "Total supply");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP1), 0.38e18, 0.1e18, 18, "LP1 balance");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP2), 0.19e18, 0.1e18, 18, "LP2 balance");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP3), 0, 0.1e18, 18, "LP3 balance");
+        assertApproxEqAbsDecimal(veCBPT.totalSupply(), 0.57e18, 0.1e18, 18, "Total supply");
 
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP1, REWARD_TOKEN), 1.66e18, 0.1e18, 18, "LP1 rewards week 1");
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP2, REWARD_TOKEN), 1.11e18, 0.1e18, 18, "LP2 rewards week 1");
@@ -255,10 +242,10 @@ contract VeTangoTest is BaseTest, Addresses {
 
         skip(1 weeks);
 
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP1), 0.19e18, 0.1e18, 18, "LP1 balance");
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP2), 0, 0.1e18, 18, "LP2 balance");
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP3), 0, 0.1e18, 18, "LP3 balance");
-        assertApproxEqAbsDecimal(veTANGO.totalSupply(), 0.19e18, 0.1e18, 18, "Total supply");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP1), 0.19e18, 0.1e18, 18, "LP1 balance");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP2), 0, 0.1e18, 18, "LP2 balance");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP3), 0, 0.1e18, 18, "LP3 balance");
+        assertApproxEqAbsDecimal(veCBPT.totalSupply(), 0.19e18, 0.1e18, 18, "Total supply");
 
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP1, REWARD_TOKEN), 2.22e18, 0.1e18, 18, "LP1 rewards week 2");
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP2, REWARD_TOKEN), 1.11e18, 0.1e18, 18, "LP2 rewards week 2");
@@ -266,10 +253,10 @@ contract VeTangoTest is BaseTest, Addresses {
 
         skip(1 weeks);
 
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP1), 0, 0.1e18, 18, "LP1 balance");
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP2), 0, 0.1e18, 18, "LP2 balance");
-        assertApproxEqAbsDecimal(veTANGO.balanceOf(LP3), 0, 0.1e18, 18, "LP3 balance");
-        assertApproxEqAbsDecimal(veTANGO.totalSupply(), 0, 0.1e18, 18, "Total supply");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP1), 0, 0.1e18, 18, "LP1 balance");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP2), 0, 0.1e18, 18, "LP2 balance");
+        assertApproxEqAbsDecimal(veCBPT.balanceOf(LP3), 0, 0.1e18, 18, "LP3 balance");
+        assertApproxEqAbsDecimal(veCBPT.totalSupply(), 0, 0.1e18, 18, "Total supply");
 
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP1, REWARD_TOKEN), 3.33e18, 0.1e18, 18, "LP1 rewards week 3");
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP2, REWARD_TOKEN), 0, 0.1e18, 18, "LP2 rewards week 3");
@@ -277,10 +264,10 @@ contract VeTangoTest is BaseTest, Addresses {
     }
 
     function _createLock(address addr, uint256 amount, uint256 duration) internal {
-        TANGO_LP.mint(addr, amount);
+        deal(address(CBPT), addr, amount);
         vm.startPrank(addr);
-        TANGO_LP.approve(address(veTANGO), amount);
-        veTANGO.create_lock(amount, block.timestamp + duration);
+        CBPT.approve(address(veCBPT), amount);
+        veCBPT.create_lock(amount, block.timestamp + duration);
         vm.stopPrank();
     }
 

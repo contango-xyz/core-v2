@@ -82,9 +82,9 @@ contract FluidMoneyMarketWSTETHETHTest is Test {
         vm.prank(contango);
         uint256 withdrew = sut.withdraw(positionId, lendToken, collateral, address(this));
 
-        assertEq(withdrew, collateral, "withdrew all collateral");
+        assertApproxEqAbsDecimal(withdrew, collateral, 1, lendToken.decimals(), "withdrew all collateral");
         assertEqDecimal(sut.collateralBalance(positionId, lendToken), 0, lendToken.decimals(), "collateral is zero");
-        assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
+        assertApproxEqAbsDecimal(lendToken.balanceOf(address(this)), collateral, 1, lendToken.decimals(), "withdrawn balance");
 
         // vm.prank(contango);
         // sut.claimRewards(positionId, lendToken, borrowToken, address(this));
@@ -138,9 +138,9 @@ contract FluidMoneyMarketWSTETHETHTest is Test {
         vm.prank(contango);
         uint256 withdrew = sut.withdraw(positionId, lendToken, collateral, address(this));
 
-        assertEq(withdrew, collateral, "withdrew all collateral");
+        assertApproxEqAbsDecimal(withdrew, collateral, 1, lendToken.decimals(), "withdrew all collateral");
         assertEqDecimal(sut.collateralBalance(positionId, lendToken), 0, lendToken.decimals(), "collateral is zero");
-        assertEqDecimal(lendToken.balanceOf(address(this)), collateral, lendToken.decimals(), "withdrawn balance");
+        assertApproxEqAbsDecimal(lendToken.balanceOf(address(this)), collateral, 1, lendToken.decimals(), "withdrawn balance");
     }
 
     function testRepayEmptyPosition() public {

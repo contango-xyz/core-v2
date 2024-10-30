@@ -23,7 +23,6 @@ interface IStrategyBlocksEvents {
 abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, AccessControl {
 
     using ERC20Lib for *;
-    using SafeERC20 for IERC20Permit;
     using Address for address payable;
 
     error PositionLeftBehind();
@@ -241,16 +240,7 @@ abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, Acce
         internal
         returns (uint256)
     {
-        // Inspired by https://github.com/Uniswap/permit2/blob/main/src/libraries/SignatureVerification.sol
-        IERC20Permit(token).safePermit({
-            owner: owner,
-            spender: address(this),
-            value: permit.amount,
-            deadline: permit.deadline,
-            r: permit.r,
-            v: uint8(uint256(permit.vs >> 255)) + 27,
-            s: permit.vs & bytes32(uint256(type(int256).max))
-        });
+        IERC20(token).applyPermit({ permit: permit, owner: owner, spender: address(this) });
         return IERC20(token).transferOut(owner, to, amount);
     }
 
@@ -258,17 +248,7 @@ abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, Acce
         public
         returns (uint256)
     {
-        erc20Permit2.permitTransferFrom({
-            permit: IPermit2.PermitTransferFrom({
-                permitted: IPermit2.TokenPermissions({ token: address(token), amount: permit.amount }),
-                nonce: uint256(keccak256(abi.encode(owner, token, permit.amount, permit.deadline))),
-                deadline: permit.deadline
-            }),
-            transferDetails: IPermit2.SignatureTransferDetails({ to: to, requestedAmount: amount }),
-            owner: owner,
-            signature: abi.encodePacked(permit.r, permit.vs)
-        });
-        return amount;
+        return erc20Permit2.pullFundsWithPermit2(token, permit, amount, owner, to);
     }
 
     receive() external payable {

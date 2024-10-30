@@ -23,18 +23,15 @@ contract AaveMoneyMarketLiquidityBugFixTest is Test, Addresses {
         contango = Contango(proxyAddress("ContangoProxy"));
         lens = ContangoLens(proxyAddress("ContangoLensProxy"));
 
-        sut = IMoneyMarket(_loadAddress("AaveMoneyMarket"));
+        sut = IMoneyMarket(0x302E420eC2fb4F99b651AA66D1C934B8D8bfF48D);
 
         IPoolAddressesProvider addressProvider = IPoolAddressesProvider(_loadAddress("AavePoolAddressesProvider"));
-        IPool pool = addressProvider.getPool();
-        IPoolDataProvider dataProvider = addressProvider.getPoolDataProvider();
-        IAaveOracle oracle = addressProvider.getPriceOracle();
         IAaveRewardsController rewardsController = IAaveRewardsController(_loadAddressMaybe("AaveRewardsController"));
         IWETH9 nativeToken = IWETH9(_loadAddress("NativeToken"));
         IAggregatorV2V3 nativeUsdOracle = IAggregatorV2V3(_loadAddress("ChainlinkNativeUsdOracle"));
 
         AaveMoneyMarketView mmv = new AaveMoneyMarketView(
-            MM_AAVE, "AaveV3", contango, pool, dataProvider, oracle, rewardsController, nativeToken, nativeUsdOracle
+            MM_AAVE, "AaveV3", contango, addressProvider, rewardsController, nativeToken, nativeUsdOracle, AaveMoneyMarketView.Version.V32
         );
 
         vm.startPrank(TIMELOCK_ADDRESS);

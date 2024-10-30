@@ -17,7 +17,7 @@ contract BaseMoneyMarketInstanceTest is Test {
         contango = IContango(0x6Cae28b3D09D8f8Fc74ccD496AC986FC84C0C24E);
         usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
         nft = contango.positionNFT();
-        owner = nft.positionOwner(positionId);
+        owner = 0xfc2af546358825b94A40aF442ac08F27facF0859;
 
         vm.startPrank(TIMELOCK_ADDRESS);
         CometMoneyMarket mm = new CometMoneyMarket({
@@ -35,6 +35,21 @@ contract BaseMoneyMarketInstanceTest is Test {
     }
 
     function testRetrieve_ERC20Funds() public {
+        IMoneyMarket impl = contango.positionFactory().moneyMarket(positionId);
+
+        deal(address(usdc), address(impl), 100e6);
+
+        uint256 balanceBefore = usdc.balanceOf(owner);
+
+        impl.retrieve(positionId, usdc);
+
+        assertEqDecimal(usdc.balanceOf(owner), balanceBefore + 100e6, 6, "Retrieved balance");
+    }
+
+    function testRetrieve_ClosedPosition() public {
+        positionId = PositionId.wrap(0x574254435553444300000000000000000effffffff0000000001000000000179);
+        owner = 0xA8DDc541d443d29D61375A3E4E190Ac81fB88608;
+
         IMoneyMarket impl = contango.positionFactory().moneyMarket(positionId);
 
         deal(address(usdc), address(impl), 100e6);

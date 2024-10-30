@@ -82,10 +82,15 @@ contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
     }
 
     function _claimRewards(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset, address to) internal virtual override {
+        if (address(incentivesController) == address(0)) return;
+
         IERC20 collateralToken = positionId.isCollateralOnly()
             ? silo.assetStorage(collateralAsset).collateralOnlyToken
             : silo.assetStorage(collateralAsset).collateralToken;
-        incentivesController.claimRewards(toArray(collateralToken, silo.assetStorage(debtAsset).debtToken), type(uint256).max, to);
+        uint256 amount =
+            incentivesController.claimRewards(toArray(collateralToken, silo.assetStorage(debtAsset).debtToken), type(uint256).max, to);
+
+        if (amount > 0) emit RewardsClaimed(positionId, incentivesController.REWARD_TOKEN(), to, amount);
     }
 
 }

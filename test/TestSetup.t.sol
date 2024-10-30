@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import "forge-std/Test.sol";
 
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { ERC20Mock } from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 
 import "src/core/Contango.sol";
 import "src/core/OrderManager.sol";
@@ -22,11 +21,9 @@ import "src/moneymarkets/UpgradeableBeaconWithOwner.sol";
 import "src/moneymarkets/ImmutableBeaconProxy.sol";
 import "src/moneymarkets/aave/AaveMoneyMarket.sol";
 import "src/moneymarkets/aave/AaveV2MoneyMarket.sol";
+import "src/moneymarkets/aave/AaveV2MoneyMarketView.sol";
 import "src/moneymarkets/aave/AaveMoneyMarketView.sol";
-import "src/moneymarkets/aave/SparkMoneyMarket.sol";
-import "src/moneymarkets/aave/SparkMoneyMarketView.sol";
-import "src/moneymarkets/aave/GranaryMoneyMarketView.sol";
-import "src/moneymarkets/aave/dependencies/IPoolAddressesProviderV2.sol";
+import "src/moneymarkets/aave/dependencies/IPoolAddressesProvider.sol";
 import "src/moneymarkets/exactly/ExactlyMoneyMarket.sol";
 import "src/moneymarkets/exactly/ExactlyMoneyMarketView.sol";
 import "src/moneymarkets/compound/CompoundMoneyMarket.sol";
@@ -65,6 +62,7 @@ import "./PermitUtils.t.sol";
 import "./Network.sol";
 import "./utils.t.sol";
 import "./TSQuoter.sol";
+import { ERC20Mock } from "./stub/ERC20Mock.sol";
 
 Vm constant VM = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
@@ -221,48 +219,30 @@ contract Deployer is Addresses {
     bool public constant IS_TEST = true;
 
     function deployAaveMoneyMarket(Env env, IContango contango) public returns (AaveMoneyMarket moneyMarket) {
-        return deployAaveMoneyMarket(
-            contango,
-            MM_AAVE,
-            env.aaveAddressProvider().getPool(),
-            env.aaveAddressProvider().getPoolDataProvider(),
-            env.aaveRewardsController()
-        );
+        return deployAaveMoneyMarket(contango, MM_AAVE, env.aaveAddressProvider(), env.aaveRewardsController(), true);
     }
 
     function deployAaveLidoMoneyMarket(Env env, IContango contango) public returns (AaveMoneyMarket moneyMarket) {
-        return deployAaveMoneyMarket(
-            contango,
-            MM_AAVE_LIDO,
-            env.aaveLidoAddressProvider().getPool(),
-            env.aaveLidoAddressProvider().getPoolDataProvider(),
-            env.aaveLidoRewardsController()
-        );
+        return deployAaveMoneyMarket(contango, MM_AAVE_LIDO, env.aaveLidoAddressProvider(), env.aaveLidoRewardsController(), true);
     }
 
     function deployZeroLendMoneyMarket(Env env, IContango contango) public returns (AaveMoneyMarket moneyMarket) {
-        return deployAaveMoneyMarket(
-            contango,
-            MM_ZEROLEND,
-            env.zeroLendAddressProvider().getPool(),
-            env.zeroLendAddressProvider().getPoolDataProvider(),
-            env.zeroLendRewardsController()
-        );
+        return deployAaveMoneyMarket(contango, MM_ZEROLEND, env.zeroLendAddressProvider(), env.zeroLendRewardsController(), true);
     }
 
     function deployAaveMoneyMarket(
         IContango contango,
         MoneyMarketId mmId,
-        IPool _pool,
-        IPoolDataProvider _dataProvider,
-        IAaveRewardsController _rewardsController
+        IPoolAddressesProvider _poolAddressesProvider,
+        IAaveRewardsController _rewardsController,
+        bool _flashBorrowEnabled
     ) public returns (AaveMoneyMarket moneyMarket) {
         moneyMarket = new AaveMoneyMarket({
             _moneyMarketId: mmId,
             _contango: contango,
-            _pool: _pool,
-            _dataProvider: _dataProvider,
-            _rewardsController: _rewardsController
+            _poolAddressesProvider: _poolAddressesProvider,
+            _rewardsController: _rewardsController,
+            _flashBorrowEnabled: _flashBorrowEnabled
         });
 
         UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
@@ -270,79 +250,33 @@ contract Deployer is Addresses {
     }
 
     function deployAaveV2MoneyMarket(Env env, IContango contango) public returns (AaveMoneyMarket moneyMarket) {
-        return deployAaveV2MoneyMarket(
-            contango,
-            MM_AAVE_V2,
-            IPool(env.aaveV2AddressProvider().getLendingPool()),
-            IPoolDataProvider(address(0)),
-            IAaveRewardsController(address(0))
-        );
+        return deployAaveV2MoneyMarket(contango, MM_AAVE_V2, env.aaveV2AddressProvider(), IAaveRewardsController(address(0)));
     }
 
     function deployRadiantMoneyMarket(Env env, IContango contango) public returns (AaveMoneyMarket moneyMarket) {
-        return deployAaveV2MoneyMarket(
-            contango,
-            MM_RADIANT,
-            IPool(env.radiantAddressProvider().getLendingPool()),
-            IPoolDataProvider(address(0)),
-            IAaveRewardsController(address(0))
-        );
-    }
-
-    function deployGranaryMoneyMarket(Env env, IContango contango) public returns (AaveMoneyMarket moneyMarket) {
-        return deployAaveV2MoneyMarket(
-            contango,
-            MM_GRANARY,
-            IPool(env.granaryAddressProvider().getLendingPool()),
-            IPoolDataProvider(address(0)),
-            IAaveRewardsController(address(env.granaryRewardsController()))
-        );
+        return deployAaveV2MoneyMarket(contango, MM_RADIANT, env.radiantAddressProvider(), IAaveRewardsController(address(0)));
     }
 
     function deployAaveV2MoneyMarket(
         IContango contango,
         MoneyMarketId mmId,
-        IPool _pool,
-        IPoolDataProvider _dataProvider,
+        IPoolAddressesProviderV2 _poolAddressesProvider,
         IAaveRewardsController _rewardsController
     ) public returns (AaveMoneyMarket moneyMarket) {
         moneyMarket = new AaveV2MoneyMarket({
             _moneyMarketId: mmId,
             _contango: contango,
-            _pool: _pool,
-            _dataProvider: _dataProvider,
-            _rewardsController: _rewardsController
+            _poolAddressesProvider: IPoolAddressesProvider(address(_poolAddressesProvider)),
+            _rewardsController: _rewardsController,
+            _flashBorrowEnabled: true
         });
 
         UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
         moneyMarket = AaveMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
-    function deploySparkMoneyMarket(Env env, IContango contango) public returns (SparkMoneyMarket moneyMarket) {
-        moneyMarket = new SparkMoneyMarket({
-            _moneyMarketId: MM_SPARK,
-            _contango: contango,
-            _pool: env.sparkAddressProvider().getPool(),
-            _dataProvider: env.sparkAddressProvider().getPoolDataProvider(),
-            _rewardsController: env.sparkRewardsController(),
-            _dai: env.token(DAI),
-            _sDAI: ISDAI(address(env.token(SDAI))),
-            _usdc: env.token(USDC),
-            _psm: IDssPsm(0x89B78CfA322F6C5dE0aBcEecab66Aee45393cC5A)
-        });
-
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
-        moneyMarket = SparkMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
-    }
-
-    function deploySparkMoneyMarketGnosis(Env env, IContango contango) public returns (AaveMoneyMarket moneyMarket) {
-        moneyMarket = deployAaveMoneyMarket(
-            contango,
-            MM_SPARK,
-            env.sparkAddressProvider().getPool(),
-            env.sparkAddressProvider().getPoolDataProvider(),
-            env.sparkRewardsController()
-        );
+    function deploySparkSkyMoneyMarket(Env env, IContango contango) public returns (AaveMoneyMarket moneyMarket) {
+        moneyMarket = deployAaveMoneyMarket(contango, MM_SPARK_SKY, env.sparkAddressProvider(), env.sparkRewardsController(), false);
     }
 
     function deployExactlyMoneyMarket(Env env, IContango contango) public returns (ExactlyMoneyMarket moneyMarket) {
@@ -513,12 +447,11 @@ contract Deployer is Addresses {
                     MM_AAVE,
                     "AaveV3",
                     deployment.contango,
-                    env.aaveAddressProvider().getPool(),
-                    env.aaveAddressProvider().getPoolDataProvider(),
-                    env.aaveAddressProvider().getPriceOracle(),
+                    env.aaveAddressProvider(),
                     env.aaveRewardsController(),
                     env.nativeToken(),
-                    env.nativeUsdOracle()
+                    env.nativeUsdOracle(),
+                    AaveMoneyMarketView.Version.V32
                 )
             );
         }
@@ -529,12 +462,11 @@ contract Deployer is Addresses {
                     MM_AAVE_LIDO,
                     "AaveLido",
                     deployment.contango,
-                    env.aaveLidoAddressProvider().getPool(),
-                    env.aaveLidoAddressProvider().getPoolDataProvider(),
-                    env.aaveLidoAddressProvider().getPriceOracle(),
+                    env.aaveLidoAddressProvider(),
                     env.aaveLidoRewardsController(),
                     env.nativeToken(),
-                    env.nativeUsdOracle()
+                    env.nativeUsdOracle(),
+                    AaveMoneyMarketView.Version.V32
                 )
             );
         }
@@ -546,12 +478,11 @@ contract Deployer is Addresses {
                     MM_ZEROLEND,
                     "ZeroLend",
                     deployment.contango,
-                    env.zeroLendAddressProvider().getPool(),
-                    env.zeroLendAddressProvider().getPoolDataProvider(),
-                    env.zeroLendAddressProvider().getPriceOracle(),
+                    env.zeroLendAddressProvider(),
                     env.zeroLendRewardsController(),
                     env.nativeToken(),
-                    env.nativeUsdOracle()
+                    env.nativeUsdOracle(),
+                    AaveMoneyMarketView.Version.V3
                 )
             );
         }
@@ -587,40 +518,20 @@ contract Deployer is Addresses {
                 new SonneMoneyMarketView(deployment.contango, moneyMarket.reverseLookup(), env.sonneOracle(), env.nativeUsdOracle())
             );
         }
-        if (env.marketAvailable(MM_SPARK)) {
-            if (env.network().isMainnet()) {
-                positionFactory.registerMoneyMarket(deploySparkMoneyMarket(env, deployment.contango));
-                deployment.contangoLens.setMoneyMarketView(
-                    new SparkMoneyMarketView(
-                        deployment.contango,
-                        env.sparkAddressProvider().getPool(),
-                        env.sparkAddressProvider().getPoolDataProvider(),
-                        env.sparkAddressProvider().getPriceOracle(),
-                        env.sparkRewardsController(),
-                        env.token(DAI),
-                        ISDAI(address(env.token(SDAI))),
-                        env.token(USDC),
-                        env.nativeToken(),
-                        env.nativeUsdOracle()
-                    )
-                );
-            }
-            if (env.network().isGnosis()) {
-                positionFactory.registerMoneyMarket(deploySparkMoneyMarketGnosis(env, deployment.contango));
-                deployment.contangoLens.setMoneyMarketView(
-                    new AaveMoneyMarketView(
-                        MM_SPARK,
-                        "Spark",
-                        deployment.contango,
-                        env.sparkAddressProvider().getPool(),
-                        env.sparkAddressProvider().getPoolDataProvider(),
-                        env.sparkAddressProvider().getPriceOracle(),
-                        env.sparkRewardsController(),
-                        env.nativeToken(),
-                        env.nativeUsdOracle()
-                    )
-                );
-            }
+        if (env.marketAvailable(MM_SPARK_SKY)) {
+            positionFactory.registerMoneyMarket(deploySparkSkyMoneyMarket(env, deployment.contango));
+            deployment.contangoLens.setMoneyMarketView(
+                new AaveMoneyMarketView(
+                    MM_SPARK_SKY,
+                    "Spark",
+                    deployment.contango,
+                    env.sparkAddressProvider(),
+                    env.sparkRewardsController(),
+                    env.nativeToken(),
+                    env.nativeUsdOracle(),
+                    AaveMoneyMarketView.Version.V3
+                )
+            );
         }
         if (env.marketAvailable(MM_MORPHO_BLUE)) {
             MorphoBlueMoneyMarket mm = deployMorphoBlueMoneyMarket(env, deployment.contango);
@@ -646,9 +557,8 @@ contract Deployer is Addresses {
                     MM_AAVE_V2,
                     "AaveV2",
                     deployment.contango,
-                    IPool(env.aaveV2AddressProvider().getLendingPool()),
+                    IPoolAddressesProvider(address(env.aaveV2AddressProvider())),
                     env.aaveV2PoolDataProvider(),
-                    IAaveOracle(env.aaveV2AddressProvider().getPriceOracle()),
                     1e18,
                     env.nativeToken(),
                     env.nativeUsdOracle()
@@ -663,9 +573,8 @@ contract Deployer is Addresses {
                     MM_RADIANT,
                     "Radiant",
                     deployment.contango,
-                    IPool(env.radiantAddressProvider().getLendingPool()),
+                    IPoolAddressesProvider(address(env.radiantAddressProvider())),
                     env.radiantPoolDataProvider(),
-                    IAaveOracle(env.radiantAddressProvider().getPriceOracle()),
                     1e8,
                     env.nativeToken(),
                     env.nativeUsdOracle()
@@ -705,20 +614,6 @@ contract Deployer is Addresses {
                     moneyMarket.reverseLookup(),
                     env.cometRewards(),
                     IAggregatorV2V3(env.compOracle())
-                )
-            );
-        }
-        if (env.marketAvailable(MM_GRANARY)) {
-            positionFactory.registerMoneyMarket(deployGranaryMoneyMarket(env, deployment.contango));
-
-            deployment.contangoLens.setMoneyMarketView(
-                new GranaryMoneyMarketView(
-                    deployment.contango,
-                    IPool(env.granaryAddressProvider().getLendingPool()),
-                    env.granaryPoolDataProvider(),
-                    IAaveOracle(env.granaryAddressProvider().getPriceOracle()),
-                    env.nativeToken(),
-                    env.nativeUsdOracle()
                 )
             );
         }
@@ -816,7 +711,7 @@ function toString(MoneyMarketId mm) pure returns (string memory) {
     else if (mmId == MoneyMarketId.unwrap(MM_COMPOUND)) return "Compound";
     else if (mmId == MoneyMarketId.unwrap(MM_EXACTLY)) return "Exactly";
     else if (mmId == MoneyMarketId.unwrap(MM_SONNE)) return "Sonne";
-    else if (mmId == MoneyMarketId.unwrap(MM_SPARK)) return "Spark";
+    else if (mmId == MoneyMarketId.unwrap(MM_SPARK_SKY)) return "SparkSky";
     else if (mmId == MoneyMarketId.unwrap(MM_MORPHO_BLUE)) return "MorphoBlue";
     else if (mmId == MoneyMarketId.unwrap(MM_AAVE_V2)) return "AaveV2";
     else if (mmId == MoneyMarketId.unwrap(MM_RADIANT)) return "Radiant";
@@ -839,10 +734,10 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
     IAaveRewardsController public aaveLidoRewardsController;
     // Aave V2
     IPoolAddressesProviderV2 public aaveV2AddressProvider;
-    IPoolDataProvider public aaveV2PoolDataProvider;
+    IPoolDataProviderV2 public aaveV2PoolDataProvider;
     // Radiant
     IPoolAddressesProviderV2 public radiantAddressProvider;
-    IPoolDataProvider public radiantPoolDataProvider;
+    IPoolDataProviderV2 public radiantPoolDataProvider;
     // Compound
     IComptroller public compoundComptroller;
     address public compOracle;
@@ -870,10 +765,6 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
     IERC20 public bridgedMoonwellToken;
     address public nativeMoonwellOracle;
     IERC20 public nativeMoonwellToken;
-    // Granary
-    IPoolAddressesProviderV2 public granaryAddressProvider;
-    IPoolDataProvider public granaryPoolDataProvider;
-    IGranaryRewarder public granaryRewardsController;
     // Silo
     ISiloLens public siloLens;
     ISiloIncentivesController public siloIncentivesController;
@@ -1135,19 +1026,7 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
         returns (EIP2098Permit memory signedPermit)
     {
         deal(address(_token), to, amount);
-        IERC20Permit permitToken = IERC20Permit(address(_token));
-
-        PermitUtils.Permit memory permit =
-            PermitUtils.Permit({ owner: to, spender: approveTo, value: amount, nonce: permitToken.nonces(to), deadline: type(uint32).max });
-
-        PermitUtils sigUtils = new PermitUtils(permitToken.DOMAIN_SEPARATOR());
-        (uint8 v, bytes32 r, bytes32 s) = VM.sign(toPk, sigUtils.getTypedDataHash(permit));
-
-        signedPermit.r = r;
-        signedPermit.vs = _encode(s, v);
-
-        signedPermit.amount = amount;
-        signedPermit.deadline = permit.deadline;
+        return signPermit(_token, to, toPk, approveTo, amount);
     }
 
     function dealAndPermit2(IERC20 _token, address to, uint256 toPk, uint256 amount, address approveTo)
@@ -1319,7 +1198,7 @@ contract ArbitrumEnv is Env {
         aaveAddressProvider = IPoolAddressesProvider(0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb);
         aaveRewardsController = IAaveRewardsController(0x929EC64c34a17401F460460D4B9390518E5B473e);
         radiantAddressProvider = IPoolAddressesProviderV2(0x091d52CacE1edc5527C99cDCFA6937C1635330E4);
-        radiantPoolDataProvider = IPoolDataProvider(0x596B0cc4c5094507C50b579a662FE7e7b094A2cC);
+        radiantPoolDataProvider = IPoolDataProviderV2(0x596B0cc4c5094507C50b579a662FE7e7b094A2cC);
         compoundComptroller = IComptroller(0xa86DD95c210dd186Fa7639F93E4177E97d057576);
         lodestarOracle = 0x49bB23DfAe944059C2403BCc255c5a9c0F851a8D;
         nativeUsdOracle = IAggregatorV2V3(0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612);
@@ -1349,7 +1228,7 @@ contract ArbitrumEnv is Env {
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
-        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
         VM.prank(TIMELOCK_ADDRESS);
@@ -1364,7 +1243,6 @@ contract OptimismEnv is Env {
         _moneyMarkets.push(MM_AAVE);
         _moneyMarkets.push(MM_EXACTLY);
         _moneyMarkets.push(MM_SONNE);
-        _moneyMarkets.push(MM_GRANARY);
 
         _fuzzMoneyMarkets.push(MM_AAVE);
         _fuzzMoneyMarkets.push(MM_EXACTLY);
@@ -1412,9 +1290,6 @@ contract OptimismEnv is Env {
         previewer = IExactlyPreviewer(0xb8b1f590272b541b263A49b28bF52f8774b0E6c9);
         compoundComptroller = IComptroller(0x60CF091cD3f50420d50fD7f707414d0DF4751C58);
         sonneOracle = 0x4E60495550071693bc8bDfFC40033d278157EAC7;
-        granaryAddressProvider = IPoolAddressesProviderV2(0xdDE5dC81e40799750B92079723Da2acAF9e1C6D6);
-        granaryPoolDataProvider = IPoolDataProvider(0x9546F673eF71Ff666ae66d01Fd6E7C6Dae5a9995);
-        granaryRewardsController = IGranaryRewarder(0x6A0406B8103Ec68EE9A713A073C7bD587c5e04aD);
         nativeUsdOracle = IAggregatorV2V3(0x13e3Ee699D1909E989722E753853AE30b17e08c5);
     }
 
@@ -1437,7 +1312,7 @@ contract OptimismEnv is Env {
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
-        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
         VM.prank(TIMELOCK_ADDRESS);
@@ -1492,7 +1367,7 @@ contract PolygonEnv is Env {
         aaveAddressProvider = IPoolAddressesProvider(0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb);
         aaveRewardsController = IAaveRewardsController(0x929EC64c34a17401F460460D4B9390518E5B473e);
         aaveV2AddressProvider = IPoolAddressesProviderV2(0xd05e3E715d945B59290df0ae8eF85c1BdB684744);
-        aaveV2PoolDataProvider = IPoolDataProvider(0x7551b5D2763519d4e37e8B81929D336De671d46d);
+        aaveV2PoolDataProvider = IPoolDataProviderV2(0x7551b5D2763519d4e37e8B81929D336De671d46d);
         nativeUsdOracle = IAggregatorV2V3(0xAB594600376Ec9fD91F8e885dADF0CE036862dE0);
         comet = IComet(0xF25212E676D1F7F89Cd72fFEe66158f541246445);
         cometRewards = ICometRewards(0x45939657d1CA34A8FA39A924B71D28Fe8431e581);
@@ -1519,7 +1394,7 @@ contract PolygonEnv is Env {
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
-        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
         VM.prank(TIMELOCK_ADDRESS);
@@ -1533,7 +1408,7 @@ contract MainnetEnv is Env {
     constructor() Env(Network.Mainnet) {
         _moneyMarkets.push(MM_AAVE);
         _moneyMarkets.push(MM_COMPOUND);
-        _moneyMarkets.push(MM_SPARK);
+        _moneyMarkets.push(MM_SPARK_SKY);
         _moneyMarkets.push(MM_AAVE_V2);
         _moneyMarkets.push(MM_MORPHO_BLUE);
         _moneyMarkets.push(MM_SILO);
@@ -1607,14 +1482,12 @@ contract MainnetEnv is Env {
 
         uniswap = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
         uniswapRouter = SwapRouter02(uniswap);
-        aaveAddressProvider = IPoolAddressesProvider(0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e);
-        aaveRewardsController = IAaveRewardsController(0x8164Cc65827dcFe994AB23944CBC90e0aa80bFcb);
         compoundComptroller = IComptroller(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
         compOracle = 0xdbd020CAeF83eFd542f4De03e3cF0C28A4428bd5;
         sparkAddressProvider = IPoolAddressesProvider(0x02C3eA4e34C0cBd694D2adFa2c690EECbC1793eE);
         sparkRewardsController = IAaveRewardsController(0x4370D3b6C9588E02ce9D22e684387859c7Ff5b34);
         aaveV2AddressProvider = IPoolAddressesProviderV2(0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5);
-        aaveV2PoolDataProvider = IPoolDataProvider(0x057835Ad21a177dbdd3090bB1CAE03EaCF78Fc6d);
+        aaveV2PoolDataProvider = IPoolDataProviderV2(0x057835Ad21a177dbdd3090bB1CAE03EaCF78Fc6d);
         nativeUsdOracle = IAggregatorV2V3(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419);
         morpho = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
         siloLens = ISiloLens(0x0e466FC22386997daC23D1f89A43ecb2CB1e76E9);
@@ -1631,6 +1504,8 @@ contract MainnetEnv is Env {
         fork("mainnet", blockNumber);
         cleanTreasury();
 
+        aaveAddressProvider = IPoolAddressesProvider(_loadAddress("AavePoolAddressesProvider"));
+        aaveRewardsController = IAaveRewardsController(_loadAddress("AaveRewardsController"));
         aaveLidoAddressProvider = IPoolAddressesProvider(_loadAddress("AaveLidoPoolAddressesProvider"));
         aaveLidoRewardsController = IAaveRewardsController(_loadAddress("AaveLidoRewardsController"));
 
@@ -1662,7 +1537,7 @@ contract MainnetEnv is Env {
 contract GnosisEnv is Env {
 
     constructor() Env(Network.Gnosis) {
-        _moneyMarkets.push(MM_SPARK);
+        _moneyMarkets.push(MM_SPARK_SKY);
         _moneyMarkets.push(MM_AAVE);
 
         // chainlink addresses for gnosis - https://docs.chain.link/data-feeds/price-feeds/addresses?network=gnosis-chain&page=1
@@ -1717,7 +1592,7 @@ contract GnosisEnv is Env {
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
-        encoder = new Encoder(contango, IPoolDataProvider(address(0)), sparkAddressProvider.getPoolDataProvider());
+        encoder = new Encoder(contango, IPoolDataProviderV3(address(0)), sparkAddressProvider.getPoolDataProvider());
 
         erc721Permit2 = new ERC721Permit2();
         VM.prank(TIMELOCK_ADDRESS);
@@ -1812,7 +1687,7 @@ contract BaseEnv is Env {
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
-        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
         VM.prank(TIMELOCK_ADDRESS);
@@ -1887,7 +1762,7 @@ contract BscEnv is Env {
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
-        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
         VM.prank(TIMELOCK_ADDRESS);
@@ -1943,7 +1818,7 @@ contract LineaEnv is Env {
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
-        encoder = new Encoder(contango, zeroLendAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+        encoder = new Encoder(contango, zeroLendAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
         VM.prank(TIMELOCK_ADDRESS);
@@ -1999,7 +1874,7 @@ contract ScrollEnv is Env {
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
-        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
         VM.prank(TIMELOCK_ADDRESS);
@@ -2055,7 +1930,7 @@ contract AvalancheEnv is Env {
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
-        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProvider(address(0)));
+        encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
         VM.prank(TIMELOCK_ADDRESS);
@@ -2067,4 +1942,22 @@ contract AvalancheEnv is Env {
 function fork(string memory name, uint256 blockNumber) {
     if (blockNumber > 0) VM.createSelectFork(name, blockNumber);
     else VM.createSelectFork(name);
+}
+
+function signPermit(IERC20 _token, address owner, uint256 ownerPK, address spender, uint256 value)
+    returns (EIP2098Permit memory signedPermit)
+{
+    IERC20Permit permitToken = IERC20Permit(address(_token));
+
+    PermitUtils.Permit memory permit =
+        PermitUtils.Permit({ owner: owner, spender: spender, value: value, nonce: permitToken.nonces(owner), deadline: type(uint32).max });
+
+    PermitUtils sigUtils = new PermitUtils(permitToken.DOMAIN_SEPARATOR());
+    (uint8 v, bytes32 r, bytes32 s) = VM.sign(ownerPK, sigUtils.getTypedDataHash(permit));
+
+    signedPermit.r = r;
+    signedPermit.vs = _encode(s, v);
+
+    signedPermit.amount = value;
+    signedPermit.deadline = permit.deadline;
 }

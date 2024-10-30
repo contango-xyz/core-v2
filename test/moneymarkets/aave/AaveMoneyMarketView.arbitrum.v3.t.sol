@@ -2,10 +2,9 @@
 pragma solidity ^0.8.20;
 
 import "./IPoolConfigurator.sol";
-
 import "../AbstractMMV.t.sol";
 
-contract SparkMoneyMarketViewDAITest is AbstractMarketViewTest {
+contract AaveMoneyMarketViewV3Test is AbstractMarketViewTest {
 
     using Address for *;
     using ERC20Lib for *;
@@ -14,57 +13,32 @@ contract SparkMoneyMarketViewDAITest is AbstractMarketViewTest {
     IPool internal pool;
     IPoolConfigurator internal poolConfigurator;
 
-    constructor() AbstractMarketViewTest(MM_SPARK) { }
+    constructor() AbstractMarketViewTest(MM_AAVE) { }
 
     function setUp() public {
-        super.setUp(Network.Mainnet, 18_292_459);
+        super.setUp(Network.Arbitrum, 137_805_880);
 
-        pool = AaveMoneyMarketView(address(sut)).pool();
-        poolConfigurator = IPoolConfigurator(env.sparkAddressProvider().getPoolConfigurator());
-
-        vm.mockCall(
-            env.sparkAddressProvider().getACLManager(), abi.encodeWithSignature("isPoolAdmin(address)", address(this)), abi.encode(true)
+        sut = new AaveMoneyMarketView(
+            MM_AAVE,
+            "AaveV3",
+            env.contango(),
+            env.aaveAddressProvider(),
+            env.aaveRewardsController(),
+            env.nativeToken(),
+            env.nativeUsdOracle(),
+            AaveMoneyMarketView.Version.V3
         );
 
-        env.spotStub().stubPrice({
-            base: instrument.baseData,
-            quote: env.erc20(DAI),
-            baseUsdPrice: 1000e8,
-            quoteUsdPrice: 1e8,
-            uniswapFee: 500
-        });
-    }
+        vm.startPrank(TIMELOCK_ADDRESS);
+        env.contangoLens().setMoneyMarketView(sut);
+        vm.stopPrank();
 
-    function testBalances_ExistingPosition_long() public {
-        (, positionId,) = env.positionActions().openPosition({
-            symbol: instrument.symbol,
-            mm: mm,
-            quantity: 10 ether,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
+        pool = AaveMoneyMarketView(address(sut)).pool();
+        poolConfigurator = IPoolConfigurator(env.aaveAddressProvider().getPoolConfigurator());
 
-        Balances memory balances = sut.balances(positionId);
-
-        assertApproxEqRelDecimal(balances.collateral, 10 ether, TOLERANCE, instrument.baseDecimals, "Collateral balance");
-        assertApproxEqRelDecimal(balances.debt, 6000e6, TOLERANCE, instrument.quoteDecimals, "Debt balance");
-    }
-
-    function testBalances_ExistingPosition_short() public {
-        instrument = env.createInstrument(env.erc20(USDC), env.erc20(WETH));
-
-        (, positionId,) = env.positionActions().openPosition({
-            symbol: instrument.symbol,
-            mm: mm,
-            quantity: 10_000e6,
-            cashflow: 4 ether,
-            cashflowCcy: Currency.Quote
-        });
-
-        Balances memory balances = sut.balances(positionId);
-
-        assertApproxEqRelDecimal(balances.collateral, 10_000e6, TOLERANCE, instrument.baseDecimals, "Collateral balance");
-        assertApproxEqRelDecimal(balances.debt, 6 ether, TOLERANCE, instrument.quoteDecimals, "Debt balance");
+        vm.mockCall(
+            env.aaveAddressProvider().getACLManager(), abi.encodeWithSignature("isPoolAdmin(address)", address(this)), abi.encode(true)
+        );
     }
 
     function testPriceInNativeToken() public view {
@@ -85,35 +59,47 @@ contract SparkMoneyMarketViewDAITest is AbstractMarketViewTest {
 
         (uint256 afterPosition,) = sut.liquidity(positionId);
 
-        assertEqDecimal(beforePosition, 32_003_291.597896e6, instrument.quoteDecimals, "Borrowing liquidity");
+        assertEqDecimal(beforePosition, 2_774_841.625772e6, instrument.quoteDecimals, "Borrowing liquidity");
         assertApproxEqRelDecimal(beforePosition - afterPosition, 6000e6, TOLERANCE, instrument.quoteDecimals, "Borrowing liquidity delta");
     }
 
     function testBorrowingLiquidity_IsolationMode() public {
         (,, positionId) = env.createInstrumentAndPositionId(env.token(WETH), env.token(USDC), mm);
         (uint256 normalLiquidity,) = sut.liquidity(positionId);
-        (,, positionId) = env.createInstrumentAndPositionId(env.token(GNO), env.token(USDC), mm);
+        (,, positionId) = env.createInstrumentAndPositionId(env.token(USDT), env.token(USDC), mm);
         (uint256 isolationModeCappedLiquidity,) = sut.liquidity(positionId);
-        // (,,positionId) = env.createInstrumentAndPositionId(env.token(ARB), env.token(USDC), mm);
-        // (uint256 isolationModeUncappedLiquidity,) = sut.liquidity(positionId);
+        (,, positionId) = env.createInstrumentAndPositionId(env.token(ARB), env.token(USDC), mm);
+        (uint256 isolationModeUncappedLiquidity,) = sut.liquidity(positionId);
 
-        assertEqDecimal(normalLiquidity, 32_003_291.597896e6, 6, "Normal liquidity");
-        assertEqDecimal(isolationModeCappedLiquidity, 2_502_375.66e6, 6, "Isolation mode capped liquidity");
-        // assertEqDecimal(isolationModeUncappedLiquidity, 32_003_291.5978960e6, 6, "Isolation mode uncapped liquidity");
+        assertEqDecimal(normalLiquidity, 2_774_841.625772e6, 6, "Normal liquidity");
+        assertEqDecimal(isolationModeCappedLiquidity, 2_481_926.26e6, 6, "Isolation mode capped liquidity");
+        assertEqDecimal(isolationModeUncappedLiquidity, 2_774_841.625772e6, 6, "Isolation mode uncapped liquidity");
     }
 
-    function testLendingLiquidity() public view {
-        (, uint256 liquidity) = sut.liquidity(positionId);
-        assertEqDecimal(liquidity, 3_177_720.62554314038809752e18, instrument.baseDecimals, "Lending liquidity");
+    function testLendingLiquidity() public {
+        (, uint256 beforePosition) = sut.liquidity(positionId);
+
+        (, positionId,) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: mm,
+            quantity: 10 ether,
+            cashflow: 4000e6,
+            cashflowCcy: Currency.Quote
+        });
+
+        (, uint256 afterPosition) = sut.liquidity(positionId);
+
+        assertEqDecimal(beforePosition, 28_060.531239852040906233e18, instrument.baseDecimals, "Lending liquidity");
+        assertApproxEqRelDecimal(beforePosition - afterPosition, 10 ether, TOLERANCE, instrument.baseDecimals, "Lending liquidity delta");
     }
 
     function testThresholds_NewPosition() public {
-        positionId = env.encoder().encodePositionId(instrument.symbol, MM_SPARK, PERP, 0);
+        positionId = env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0);
 
         (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
 
-        assertEqDecimal(ltv, 0.8e18, 18, "LTV");
-        assertEqDecimal(liquidationThreshold, 0.825e18, 18, "Liquidation threshold");
+        assertEqDecimal(ltv, 0.825e18, 18, "LTV");
+        assertEqDecimal(liquidationThreshold, 0.85e18, 18, "Liquidation threshold");
     }
 
     function testThresholds_ExistingPosition() public {
@@ -121,55 +107,47 @@ contract SparkMoneyMarketViewDAITest is AbstractMarketViewTest {
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
-            cashflow: 4000e18,
+            cashflow: 4000e6,
             cashflowCcy: Currency.Quote
         });
 
         (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
 
-        assertEqDecimal(ltv, 0.8e18, 18, "LTV");
-        assertEqDecimal(liquidationThreshold, 0.825e18, 18, "Liquidation threshold");
+        assertEqDecimal(ltv, 0.825e18, 18, "LTV");
+        assertEqDecimal(liquidationThreshold, 0.85e18, 18, "Liquidation threshold");
     }
 
     function testThresholds_NewPosition_EMode() public {
-        instrument = env.createInstrument(env.erc20(WETH), env.erc20(RETH));
-        positionId = env.encoder().encodePositionId(instrument.symbol, MM_SPARK, PERP, 0);
+        instrument = env.createInstrument(env.erc20(DAI), env.erc20(USDC));
+        positionId = encode(instrument.symbol, MM_AAVE, PERP, 0, flagsAndPayload(setBit("", E_MODE), bytes4(uint32(1))));
 
         (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
 
-        assertEqDecimal(ltv, 0.9e18, 18, "LTV");
-        assertEqDecimal(liquidationThreshold, 0.93e18, 18, "Liquidation threshold");
+        assertEqDecimal(ltv, 0.93e18, 18, "LTV");
+        assertEqDecimal(liquidationThreshold, 0.95e18, 18, "Liquidation threshold");
     }
 
     function testThresholds_ExistingPosition_EMode() public {
-        instrument = env.createInstrument(env.erc20(WETH), env.erc20(RETH));
+        instrument = env.createInstrument(env.erc20(DAI), env.erc20(USDC));
 
         (, positionId,) = env.positionActions().openPosition({
-            symbol: instrument.symbol,
-            mm: mm,
-            quantity: 10 ether,
-            cashflow: 8e18,
+            positionId: encode(instrument.symbol, MM_AAVE, PERP, 0, flagsAndPayload(setBit("", E_MODE), bytes4(uint32(1)))),
+            quantity: 10_000e18,
+            cashflow: 4000e6,
             cashflowCcy: Currency.Quote
         });
 
         (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
 
-        assertEqDecimal(ltv, 0.9e18, 18, "LTV");
-        assertEqDecimal(liquidationThreshold, 0.93e18, 18, "Liquidation threshold");
+        assertEqDecimal(ltv, 0.93e18, 18, "LTV");
+        assertEqDecimal(liquidationThreshold, 0.95e18, 18, "Liquidation threshold");
     }
 
-    function testRates() public {
-        (,, positionId) = env.createInstrumentAndPositionId(env.token(WETH), env.token(USDC), mm);
+    function testRates() public view {
         (uint256 borrowingRate, uint256 lendingRate) = sut.rates(positionId);
 
-        assertEqDecimal(borrowingRate, 0.055258964761166048e18, 18, "Borrowing rate");
-        assertEqDecimal(lendingRate, 0.016166914046988865e18, 18, "Lending rate");
-
-        (,, positionId) = env.createInstrumentAndPositionId(env.token(USDC), env.token(WETH), mm);
-        (borrowingRate, lendingRate) = sut.rates(positionId);
-
-        assertEqDecimal(borrowingRate, 0.028864393507594878e18, 18, "Borrowing rate");
-        assertEqDecimal(lendingRate, 0.05e18, 18, "Lending rate");
+        assertEqDecimal(borrowingRate, 0.127197309926195207e18, 18, "Borrowing rate");
+        assertEqDecimal(lendingRate, 0.01120395057855792e18, 18, "Lending rate");
     }
 
     function testAvailableActions_BaseFrozen() public {
@@ -183,7 +161,7 @@ contract SparkMoneyMarketViewDAITest is AbstractMarketViewTest {
     }
 
     function testAvailableActions_QuoteFrozen() public {
-        poolConfigurator.setReserveFreeze(env.token(DAI), true);
+        poolConfigurator.setReserveFreeze(instrument.quote, true);
 
         AvailableActions[] memory availableActions = sut.availableActions(positionId);
         assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");
@@ -194,7 +172,7 @@ contract SparkMoneyMarketViewDAITest is AbstractMarketViewTest {
 
     function testAvailableActions_BothFrozen() public {
         poolConfigurator.setReserveFreeze(instrument.base, true);
-        poolConfigurator.setReserveFreeze(env.token(DAI), true);
+        poolConfigurator.setReserveFreeze(instrument.quote, true);
 
         AvailableActions[] memory availableActions = sut.availableActions(positionId);
         assertFalse(availableActions.enabled(AvailableActions.Lend), "Lend should be disabled");
@@ -214,7 +192,7 @@ contract SparkMoneyMarketViewDAITest is AbstractMarketViewTest {
     }
 
     function testAvailableActions_QuotePaused() public {
-        poolConfigurator.setReservePause(env.token(DAI), true);
+        poolConfigurator.setReservePause(instrument.quote, true);
 
         AvailableActions[] memory availableActions = sut.availableActions(positionId);
         assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");
@@ -225,15 +203,25 @@ contract SparkMoneyMarketViewDAITest is AbstractMarketViewTest {
 
     function testAvailableActions_BothPaused() public {
         poolConfigurator.setReservePause(instrument.base, true);
-        poolConfigurator.setReservePause(env.token(DAI), true);
+        poolConfigurator.setReservePause(instrument.quote, true);
 
         AvailableActions[] memory availableActions = sut.availableActions(positionId);
         assertEq(availableActions.length, 0, "No available actions");
     }
 
+    function testAvailableActions_BaseCollateralDisabled() public {
+        (,, positionId) = env.createInstrumentAndPositionId(env.token(LUSD), env.token(USDC), mm);
+
+        AvailableActions[] memory availableActions = sut.availableActions(positionId);
+        assertFalse(availableActions.enabled(AvailableActions.Lend), "Lend should be disabled");
+        assertTrue(availableActions.enabled(AvailableActions.Withdraw), "Withdraw should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Borrow), "Borrow should be enabled");
+        assertTrue(availableActions.enabled(AvailableActions.Repay), "Repay should be enabled");
+    }
+
     function testAvailableActions_QuoteBorrowingDisabled() public {
-        poolConfigurator.setReserveStableRateBorrowing(env.token(DAI), false);
-        poolConfigurator.setReserveBorrowing(env.token(DAI), false);
+        poolConfigurator.setReserveStableRateBorrowing(instrument.quote, false);
+        poolConfigurator.setReserveBorrowing(instrument.quote, false);
 
         AvailableActions[] memory availableActions = sut.availableActions(positionId);
         assertTrue(availableActions.enabled(AvailableActions.Lend), "Lend should be enabled");

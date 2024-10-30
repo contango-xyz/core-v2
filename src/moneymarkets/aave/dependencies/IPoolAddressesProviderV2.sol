@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.4;
 
+import "./IPoolV2.sol";
+
 interface IPoolAddressesProviderV2 {
 
     event AddressSet(bytes32 id, address indexed newAddress, bool hasProxy);
@@ -17,7 +19,7 @@ interface IPoolAddressesProviderV2 {
 
     function getAddress(bytes32 id) external view returns (address);
     function getEmergencyAdmin() external view returns (address);
-    function getLendingPool() external view returns (address);
+    function getLendingPool() external view returns (IPoolV2);
     function getLendingPoolCollateralManager() external view returns (address);
     function getLendingPoolConfigurator() external view returns (address);
     function getLendingRateOracle() external view returns (address);

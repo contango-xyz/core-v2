@@ -20,7 +20,7 @@ contract RadiantMoneyMarketViewTest is AbstractMarketViewTest {
         super.setUp(Network.Arbitrum, 147_130_912);
 
         pool = AaveMoneyMarketView(address(sut)).pool();
-        poolConfigurator = IPoolConfiguratorV2(env.radiantAddressProvider().getLendingPoolConfigurator());
+        poolConfigurator = IPoolConfiguratorV2(IPoolAddressesProviderV2(address(env.radiantAddressProvider())).getLendingPoolConfigurator());
 
         vm.mockCall(address(env.radiantAddressProvider()), abi.encodeWithSignature("getPoolAdmin()"), abi.encode(address(this)));
         vm.mockCall(address(env.radiantAddressProvider()), abi.encodeWithSignature("getEmergencyAdmin()"), abi.encode(address(this)));

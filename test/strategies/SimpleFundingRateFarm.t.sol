@@ -31,7 +31,7 @@ contract SimpleFundingRateFarmTest is Test, GasSnapshot {
     StepCall[] internal steps;
 
     function setUp() public {
-        env = provider(Network.Optimism);
+        env = provider(Network.Arbitrum);
         env.init();
 
         contango = env.contango();
@@ -50,7 +50,7 @@ contract SimpleFundingRateFarmTest is Test, GasSnapshot {
         stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
 
         _longPositionId = env.encoder().encodePositionId(longInstrument.symbol, MM_AAVE, PERP, 0);
-        _shortPositionId = env.encoder().encodePositionId(shortInstrument.symbol, MM_GRANARY, PERP, 0);
+        _shortPositionId = env.encoder().encodePositionId(shortInstrument.symbol, MM_RADIANT, PERP, 0);
 
         FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
         vm.prank(TIMELOCK_ADDRESS);
@@ -217,8 +217,8 @@ contract SimpleFundingRateFarmTest is Test, GasSnapshot {
         vm.mockCall(pool.getReserveData(instrument.quote).interestRateStrategyAddress, "", abi.encode(0, 0, quoteRate));
     }
 
-    function _stubNextGranaryRates(TestInstrument memory instrument, uint128 baseRate, uint128 quoteRate) internal {
-        IPoolV2 pool = IPoolV2(env.granaryAddressProvider().getLendingPool());
+    function _stubNextRadiantRates(TestInstrument memory instrument, uint128 baseRate, uint128 quoteRate) internal {
+        IPoolV2 pool = env.radiantAddressProvider().getLendingPool();
 
         vm.mockCall(address(pool.getReserveData(address(instrument.base)).interestRateStrategyAddress), "", abi.encode(baseRate, 0, 0));
         vm.mockCall(address(pool.getReserveData(address(instrument.quote)).interestRateStrategyAddress), "", abi.encode(0, 0, quoteRate));
@@ -232,7 +232,7 @@ contract SimpleFundingRateFarmTest is Test, GasSnapshot {
 
     function testClose_LongCollateralBiggerThanShortDebt() public invariants {
         _stubNextAaveRates(longInstrument, 0.1e27, 0.2e27);
-        _stubNextGranaryRates(shortInstrument, 0.5e27, 0.05e27);
+        _stubNextRadiantRates(shortInstrument, 0.5e27, 0.05e27);
 
         (PositionId longPositionId, PositionId shortPositionId) = _open({ cashflow: 10_000e6, shortQty: 15_000e6, longQty: 10 ether });
 
@@ -288,7 +288,7 @@ contract SimpleFundingRateFarmTest is Test, GasSnapshot {
 
     function testClose_LongCollateralSmallerThanShortDebt() public invariants {
         _stubNextAaveRates(longInstrument, 0.05e27, 0.1e27);
-        _stubNextGranaryRates(shortInstrument, 0.2e27, 0.1e27);
+        _stubNextRadiantRates(shortInstrument, 0.2e27, 0.1e27);
 
         (PositionId longPositionId, PositionId shortPositionId) = _open({ cashflow: 10_000e6, shortQty: 15_000e6, longQty: 10 ether });
 

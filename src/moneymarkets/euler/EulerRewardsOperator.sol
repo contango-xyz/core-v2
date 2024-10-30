@@ -115,10 +115,10 @@ contract EulerRewardsOperator is AccessControl {
     function claimAllRewards(PositionId positionId, address to) external {
         IEulerVault vault = reverseLookup.base(positionId);
         AuthorisedProxy proxy = _authorise(positionId, false);
-        IERC20[] memory rewards = rewardStreams.enabledRewards(AuthorisedProxy.unwrap(proxy), vault);
+        address[] memory rewards = rewardStreams.enabledRewards(AuthorisedProxy.unwrap(proxy), vault);
         uint256 length = rewards.length;
         for (uint256 i; i < length;) {
-            _claimReward(positionId, proxy, vault, rewards[i], to);
+            _claimReward(positionId, proxy, vault, IERC20(rewards[i]), to);
             unchecked {
                 ++i;
             }

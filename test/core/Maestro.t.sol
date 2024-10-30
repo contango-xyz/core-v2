@@ -77,7 +77,7 @@ contract MaestroTest is BaseTest {
         EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, 10_000e6, address(vault));
 
         vm.prank(TRADER);
-        maestro.depositWithPermit(IERC20Permit(address(usdc)), signedPermit, 10_000e6);
+        maestro.depositWithPermit(usdc, signedPermit, 10_000e6);
 
         assertEq(vault.balanceOf(usdc, TRADER), 10_000e6, "trader vault balance");
     }
@@ -86,7 +86,7 @@ contract MaestroTest is BaseTest {
         EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, 10_000e6, address(vault));
 
         vm.prank(TRADER);
-        maestro.depositWithPermit(IERC20Permit(address(usdc)), signedPermit, 9000e6);
+        maestro.depositWithPermit(usdc, signedPermit, 9000e6);
 
         assertEq(vault.balanceOf(usdc, TRADER), 9000e6, "trader vault balance");
     }
@@ -170,7 +170,7 @@ contract MaestroTest is BaseTest {
         EIP2098Permit memory signedPermit = env.dealAndPermit(arb, TRADER, TRADER_PK, 10_000e18, address(vault));
         vm.expectRevert(abi.encodeWithSelector(IVaultErrors.UnsupportedToken.selector, arb));
         vm.prank(TRADER);
-        maestro.depositWithPermit(IERC20Permit(address(arb)), signedPermit, 0);
+        maestro.depositWithPermit(arb, signedPermit, 0);
 
         signedPermit = env.dealAndPermit2(arb, TRADER, TRADER_PK, 10_000e18, address(maestro));
         vm.expectRevert(abi.encodeWithSelector(IVaultErrors.UnsupportedToken.selector, arb));

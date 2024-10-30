@@ -109,7 +109,7 @@ contract AaveV3Liquidation is AbstractAaveV3Liquidation {
 contract SparkLiquidation is AbstractAaveV3Liquidation {
 
     function setUp() public {
-        setUp(Network.Mainnet, 18_233_968, MM_SPARK, WETH, DAI);
+        setUp(Network.Mainnet, 18_233_968, MM_SPARK_SKY, WETH, DAI);
     }
 
 }
@@ -149,19 +149,6 @@ abstract contract AbstractAaveV2Liquidation is Liquidation {
 
 }
 
-contract AaveV2Liquidation is AbstractAaveV2Liquidation {
-
-    function setUp() public {
-        setUp(Network.Mainnet, MM_AAVE_V2, WETH, USDC);
-        stubChainlinkPrice(0.001e18, CHAINLINK_USDC_ETH);
-    }
-
-    function _movePrice(int256 percentage) internal override {
-        env.spotStub().movePrice(CHAINLINK_USDC_ETH, "USDC/ETH", -percentage);
-    }
-
-}
-
 // contract AgaveLiquidation is AbstractAaveV2Liquidation {
 
 //     function setUp() public {
@@ -176,14 +163,6 @@ contract RadiantLiquidation is AbstractAaveV2Liquidation {
     function setUp() public {
         super.setUp(Network.Arbitrum, MM_RADIANT, WETH, DAI);
         eventSignature = "LiquidationCall(address,address,address,uint256,uint256,address,bool,address)";
-    }
-
-}
-
-contract GranaryLiquidation is AbstractAaveV2Liquidation {
-
-    function setUp() public {
-        super.setUp(Network.Optimism, MM_GRANARY, WETH, USDC);
     }
 
 }
@@ -221,42 +200,6 @@ abstract contract AbstractCompoundV2Liquidation is Liquidation {
         assertEq(borrower, account, "LiquidateBorrow.borrower");
         assertEq(repayAmount, debtToCover, "LiquidateBorrow.repayAmount");
         assertEq(cTokenCollateral, address(collateralCToken), "LiquidateBorrow.cTokenCollateral");
-    }
-
-}
-
-contract CompoundV2Liquidation is AbstractCompoundV2Liquidation {
-
-    function setUp() public {
-        super.setUp(Network.Mainnet, MM_COMPOUND, WETH, DAI);
-
-        address oracle = env.compoundComptroller().oracle();
-        vm.mockCall(
-            oracle,
-            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5),
-            abi.encode(1000e18)
-        );
-        vm.mockCall(
-            oracle,
-            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643),
-            abi.encode(1e18)
-        );
-    }
-
-    function _movePrice(int256 percentage) internal override {
-        vm.mockCall(
-            env.compoundComptroller().oracle(),
-            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5),
-            abi.encode(1000e18 * (percentage + 1e18) / 1e18)
-        );
-    }
-
-}
-
-contract SonneLiquidation is AbstractCompoundV2Liquidation {
-
-    function setUp() public {
-        super.setUp(Network.Optimism, MM_SONNE, WETH, DAI);
     }
 
 }

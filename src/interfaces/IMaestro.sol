@@ -2,7 +2,6 @@
 pragma solidity ^0.8.4;
 
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 import "../libraries/DataTypes.sol";
 import "../interfaces/IOrderManager.sol";
@@ -15,13 +14,6 @@ struct LinkedOrderParams {
     Currency cashflowCcy;
     uint32 deadline;
     OrderType orderType;
-}
-
-struct EIP2098Permit {
-    uint256 amount;
-    uint256 deadline;
-    bytes32 r;
-    bytes32 vs;
 }
 
 struct SwapData {
@@ -53,7 +45,7 @@ interface IMaestro is IContangoErrors, IOrderManagerErrors, IVaultErrors {
 
     function depositNative() external payable returns (uint256);
 
-    function depositWithPermit(IERC20Permit token, EIP2098Permit calldata permit, uint256 amount) external payable returns (uint256);
+    function depositWithPermit(IERC20 token, EIP2098Permit calldata permit, uint256 amount) external payable returns (uint256);
 
     function depositWithPermit2(IERC20 token, EIP2098Permit calldata permit, uint256 amount) external payable returns (uint256);
 

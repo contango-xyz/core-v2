@@ -20,7 +20,7 @@ contract AaveV2MoneyMarketViewTest is AbstractMarketViewTest {
         super.setUp(Network.Mainnet);
 
         pool = AaveMoneyMarketView(address(sut)).pool();
-        poolConfigurator = IPoolConfiguratorV2(env.aaveV2AddressProvider().getLendingPoolConfigurator());
+        poolConfigurator = IPoolConfiguratorV2(IPoolAddressesProviderV2(address(env.aaveV2AddressProvider())).getLendingPoolConfigurator());
 
         vm.mockCall(address(env.aaveV2AddressProvider()), abi.encodeWithSignature("getPoolAdmin()"), abi.encode(address(this)));
         vm.mockCall(address(env.aaveV2AddressProvider()), abi.encodeWithSignature("getEmergencyAdmin()"), abi.encode(address(this)));

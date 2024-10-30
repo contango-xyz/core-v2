@@ -3,7 +3,7 @@
 pragma solidity ^0.8.19;
 
 import { IPool } from "src/moneymarkets/aave/dependencies/IPool.sol";
-import { IPoolDataProvider } from "src/moneymarkets/aave/dependencies/IPoolDataProvider.sol";
+import { IPoolDataProviderV3 } from "src/moneymarkets/aave/dependencies/IPoolDataProviderV3.sol";
 import { IPoolAddressesProvider } from "src/moneymarkets/aave/dependencies/IPoolAddressesProvider.sol";
 import { IFlashLoanSimpleReceiver } from "./interfaces/IFlashLoanSimpleReceiver.sol";
 
@@ -57,7 +57,7 @@ contract AaveFlashLoanProvider is BaseWrapper, IFlashLoanSimpleReceiver {
     }
 
     function _maxFlashLoan(address asset) internal view returns (uint256 max) {
-        IPoolDataProvider dataProvider = IPoolDataProvider(ADDRESSES_PROVIDER.getPoolDataProvider());
+        IPoolDataProviderV3 dataProvider = IPoolDataProviderV3(ADDRESSES_PROVIDER.getPoolDataProvider());
         (,,,,,,,, bool isActive, bool isFrozen) = dataProvider.getReserveConfigurationData(asset);
 
         (address aTokenAddress,,) = dataProvider.getReserveTokensAddresses(asset);

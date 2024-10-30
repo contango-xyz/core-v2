@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "./IPoolConfigurator.sol";
 import "../AbstractMMV.t.sol";
 
-contract AaveMoneyMarketViewTest is AbstractMarketViewTest {
+contract AaveMoneyMarketViewV32Test is AbstractMarketViewTest {
 
     using Address for *;
     using ERC20Lib for *;
@@ -16,7 +16,7 @@ contract AaveMoneyMarketViewTest is AbstractMarketViewTest {
     constructor() AbstractMarketViewTest(MM_AAVE) { }
 
     function setUp() public {
-        super.setUp(Network.Arbitrum, 137_805_880);
+        super.setUp(Network.Arbitrum, 261_678_099);
 
         pool = AaveMoneyMarketView(address(sut)).pool();
         poolConfigurator = IPoolConfigurator(env.aaveAddressProvider().getPoolConfigurator());
@@ -26,85 +26,10 @@ contract AaveMoneyMarketViewTest is AbstractMarketViewTest {
         );
     }
 
-    function testPriceInNativeToken() public view {
-        assertEqDecimal(sut.priceInNativeToken(instrument.base), 1e18, 18, "Base price in native token");
-        assertEqDecimal(sut.priceInNativeToken(instrument.quote), 0.001e18, 18, "Quote price in native token");
-    }
-
-    function testBorrowingLiquidity() public {
-        (uint256 beforePosition,) = sut.liquidity(positionId);
-
-        (, positionId,) = env.positionActions().openPosition({
-            symbol: instrument.symbol,
-            mm: mm,
-            quantity: 10 ether,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
-
-        (uint256 afterPosition,) = sut.liquidity(positionId);
-
-        assertEqDecimal(beforePosition, 2_774_841.625772e6, instrument.quoteDecimals, "Borrowing liquidity");
-        assertApproxEqRelDecimal(beforePosition - afterPosition, 6000e6, TOLERANCE, instrument.quoteDecimals, "Borrowing liquidity delta");
-    }
-
-    function testBorrowingLiquidity_IsolationMode() public {
-        (,, positionId) = env.createInstrumentAndPositionId(env.token(WETH), env.token(USDC), mm);
-        (uint256 normalLiquidity,) = sut.liquidity(positionId);
-        (,, positionId) = env.createInstrumentAndPositionId(env.token(USDT), env.token(USDC), mm);
-        (uint256 isolationModeCappedLiquidity,) = sut.liquidity(positionId);
-        (,, positionId) = env.createInstrumentAndPositionId(env.token(ARB), env.token(USDC), mm);
-        (uint256 isolationModeUncappedLiquidity,) = sut.liquidity(positionId);
-
-        assertEqDecimal(normalLiquidity, 2_774_841.625772e6, 6, "Normal liquidity");
-        assertEqDecimal(isolationModeCappedLiquidity, 2_481_926.26e6, 6, "Isolation mode capped liquidity");
-        assertEqDecimal(isolationModeUncappedLiquidity, 2_774_841.625772e6, 6, "Isolation mode uncapped liquidity");
-    }
-
-    function testLendingLiquidity() public {
-        (, uint256 beforePosition) = sut.liquidity(positionId);
-
-        (, positionId,) = env.positionActions().openPosition({
-            symbol: instrument.symbol,
-            mm: mm,
-            quantity: 10 ether,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
-
-        (, uint256 afterPosition) = sut.liquidity(positionId);
-
-        assertEqDecimal(beforePosition, 28_060.531239852040906233e18, instrument.baseDecimals, "Lending liquidity");
-        assertApproxEqRelDecimal(beforePosition - afterPosition, 10 ether, TOLERANCE, instrument.baseDecimals, "Lending liquidity delta");
-    }
-
-    function testThresholds_NewPosition() public {
-        positionId = env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0);
-
-        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
-
-        assertEqDecimal(ltv, 0.825e18, 18, "LTV");
-        assertEqDecimal(liquidationThreshold, 0.85e18, 18, "Liquidation threshold");
-    }
-
-    function testThresholds_ExistingPosition() public {
-        (, positionId,) = env.positionActions().openPosition({
-            symbol: instrument.symbol,
-            mm: mm,
-            quantity: 10 ether,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
-
-        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
-
-        assertEqDecimal(ltv, 0.825e18, 18, "LTV");
-        assertEqDecimal(liquidationThreshold, 0.85e18, 18, "Liquidation threshold");
-    }
-
     function testThresholds_NewPosition_EMode() public {
         instrument = env.createInstrument(env.erc20(DAI), env.erc20(USDC));
-        positionId = env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0);
+
+        positionId = encode(instrument.symbol, MM_AAVE, PERP, 0, flagsAndPayload(setBit("", E_MODE), bytes4(uint32(1))));
 
         (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
 
@@ -114,10 +39,10 @@ contract AaveMoneyMarketViewTest is AbstractMarketViewTest {
 
     function testThresholds_ExistingPosition_EMode() public {
         instrument = env.createInstrument(env.erc20(DAI), env.erc20(USDC));
+        positionId = encode(instrument.symbol, MM_AAVE, PERP, 0, flagsAndPayload(setBit("", E_MODE), bytes4(uint32(1))));
 
         (, positionId,) = env.positionActions().openPosition({
-            symbol: instrument.symbol,
-            mm: mm,
+            positionId: positionId,
             quantity: 10_000e18,
             cashflow: 4000e6,
             cashflowCcy: Currency.Quote
@@ -127,13 +52,6 @@ contract AaveMoneyMarketViewTest is AbstractMarketViewTest {
 
         assertEqDecimal(ltv, 0.93e18, 18, "LTV");
         assertEqDecimal(liquidationThreshold, 0.95e18, 18, "Liquidation threshold");
-    }
-
-    function testRates() public view {
-        (uint256 borrowingRate, uint256 lendingRate) = sut.rates(positionId);
-
-        assertEqDecimal(borrowingRate, 0.127197309926195207e18, 18, "Borrowing rate");
-        assertEqDecimal(lendingRate, 0.01120395057855792e18, 18, "Lending rate");
     }
 
     function testAvailableActions_BaseFrozen() public {
@@ -206,7 +124,6 @@ contract AaveMoneyMarketViewTest is AbstractMarketViewTest {
     }
 
     function testAvailableActions_QuoteBorrowingDisabled() public {
-        poolConfigurator.setReserveStableRateBorrowing(instrument.quote, false);
         poolConfigurator.setReserveBorrowing(instrument.quote, false);
 
         AvailableActions[] memory availableActions = sut.availableActions(positionId);

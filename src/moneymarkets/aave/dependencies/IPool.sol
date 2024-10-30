@@ -551,38 +551,10 @@ interface IPool {
     function ADDRESSES_PROVIDER() external view returns (IPoolAddressesProvider);
 
     /**
-     * @notice Updates the protocol fee on the bridging
-     * @param bridgeProtocolFee The part of the premium sent to the protocol treasury
-     */
-    function updateBridgeProtocolFee(uint256 bridgeProtocolFee) external;
-
-    /**
-     * @notice Updates flash loan premiums. Flash loan premium consists of two parts:
-     * - A part is sent to aToken holders as extra, one time accumulated interest
-     * - A part is collected by the protocol treasury
-     * @dev The total premium is calculated on the total borrowed amount
-     * @dev The premium to protocol is calculated on the total premium, being a percentage of `flashLoanPremiumTotal`
-     * @dev Only callable by the PoolConfigurator contract
-     * @param flashLoanPremiumTotal The total premium, expressed in bps
-     * @param flashLoanPremiumToProtocol The part of the premium sent to the protocol treasury, expressed in bps
-     */
-    function updateFlashloanPremiums(uint128 flashLoanPremiumTotal, uint128 flashLoanPremiumToProtocol) external;
-
-    /**
-     * @notice Configures a new category for the eMode.
-     * @dev In eMode, the protocol allows very high borrowing power to borrow assets of the same category.
-     * The category 0 is reserved as it's the default for volatile assets
-     * @param id The id of the category
-     * @param config The configuration of the category
-     */
-    function configureEModeCategory(uint8 id, AaveDataTypes.EModeCategory memory config) external;
-
-    /**
      * @notice Returns the data of an eMode category
      * @param id The id of the category
-     * @return The configuration data of the category
      */
-    function getEModeCategoryData(uint8 id) external view returns (AaveDataTypes.EModeCategory memory);
+    function getEModeCategoryData(uint8 id) external view returns (bytes32, uint16 ltv, uint16 liquidationThreshold);
 
     /**
      * @notice Allows a user to use the protocol in eMode

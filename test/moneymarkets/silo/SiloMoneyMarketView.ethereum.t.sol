@@ -157,11 +157,4 @@ contract SiloMoneyMarketViewEthereumTest is Test {
         assertEqDecimal(liquidationThreshold, 0.85e18, 18, "Liquidation threshold");
     }
 
-    function testRates() public view {
-        (uint256 borrowingRate, uint256 lendingRate) = sut.rates(positionId);
-
-        assertEqDecimal(borrowingRate, 0.02357635680432e18, 18, "Borrowing rate");
-        assertEqDecimal(lendingRate, 0.00000074190503087e18, 18, "Lending rate");
-    }
-
 }

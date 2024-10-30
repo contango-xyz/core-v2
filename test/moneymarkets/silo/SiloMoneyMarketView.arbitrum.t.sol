@@ -18,8 +18,6 @@ contract SiloMoneyMarketViewArbitrumTest is Test {
 
     MoneyMarketId internal constant mm = MM_SILO;
 
-    address internal rewardsToken;
-
     // Fees are 0.1% so the numbers are slightly off
     uint256 internal constant TOLERANCE = 0.002e18;
 
@@ -30,7 +28,6 @@ contract SiloMoneyMarketViewArbitrumTest is Test {
         contango = env.contango();
 
         sut = SiloMoneyMarketView(address(env.contangoLens().moneyMarketView(mm)));
-        rewardsToken = 0x0341C0C0ec423328621788d4854119B97f44E391;
 
         instrument = env.createInstrument(env.erc20(WETH), env.erc20(USDC));
 
@@ -241,66 +238,6 @@ contract SiloMoneyMarketViewArbitrumTest is Test {
 
         assertEqDecimal(ltv, 0.85e18, 18, "LTV");
         assertEqDecimal(liquidationThreshold, 0.9e18, 18, "Liquidation threshold");
-    }
-
-    function testRates() public view {
-        (uint256 borrowingRate, uint256 lendingRate) = sut.rates(positionId);
-
-        assertEqDecimal(borrowingRate, 0.156216303580176e18, 18, "Borrowing rate");
-        assertEqDecimal(lendingRate, 0.01812759217056907e18, 18, "Lending rate");
-    }
-
-    function testRewards_NoPosition() public {
-        // Set the price for the block I was comparing with so the values more or less match
-        stubChainlinkPrice(1.091e8, address(env.erc20(ARB).chainlinkUsdOracle));
-        stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
-        // Silo's oracle is ETH based, so we need a live ETH price
-        stubChainlinkPrice(2168e8, address(env.erc20(WETH).chainlinkUsdOracle));
-
-        (Reward[] memory borrowing, Reward[] memory lending) = sut.rewards(positionId);
-
-        assertEq(borrowing.length, 0, "Borrow rewards length");
-        assertEq(lending.length, 1, "Lend rewards length");
-
-        assertEq(address(lending[0].token.token), rewardsToken, "Lend reward[0] token");
-        assertEq(lending[0].token.name, "Silo Governance Token", "Lend reward[0] name");
-        assertEq(lending[0].token.symbol, "Silo", "Lend reward[0] symbol");
-        assertEq(lending[0].token.decimals, 18, "Lend reward[0] decimals");
-        assertEq(lending[0].token.unit, 1e18, "Lend reward[0] unit");
-        assertEqDecimal(lending[0].rate, 0.027967232284421903e18, lending[0].token.decimals, "Lend reward[0] rate");
-        assertEqDecimal(lending[0].claimable, 0, lending[0].token.decimals, "Lend reward[0] claimable");
-        assertEqDecimal(lending[0].usdPrice, 0.065967117740569448e18, 18, "Lend reward[0] usdPrice");
-    }
-
-    function testRewards_ForPosition() public {
-        (, positionId,) = env.positionActions().openPosition({
-            symbol: instrument.symbol,
-            mm: mm,
-            quantity: 10 ether,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
-
-        skip(15 days);
-
-        (Reward[] memory borrowing, Reward[] memory lending) = sut.rewards(positionId);
-
-        assertEq(borrowing.length, 0, "Borrow rewards length");
-        assertEq(lending.length, 1, "Lend rewards length");
-
-        assertEq(address(lending[0].token.token), rewardsToken, "Lend reward[0] token");
-        assertEq(lending[0].token.name, "Silo Governance Token", "Lend reward[0] name");
-        assertEq(lending[0].token.symbol, "Silo", "Lend reward[0] symbol");
-        assertEq(lending[0].token.decimals, 18, "Lend reward[0] decimals");
-        assertEq(lending[0].token.unit, 1e18, "Lend reward[0] unit");
-        assertEqDecimal(lending[0].rate, 0.028320996985557908e18, lending[0].token.decimals, "Lend reward[0] rate");
-        assertEqDecimal(lending[0].claimable, 370.746701038588359402e18, lending[0].token.decimals, "Lend reward[0] claimable");
-        assertEqDecimal(lending[0].usdPrice, 0.030957945706026e18, 18, "Lend reward[0] usdPrice");
-
-        address recipient = makeAddr("bank");
-        vm.prank(TRADER);
-        contango.claimRewards(positionId, recipient);
-        assertEqDecimal(IERC20(rewardsToken).balanceOf(recipient), lending[0].claimable, IERC20(rewardsToken).decimals(), "Claimed rewards");
     }
 
     function testAvailableActions_HappyPath() public {

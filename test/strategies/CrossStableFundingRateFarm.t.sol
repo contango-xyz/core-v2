@@ -51,7 +51,7 @@ contract CrossStableFundingRateFarmTest is Test, GasSnapshot {
         stubChainlinkPrice(1e8, address(env.erc20(DAI).chainlinkUsdOracle));
 
         _longPositionId = env.encoder().encodePositionId(longInstrument.symbol, MM_AAVE, PERP, 0);
-        _shortPositionId = env.encoder().encodePositionId(shortInstrument.symbol, MM_GRANARY, PERP, 0);
+        _shortPositionId = env.encoder().encodePositionId(shortInstrument.symbol, MM_EXACTLY, PERP, 0);
 
         FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
         vm.prank(TIMELOCK_ADDRESS);
@@ -137,8 +137,8 @@ contract CrossStableFundingRateFarmTest is Test, GasSnapshot {
             longBalances.collateral, 10.145615749608335812 ether, 1, longInstrument.baseDecimals, "longBalances.collateral"
         );
         assertApproxEqAbsDecimal(longBalances.debt, 5172.899690361642072227e18, 1, longInstrument.quoteDecimals, "longBalances.debt");
-        assertApproxEqAbsDecimal(shortBalances.collateral, 16_004.350535e6, 1, shortInstrument.baseDecimals, "shortBalances.collateral");
-        assertApproxEqAbsDecimal(shortBalances.debt, 10.419333258075151515 ether, 1, shortInstrument.quoteDecimals, "shortBalances.debt");
+        assertApproxEqAbsDecimal(shortBalances.collateral, 15_252.808197e6, 1, shortInstrument.baseDecimals, "shortBalances.collateral");
+        assertApproxEqAbsDecimal(shortBalances.debt, 10.361650180015496161 ether, 1, shortInstrument.quoteDecimals, "shortBalances.debt");
 
         PositionPermit memory longPermit = env.positionIdPermit2(longPositionId, trader, traderPK, address(sut));
 
@@ -186,9 +186,9 @@ contract CrossStableFundingRateFarmTest is Test, GasSnapshot {
         assertFalse(positionNFT.exists(longPositionId), "longPositionId exists");
         assertFalse(positionNFT.exists(shortPositionId), "shortPositionId exists");
 
-        assertApproxEqAbsDecimal(shortInstrument.base.balanceOf(trader), 10_504.350535e6, 1, shortInstrument.baseDecimals, "quote cashflow");
+        assertApproxEqAbsDecimal(shortInstrument.base.balanceOf(trader), 9752.808197e6, 1, shortInstrument.baseDecimals, "quote cashflow");
         assertApproxEqAbsDecimal(
-            shortInstrument.quote.balanceOf(trader), 0.026282491533184297 ether, 1, shortInstrument.quoteDecimals, "base cashflow"
+            shortInstrument.quote.balanceOf(trader), 0.083965569592839651 ether, 1, shortInstrument.quoteDecimals, "base cashflow"
         );
         assertApproxEqAbsDecimal(
             longInstrument.quote.balanceOf(trader), 27.100309638357927773e18, 1, longInstrument.quoteDecimals, "quote 2 cashflow"

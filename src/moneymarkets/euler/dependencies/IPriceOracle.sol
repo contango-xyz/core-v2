@@ -9,6 +9,10 @@ import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/ex
 /// @notice Common PriceOracle interface.
 interface IPriceOracle {
 
+    /// @notice Get the name of the oracle.
+    /// @return The name of the oracle.
+    function name() external view returns (string memory);
+
     /// @notice One-sided price: How much quote token you would get for inAmount of base token, assuming no price
     /// spread.
     /// @param inAmount The amount of `base` to convert.
