@@ -5,7 +5,6 @@ import "erc7399/IERC7399.sol";
 
 import "../core/PositionNFT.sol";
 import "../interfaces/IContango.sol";
-import "../interfaces/IFeeManager.sol";
 import "../interfaces/IVault.sol";
 import "../libraries/DataTypes.sol";
 import "../moneymarkets/interfaces/IUnderlyingPositionFactory.sol";
@@ -22,8 +21,8 @@ struct Trade {
     SwapInfo swap;
     Currency cashflowCcy;
     int256 cashflow; // negative when removing from position, positive otherwise
-    uint256 fee;
-    Currency feeCcy;
+    uint256 fee; // Deprecated
+    Currency feeCcy; // Deprecated
     uint256 forwardPrice;
 }
 
@@ -53,6 +52,7 @@ struct Instrument {
 
 interface IContangoEvents {
 
+    // `fee` and `feeCcy` are deprecated
     event PositionUpserted(
         PositionId indexed positionId,
         address indexed owner,
@@ -113,7 +113,6 @@ interface IContango is IContangoEvents, IContangoErrors {
     function instrument(Symbol symbol) external view returns (Instrument memory);
     function positionNFT() external view returns (PositionNFT);
     function vault() external view returns (IVault);
-    function feeManager() external view returns (IFeeManager);
     function lastOwner(PositionId id) external view returns (address);
 
     // ======== Admin ========

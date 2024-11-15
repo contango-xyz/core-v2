@@ -10,6 +10,8 @@ interface IContangoLens {
     error CallFailed(address target, bytes4 selector);
     error InvalidMoneyMarket(MoneyMarketId mm);
 
+    function moneyMarketViews(MoneyMarketId mmId) external view returns (IMoneyMarketView);
+    function setMoneyMarketView(IMoneyMarketView immv) external;
     function availableActions(PositionId positionId) external view returns (AvailableActions[] memory available);
     function balances(PositionId positionId) external view returns (Balances memory balances_);
     function balancesUSD(PositionId positionId) external view returns (Balances memory balancesUSD_);

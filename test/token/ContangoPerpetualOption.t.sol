@@ -117,6 +117,29 @@ contract ContangoPerpetualOptionTest is BaseTest {
         assertEqDecimal(tango.balanceOf(address(sut)), sut.totalSupply(), 18, "tango balance");
     }
 
+    function test_Burn() public invariant {
+        uint256 amount = 150_000_000e18;
+
+        _fund(amount);
+
+        assertEqDecimal(sut.totalSupply(), amount, 18, "totalSupply");
+        assertEqDecimal(sut.balanceOf(treasury), amount, 18, "treasury balance");
+        assertEqDecimal(tango.balanceOf(address(sut)), amount, 18, "tango balance");
+        uint256 treasuryBalance = tango.balanceOf(treasury);
+
+        vm.prank(makeAddr("not-treasury"));
+        vm.expectRevert(ContangoPerpetualOption.OnlyTreasury.selector);
+        sut.burn(100e18);
+
+        vm.prank(treasury);
+        sut.burn(100e18);
+
+        assertEqDecimal(sut.totalSupply(), amount - 100e18, 18, "totalSupply");
+        assertEqDecimal(sut.balanceOf(treasury), amount - 100e18, 18, "treasury balance");
+        assertEqDecimal(tango.balanceOf(address(sut)), amount - 100e18, 18, "tango balance");
+        assertEqDecimal(tango.balanceOf(treasury), treasuryBalance + 100e18, 18, "tango treasury balance");
+    }
+
     function test_exercise_approval() public invariant {
         _mockTangoPrice(0.1e8);
         _fund(10_000e18);

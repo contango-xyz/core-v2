@@ -52,7 +52,7 @@ contract PositionLifeCycleMorphoBlueMainnetFunctionalLong is AbstractPositionLif
         vm.prank(lp);
         morpho.supply({ marketParams: params, assets: 100_000e6, shares: 0, onBehalf: lp, data: "" });
 
-        vm.startPrank(Timelock.unwrap(TIMELOCK));
+        vm.startPrank(CoreTimelock.unwrap(CORE_TIMELOCK));
         MorphoBlueReverseLookup reverseLookup =
             MorphoBlueMoneyMarket(address(contango.positionFactory().moneyMarket(MM_MORPHO_BLUE))).reverseLookup();
         reverseLookup.setOracle({
@@ -100,7 +100,14 @@ contract PositionLifeCycleCometBaseFunctionalLong is AbstractPositionLifeCycleFu
 
     function setUp() public {
         super.setUp(Network.Base, MM_COMET, WETH, USDC, WETH_STABLE_MULTIPLIER);
-        env.encoder().setPayload(Payload.wrap(bytes5(uint40(1))));
+
+        CometMoneyMarket mm = CometMoneyMarket(address(contango.positionFactory().moneyMarket(MM_COMET)));
+
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        Payload payload = mm.reverseLookup().setComet(env.comet());
+        vm.stopPrank();
+
+        env.encoder().setPayload(payload);
     }
 
 }
@@ -155,7 +162,7 @@ contract PositionLifeCycleEulerMainnetFunctionalLong is AbstractPositionLifeCycl
         IEulerVault ethVault = IEulerVault(0xD8b27CF359b7D15710a5BE299AF6e7Bf904984C2);
         IEulerVault usdcVault = IEulerVault(0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9);
 
-        vm.startPrank(TIMELOCK_ADDRESS);
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
         uint16 ethId = mm.reverseLookup().setVault(ethVault);
         uint16 usdcId = mm.reverseLookup().setVault(usdcVault);
         vm.stopPrank();

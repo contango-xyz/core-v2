@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import { OPERATOR_ROLE } from "../../libraries/Roles.sol";
-import { Timelock, PositionId } from "../../libraries/DataTypes.sol";
+import { CoreTimelock, PositionId } from "../../libraries/DataTypes.sol";
 import "../../libraries/ERC20Lib.sol";
 import { Unauthorised } from "../../libraries/Errors.sol";
 import "../../core/PositionNFT.sol";
@@ -46,16 +46,16 @@ contract EulerRewardsOperator is AccessControl {
     mapping(IEulerVault vault => EnumerableSet.AddressSet rewards) private _liveRewards;
 
     constructor(
-        Timelock timelock,
+        CoreTimelock timelock,
         PositionNFT _positionNFT,
         IUnderlyingPositionFactory _positionFactory,
         IEthereumVaultConnector _evc,
         IRewardStreams _rewards,
         EulerReverseLookup _reverseLookup
     ) {
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
-        _grantRole(OPERATOR_ROLE, Timelock.unwrap(timelock));
-        _grantRole(DELEGATE_ROLE, Timelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(OPERATOR_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(DELEGATE_ROLE, CoreTimelock.unwrap(timelock));
 
         positionNFT = _positionNFT;
         positionFactory = _positionFactory;

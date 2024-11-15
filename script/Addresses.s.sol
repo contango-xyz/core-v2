@@ -43,7 +43,7 @@ abstract contract Addresses {
         vm.writeJson(vm.toString(addr), file, string.concat("$.", network, ".", key, ".address"));
 
         // TODO this is wrong for Arbitrum as it returns the L1 block number, but Foundry atm has no Arbitrum pre-compiles support
-        uint256 blockNumber = currentNetwork() == Network.LocalhostArbitrum ? 98_674_995 : block.number;
+        uint256 blockNumber = currentNetwork() == Network.LocalhostArbitrum ? 273_737_324 : block.number;
 
         vm.writeJson(vm.toString(blockNumber), file, string.concat("$.", network, ".", key, ".startBlock"));
 

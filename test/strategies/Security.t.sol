@@ -31,6 +31,7 @@ contract StrategiesSecurityTest is BaseTest, GasSnapshot {
     StepCall[] internal steps;
 
     address internal hacker = makeAddr("hacker");
+    address internal operator = makeAddr("operator");
 
     function setUp() public {
         env = provider(Network.Arbitrum);
@@ -47,7 +48,7 @@ contract StrategiesSecurityTest is BaseTest, GasSnapshot {
         usdc = env.token(USDC);
         dai = env.token(DAI);
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), env.contangoLens(), env.maestro().spotExecutor());
+        sut = env.strategyBuilder();
 
         env.spotStub().stubPrice({ base: env.erc20(WETH), quote: env.erc20(USDC), baseUsdPrice: 1000e8, quoteUsdPrice: 1e8, uniswapFee: 500 });
 
@@ -58,6 +59,31 @@ contract StrategiesSecurityTest is BaseTest, GasSnapshot {
             quoteUsdPrice: 1.0001e8,
             uniswapFee: 500
         });
+
+        vm.prank(CORE_TIMELOCK_ADDRESS);
+        sut.grantRole(OPERATOR_ROLE, operator);
+
+        vm.prank(CORE_TIMELOCK_ADDRESS);
+        sut.grantRole(EMERGENCY_BREAK_ROLE, operator);
+
+        vm.prank(CORE_TIMELOCK_ADDRESS);
+        sut.grantRole(RESTARTER_ROLE, operator);
+    }
+
+    function testCanNotBeUsedWhenPaused() public {
+        expectAccessControl(hacker, EMERGENCY_BREAK_ROLE);
+        sut.pause();
+
+        vm.prank(operator);
+        sut.pause();
+
+        vm.expectRevert("Pausable: paused");
+        sut.process(steps);
+
+        vm.prank(operator);
+        sut.unpause();
+
+        sut.process(steps);
     }
 
     function testCanNotStealFunds_Process_Permit() public {
@@ -132,26 +158,26 @@ contract StrategiesSecurityTest is BaseTest, GasSnapshot {
     }
 
     function testRetrieveERC20() public {
-        expectAccessControl(hacker, DEFAULT_ADMIN_ROLE);
+        expectAccessControl(hacker, OPERATOR_ROLE);
         sut.retrieve(usdc, hacker);
 
         address someAddr = makeAddr("someAddr");
         deal(address(usdc), address(sut), 1000e6);
 
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(operator);
         sut.retrieve(usdc, someAddr);
 
         assertEqDecimal(usdc.balanceOf(someAddr), 1000e6, 6, "someAddr balance");
     }
 
     function testRetrieveNative() public {
-        expectAccessControl(hacker, DEFAULT_ADMIN_ROLE);
+        expectAccessControl(hacker, OPERATOR_ROLE);
         sut.retrieveNative(payable(hacker));
 
         address payable someAddr = payable(makeAddr("someAddr"));
         vm.deal(address(sut), 10 ether);
 
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(operator);
         sut.retrieveNative(someAddr);
 
         assertEqDecimal(address(someAddr).balance, 10 ether, 18, "someAddr balance");
@@ -168,12 +194,12 @@ contract StrategiesSecurityTest is BaseTest, GasSnapshot {
         vm.prank(trader);
         positionNFT.transferFrom(trader, address(sut), positionId.asUint());
 
-        expectAccessControl(hacker, DEFAULT_ADMIN_ROLE);
+        expectAccessControl(hacker, OPERATOR_ROLE);
         sut.retrieve(positionId, hacker);
 
         address someAddr = makeAddr("someAddr");
 
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(operator);
         sut.retrieve(positionId, someAddr);
 
         assertEq(positionNFT.positionOwner(positionId), someAddr, "position owner");
@@ -183,7 +209,7 @@ contract StrategiesSecurityTest is BaseTest, GasSnapshot {
         // This will implicitly enable the token on the vault
         env.createInstrument(env.erc20(WETH), env.erc20(USDC));
 
-        expectAccessControl(hacker, DEFAULT_ADMIN_ROLE);
+        expectAccessControl(hacker, OPERATOR_ROLE);
         sut.retrieveFromVault(usdc, hacker);
 
         address someAddr = makeAddr("someAddr");
@@ -191,7 +217,7 @@ contract StrategiesSecurityTest is BaseTest, GasSnapshot {
         vm.prank(address(sut));
         vault.deposit(usdc, address(sut), 1000e6);
 
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(operator);
         sut.retrieveFromVault(usdc, someAddr);
 
         assertEqDecimal(usdc.balanceOf(someAddr), 1000e6, 6, "someAddr balance");

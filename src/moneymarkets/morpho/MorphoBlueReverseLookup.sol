@@ -5,7 +5,8 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 
 import "./dependencies/IMorpho.sol";
 
-import { Payload, Timelock } from "../../libraries/DataTypes.sol";
+import { Payload, CoreTimelock, Operator } from "../../libraries/DataTypes.sol";
+import { OPERATOR_ROLE } from "../../libraries/Roles.sol";
 
 interface MorphoBlueReverseLookupEvents {
 
@@ -43,12 +44,13 @@ contract MorphoBlueReverseLookup is MorphoBlueReverseLookupEvents, MorphoBlueRev
     mapping(IERC20 asset => MorphoMarketId marketId) public assetToMarketId;
     mapping(IERC20 asset => QuoteOracle oracleData) private _assetToQuoteOracle;
 
-    constructor(Timelock timelock, IMorpho _morpho) {
+    constructor(CoreTimelock timelock, IMorpho _morpho, Operator operator) {
         morpho = _morpho;
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(OPERATOR_ROLE, Operator.unwrap(operator));
     }
 
-    function setMarket(MorphoMarketId _marketId) external onlyRole(DEFAULT_ADMIN_ROLE) returns (Payload payload) {
+    function setMarket(MorphoMarketId _marketId) external onlyRole(OPERATOR_ROLE) returns (Payload payload) {
         MarketParams memory params = morpho.idToMarketParams(_marketId);
         if (params.loanToken == IERC20(address(0))) revert InvalidMarketId(_marketId);
         if (Payload.unwrap(payloads[_marketId]) != bytes5(0)) revert MarketAlreadySet(_marketId, payloads[_marketId]);
@@ -61,11 +63,11 @@ contract MorphoBlueReverseLookup is MorphoBlueReverseLookupEvents, MorphoBlueRev
         emit MarketSet(payload, _marketId);
     }
 
-    function setOracle(IERC20 asset, address oracle, bytes11 oracleType, QuoteOracleCcy oracleCcy) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setOracle(IERC20 asset, address oracle, bytes11 oracleType, QuoteOracleCcy oracleCcy) external onlyRole(OPERATOR_ROLE) {
         _assetToQuoteOracle[asset] = QuoteOracle(oracle, oracleType, oracleCcy);
     }
 
-    function setAssetToMarketId(IERC20 asset, MorphoMarketId _marketId) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setAssetToMarketId(IERC20 asset, MorphoMarketId _marketId) external onlyRole(OPERATOR_ROLE) {
         assetToMarketId[asset] = _marketId;
     }
 

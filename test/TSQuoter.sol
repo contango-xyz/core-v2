@@ -17,7 +17,6 @@ struct TSQuote {
     int256 cashflowUsed;
     uint256 price;
     bool fullyClosing;
-    uint256 fee;
     uint256 transactionFees;
 }
 
@@ -165,9 +164,6 @@ contract TSQuoter {
             contangoLens.liquidity(positionId);
 
         tsQuoteParams.meta.limits = contangoLens.limits(positionId);
-
-        IFeeModel feeModel = contango.feeManager().feeModel();
-        if (address(feeModel) != address(0)) tsQuoteParams.meta.fee = feeModel.calculateFee(address(0), positionId, 1e18);
 
         (tsQuoteParams.meta.ltv.ltv, tsQuoteParams.meta.ltv.liquidationThreshold) = contangoLens.thresholds(positionId);
         tsQuoteParams.quantity = quantity;

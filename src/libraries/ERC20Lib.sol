@@ -50,6 +50,11 @@ library ERC20Lib {
         if (balance > 0) transferOut(token, address(this), to, balance);
     }
 
+    function transferBalanceNative(IWETH9 token, address payable to) internal returns (uint256 balance) {
+        balance = myBalance(token);
+        if (balance > 0) transferOutNative(token, to, balance);
+    }
+
     function myBalance(IERC20 token) internal view returns (uint256) {
         return token.balanceOf(address(this));
     }

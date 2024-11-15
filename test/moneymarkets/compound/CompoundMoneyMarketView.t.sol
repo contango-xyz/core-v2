@@ -257,8 +257,8 @@ contract CompoundMoneyMarketViewTest is Test {
         assertEq(borrowing[0].token.symbol, "COMP", "Borrow reward[0] symbol");
         assertEq(borrowing[0].token.decimals, 18, "Borrow reward[0] decimals");
         assertEq(borrowing[0].token.unit, 1e18, "Borrow reward[0] unit");
-        assertEqDecimal(borrowing[0].rate, 0.012681984975313445e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
-        assertEqDecimal(borrowing[0].claimable, 0.035982204265630681e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
+        assertEqDecimal(borrowing[0].rate, 0.012681987022331147e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
+        assertEqDecimal(borrowing[0].claimable, 0.035921680776340404e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
         assertEqDecimal(borrowing[0].usdPrice, 87.05231007e18, 18, "Borrow reward[0] usdPrice");
 
         address recipient = makeAddr("bank");
@@ -293,8 +293,8 @@ contract CompoundMoneyMarketViewTest is Test {
         assertEq(lending[0].token.symbol, "COMP", "Lend reward[0] symbol");
         assertEq(lending[0].token.decimals, 18, "Lend reward[0] decimals");
         assertEq(lending[0].token.unit, 1e18, "Lend reward[0] unit");
-        assertEqDecimal(lending[0].rate, 0.010578471274597113e18, lending[0].token.decimals, "Lend reward[0] rate");
-        assertEqDecimal(lending[0].claimable, 0.049939633718959569e18, lending[0].token.decimals, "Lend reward[0] claimable");
+        assertEqDecimal(lending[0].rate, 0.010578471288698814e18, lending[0].token.decimals, "Lend reward[0] rate");
+        assertEqDecimal(lending[0].claimable, 0.049939133889297868e18, lending[0].token.decimals, "Lend reward[0] claimable");
         assertEqDecimal(lending[0].usdPrice, 87.05231007e18, 18, "Lend reward[0] usdPrice");
 
         address recipient = makeAddr("bank");

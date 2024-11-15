@@ -132,6 +132,32 @@ contract VeCbptTest is BaseTest {
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP3, REWARD_TOKEN), 0.39e18, 0.1e18, 18, "LP3 rewards");
     }
 
+    function testRewardsDistribution_LockIncreases() public {
+        _createLock(LP1, 10e18, 52 weeks);
+        _createLock(LP2, 10e18, 26 weeks);
+
+        vm.warp(rewardDistributorStartTime - 1);
+        _extendLock(LP2, 26 weeks);
+
+        vm.warp(rewardDistributorStartTime + 1);
+
+        REWARD_TOKEN.mint(keeper, 10e18);
+        vm.startPrank(keeper);
+        REWARD_TOKEN.approve(address(rewardDistributor), 10e18);
+        rewardDistributor.depositToken(REWARD_TOKEN, 10e18);
+        vm.stopPrank();
+
+        assertEqDecimal(
+            rewardDistributor.getTokensDistributedInWeek(REWARD_TOKEN, rewardDistributorStartTime), 10e18, 18, "Total rewards for the week"
+        );
+
+        // Rewards deposited on week N are claimable on week N+1
+        skip(1 weeks + 1 days);
+
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP1, REWARD_TOKEN), 5e18, 0.1e18, 18, "LP1 rewards");
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP2, REWARD_TOKEN), 5e18, 0.1e18, 18, "LP2 rewards");
+    }
+
     function testRewardsDistribution_AllSameLock_DiffAmounts_MultipleWeeks() public {
         _createLock(LP1, 20e18, 365 days);
         _createLock(LP2, 30e18, 365 days);
@@ -269,6 +295,20 @@ contract VeCbptTest is BaseTest {
         CBPT.approve(address(veCBPT), amount);
         veCBPT.create_lock(amount, block.timestamp + duration);
         vm.stopPrank();
+    }
+
+    function _increaseAmount(address addr, uint256 amount) internal {
+        deal(address(CBPT), addr, amount);
+        vm.startPrank(addr);
+        CBPT.approve(address(veCBPT), amount);
+        veCBPT.increase_amount(amount);
+        vm.stopPrank();
+    }
+
+    function _extendLock(address addr, uint256 extension) internal {
+        uint256 currEnd = veCBPT.locked__end(addr);
+        vm.prank(addr);
+        veCBPT.increase_unlock_time(currEnd + extension);
     }
 
 }

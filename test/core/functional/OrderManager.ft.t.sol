@@ -49,10 +49,6 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
             uniswapFee: 500
         });
 
-        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
-        vm.prank(TIMELOCK_ADDRESS);
-        feeModel.setDefaultFee(NO_FEE);
-
         deal(address(instrument.baseData.token), poolAddress, type(uint96).max);
         deal(address(instrument.quoteData.token), poolAddress, type(uint96).max);
 
@@ -61,8 +57,11 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         maestro = env.maestro();
         uniswap = env.uniswap();
 
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         OrderManager(address(om)).grantRole(BOT_ROLE, keeper);
+
+        vm.prank(CORE_TIMELOCK_ADDRESS);
+        OrderManager(address(om)).grantRole(OPERATOR_ROLE, CORE_TIMELOCK_ADDRESS);
 
         // Sets block.basefee
         vm.fee(1.5e9); // 1.5 gwei
@@ -78,7 +77,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     function testStorage() public {
         StorageUtils su = new StorageUtils(address(om));
 
-        vm.startPrank(TIMELOCK_ADDRESS);
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
         om.setGasMultiplier(3e4);
         om.setGasTip(3e9);
         vm.stopPrank();
@@ -133,15 +132,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         assertEq(address(uint160(others >> 8 + 32 + 8)), TRADER, "owner");
     }
 
-    function testOpenPosition_HP_directly() public {
-        _testOpenPosition_HP(false);
-    }
-
-    function testOpenPosition_HP_maestro() public {
-        _testOpenPosition_HP(true);
-    }
-
-    function _testOpenPosition_HP(bool useMaestro) private {
+    function _testOpenPosition_HP() public {
         PositionId positionId = env.encoder().encodePositionId(instrument.symbol, mm, PERP, 0);
 
         TSQuote memory quote = env.tsQuoter().quote({
@@ -167,7 +158,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = useMaestro ? maestro.place(params) : om.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
         assertEq(om.orders(orderId).owner, TRADER, "order owner");
 
@@ -221,7 +212,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
         assertEq(om.orders(orderId).owner, TRADER, "order owner");
 
@@ -272,7 +263,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
         assertEq(om.orders(orderId).owner, TRADER, "order owner");
 
@@ -324,7 +315,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
         vm.recordLogs();
@@ -366,7 +357,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
         vm.prank(TRADER);
@@ -406,7 +397,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
         vm.prank(keeper);
@@ -471,7 +462,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
         vm.expectRevert(abi.encodePacked(IOrderManagerErrors.InvalidPrice.selector, uint256(1000e6), uint256(899e6)));
@@ -534,7 +525,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
         vm.expectRevert(abi.encodePacked(IOrderManagerErrors.InvalidPrice.selector, uint256(1000e6), uint256(899e6)));
@@ -681,12 +672,12 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.InvalidOrderType.selector, OrderType.TakeProfit));
         vm.prank(TRADER);
-        maestro.place(params);
+        om.place(params);
 
         params.orderType = OrderType.StopLoss;
         vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.InvalidOrderType.selector, OrderType.StopLoss));
         vm.prank(TRADER);
-        maestro.place(params);
+        om.place(params);
     }
 
     // Can't place decrease position order with Limit type
@@ -713,7 +704,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         vm.expectRevert(abi.encodeWithSelector(IOrderManagerErrors.InvalidOrderType.selector, params.orderType));
 
         vm.prank(TRADER);
-        maestro.place(params);
+        om.place(params);
     }
 
     // Can't place an order for someone else's account
@@ -738,7 +729,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         params.positionId = positionId;
 
         vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
-        maestro.place(params);
+        om.place(params);
 
         vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
         om.place(params);
@@ -886,7 +877,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
         vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
@@ -912,7 +903,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
         skip(1 seconds);
@@ -961,7 +952,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         vm.startPrank(TRADER);
 
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         env.contango().positionNFT().safeTransferFrom(TRADER, address(0xdead), uint256(PositionId.unwrap(positionId)));
 
         vm.stopPrank();
@@ -1004,7 +995,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         });
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
+        OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
         // close position externally
@@ -1025,30 +1016,30 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     }
 
     function testSetGasMultiplier() public {
-        expectAccessControl(address(this), "");
+        expectAccessControl(address(this), OPERATOR_ROLE);
         om.setGasMultiplier(1e4);
 
         vm.expectRevert(abi.encodeWithSelector(AboveMaxGasMultiplier.selector, 11e4));
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         om.setGasMultiplier(11e4);
 
         vm.expectRevert(abi.encodeWithSelector(BelowMinGasMultiplier.selector, 0.9e4));
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         om.setGasMultiplier(0.9e4);
 
         vm.expectEmit(true, true, true, true);
         emit GasMultiplierSet(5e4);
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         om.setGasMultiplier(5e4);
     }
 
     function testSetGasTip() public {
-        expectAccessControl(address(this), "");
+        expectAccessControl(address(this), OPERATOR_ROLE);
         om.setGasTip(1);
 
         vm.expectEmit(true, true, true, true);
         emit GasTipSet(3e9);
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         om.setGasTip(3e9);
     }
 

@@ -26,9 +26,13 @@ contract CometMoneyMarketTest is BaseTest {
         contango = address(env.contango());
 
         sut = env.deployer().deployCometMoneyMarket(env, env.contango());
-        comet = address(sut.reverseLookup().comet(Payload.wrap(bytes5(uint40(1)))));
+        comet = address(env.comet());
 
-        positionId = encode(Symbol.wrap("WETHUSDC"), MM_COMET, PERP, 1, Payload.wrap(bytes5(uint40(1))));
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        Payload payload = sut.reverseLookup().setComet(env.comet());
+        vm.stopPrank();
+
+        positionId = encode(Symbol.wrap("WETHUSDC"), MM_COMET, PERP, 1, payload);
         vm.startPrank(contango);
         sut.initialise(positionId, env.token(WETH), env.token(USDC));
         vm.stopPrank();
@@ -66,6 +70,10 @@ contract CometMoneyMarketTest is BaseTest {
         IERC20 borrowToken = env.token(USDC);
 
         CometMoneyMarket emm = env.deployer().deployCometMoneyMarket(env, IContango(contango));
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        Payload payload = emm.reverseLookup().setComet(env.comet());
+        vm.stopPrank();
+        positionId = encode(Symbol.wrap("WETHUSDC"), MM_COMET, PERP, 1, payload);
 
         vm.prank(contango);
         emm.initialise(positionId, lendToken, borrowToken);

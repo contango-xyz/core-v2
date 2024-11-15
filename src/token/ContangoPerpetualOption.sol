@@ -18,6 +18,7 @@ contract ContangoPerpetualOption is ERC20, ERC20Permit {
     error StaleOraclePrice(uint256 timestamp, uint256 price);
     error ZeroPrice();
     error ZeroCost();
+    error OnlyTreasury();
 
     event Exercised(address indexed account, SD59x18 amount, SD59x18 tangoPrice, SD59x18 discount, SD59x18 discountedPrice, uint256 cost);
 
@@ -57,6 +58,12 @@ contract ContangoPerpetualOption is ERC20, ERC20Permit {
         _mint(msg.sender, amount);
     }
 
+    function burn(uint256 amount) public {
+        require(msg.sender == treasury, OnlyTreasury());
+        _burn(treasury, amount);
+        tango.transferOut(address(this), treasury, amount);
+    }
+
     function previewExercise(SD59x18 amount)
         public
         view
@@ -76,10 +83,10 @@ contract ContangoPerpetualOption is ERC20, ERC20Permit {
         require(cost > 0, ZeroCost());
     }
 
-    function exercise(SD59x18 amount) public {
+    function exercise(SD59x18 amount) public returns (SD59x18 tangoPrice_, SD59x18 discount, SD59x18 discountedPrice, uint256 cost) {
         _burn(msg.sender, amount.intoUint256());
 
-        (SD59x18 tangoPrice_, SD59x18 discount, SD59x18 discountedPrice, uint256 cost) = previewExercise(amount);
+        (tangoPrice_, discount, discountedPrice, cost) = previewExercise(amount);
 
         USDC.transferOut(msg.sender, treasury, cost);
         tango.transferOut(address(this), msg.sender, amount.intoUint256());

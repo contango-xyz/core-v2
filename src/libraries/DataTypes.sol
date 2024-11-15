@@ -32,7 +32,9 @@ using {
     getFlags,
     getPayload,
     getPayloadNoFlags,
-    asUint
+    asUint,
+    positionIdEquals as ==,
+    positionIdNotEquals as !=
 } for PositionId global;
 
 type OrderId is bytes32;
@@ -45,7 +47,11 @@ function mmEquals(MoneyMarketId a, MoneyMarketId b) pure returns (bool) {
 
 using { mmEquals as == } for MoneyMarketId global;
 
-type Timelock is address;
+type CoreTimelock is address;
+
+type MarketTimelock is address;
+
+type Operator is address;
 
 struct EIP2098Permit {
     uint256 amount;

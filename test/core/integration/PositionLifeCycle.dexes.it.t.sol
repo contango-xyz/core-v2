@@ -123,10 +123,12 @@ contract PositionLifeCycleDexes is BaseTest {
         execParams = quote.execParams;
 
         env.dealAndApprove(instrument.quote, trader, uint256(quote.cashflowUsed), address(vault));
+        vm.prank(trader);
+        maestro.deposit(instrument.quote, uint256(quote.cashflowUsed));
 
         Trade memory trade;
         vm.prank(trader);
-        (positionId, trade) = maestro.depositAndTrade(tradeParams, execParams);
+        (positionId, trade) = maestro.trade(tradeParams, execParams);
         console.log("Position opened at %s", trade.swap.price);
 
         assertEqDecimal(instrument.base.balanceOf(address(contango)), 0, instrument.baseDecimals, "contango base dust");
@@ -142,8 +144,10 @@ contract PositionLifeCycleDexes is BaseTest {
         execParams = quote.execParams;
 
         vm.prank(trader);
-        (, trade,) = maestro.tradeAndWithdraw(tradeParams, execParams, trader);
+        (, trade) = maestro.trade(tradeParams, execParams);
         console.log("Position closed at %s", trade.swap.price);
+        vm.prank(trader);
+        maestro.withdraw(instrument.quote, uint256(-trade.cashflow), trader);
 
         assertApproxEqAbsDecimal(instrument.base.balanceOf(address(contango)), 0, 1e7, instrument.baseDecimals, "contango base dust");
         assertEqDecimal(instrument.quote.balanceOf(address(contango)), 0, instrument.quoteDecimals, "contango quote dust");

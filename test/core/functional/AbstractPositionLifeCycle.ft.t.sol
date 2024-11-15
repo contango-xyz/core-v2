@@ -30,15 +30,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         uint256 swapInput;
         uint256 swapOutput;
         uint256 quantity;
-        uint256 fee;
-        Currency feeCcy;
-        uint256 estimatedFee;
-        uint256 estimatedFeeInQuote;
         int256 tradeCashflow;
     }
 
     // effective when opening because the fee is included in final quantity to compensate for the intended quantity passed
-    // deriveQuoteValues.ts::calculateTradingFee()
     uint256 internal constant QUOTER_FEE_ON_OPEN = 1e36 / (1e18 - DEFAULT_TRADING_FEE) - 1e18;
     uint256 internal constant ADJUSTED_QUOTER_FEE = DEFAULT_TRADING_FEE + 0.00001e18;
     uint256 internal constant ADJUSTED_QUOTER_FEE_ON_OPEN = 1e36 / (1e18 - ADJUSTED_QUOTER_FEE) - 1e18;
@@ -110,18 +105,12 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         inputs.cashflowCcy = Currency.Base;
 
         expectations.tradeCashflow = inputs.cashflow;
-
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
-        expectations.flashLoanAmount = _adjustedQuote(6000) + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = _adjustedQuote(6000);
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = uint256(inputs.cashflow) + expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (TSQuote memory quote, PositionId positionId, Trade memory trade) = env.positionActions().openPosition({
             symbol: instrument.symbol,
@@ -131,11 +120,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = discountFee(expectations.quantity);
+        expectations.collateral = expectations.quantity;
         expectations.debt = expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -148,17 +136,12 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
-        expectations.flashLoanAmount = _adjustedQuote(6000) + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = _adjustedQuote(6000);
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = uint256(inputs.cashflow) + expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (TSQuote memory quote, PositionId positionId, Trade memory trade) = env.positionActions().openPosition({
             symbol: instrument.symbol,
@@ -168,11 +151,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = discountFee(expectations.swapOutput);
+        expectations.collateral = expectations.quantity;
         expectations.debt = expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -187,17 +169,12 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
-        expectations.flashLoanAmount = _adjustedQuote(4000) + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = _adjustedQuote(4000);
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             positionId: positionId,
@@ -207,11 +184,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt + expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -226,17 +202,12 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
-        expectations.flashLoanAmount = _adjustedQuote(1000) + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = _adjustedQuote(1000);
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = uint256(inputs.cashflow) + expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             positionId: positionId,
@@ -245,11 +216,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt + expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -262,21 +232,16 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         inputs.cashflow = _adjustedBaseI(4);
         inputs.cashflowCcy = Currency.Base;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN, Math.Rounding.Up);
-        expectations.quantity = inputs.quantity + expectations.estimatedFee;
+        expectations.quantity = inputs.quantity;
 
-        // bump cashflow to cover the fee and ensure no spot trade
-        inputs.cashflow += int256(expectations.estimatedFee);
         expectations.tradeCashflow = inputs.cashflow;
 
         expectations.price = 0; // No swap happened, the graph will pull the price from the oracle
         expectations.swapInputCcy = Currency.None;
         expectations.swapInput = 0;
         expectations.swapOutput = 0;
-        expectations.fee = tradingFee(inputs.quantity, QUOTER_FEE_ON_OPEN);
-        expectations.feeCcy = Currency.Base;
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
@@ -287,7 +252,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         });
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -305,16 +269,13 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.quantity = inputs.quantity + expectations.estimatedFee;
+        expectations.quantity = inputs.quantity;
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
         expectations.swapInput = uint256(inputs.cashflow) - expectations.quantity;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
-        expectations.fee = tradingFee(inputs.quantity, QUOTER_FEE_ON_OPEN);
-        expectations.feeCcy = Currency.Base;
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt - expectations.swapOutput;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
@@ -325,7 +286,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         });
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -343,8 +303,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.fee = 0;
-        expectations.feeCcy = Currency.None;
         expectations.quantity = inputs.quantity;
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
@@ -358,7 +316,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             env.positionActions().modifyPosition({ positionId: positionId, cashflow: inputs.cashflow, cashflowCcy: inputs.cashflowCcy });
 
         _assertPosition(positionId, trade, Action.Modify);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -373,17 +330,12 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
-        expectations.flashLoanAmount = _adjustedQuote(1000) + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = _adjustedQuote(1000);
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = uint256(inputs.cashflow) + expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             positionId: positionId,
@@ -392,11 +344,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt + expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -409,20 +360,12 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         inputs.cashflow = _adjustedQuoteI(4000);
         inputs.cashflowCcy = Currency.Quote;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
-        // bump cashflow to cover the fee and ensure no extra debt
-        inputs.cashflow += int256(expectations.estimatedFeeInQuote);
         expectations.tradeCashflow = inputs.cashflow;
-
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = uint256(inputs.cashflow);
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             positionId: positionId,
@@ -431,11 +374,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -452,10 +394,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         inputs.cashflowCcy = Currency.Quote;
 
         expectations.tradeCashflow = inputs.cashflow;
-
-        expectations.fee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.feeCcy = Currency.Base;
-        expectations.quantity = inputs.quantity + expectations.fee;
+        expectations.quantity = inputs.quantity;
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
         // uses mark price since that's what we pass to the quoter
@@ -463,9 +402,8 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         // update quantity and fee to reflect the actual swap
         expectations.quantity = expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt - uint256(inputs.cashflow) + expectations.swapInput;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
@@ -476,7 +414,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         });
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -497,8 +434,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         // no position quantity change
         // no swap
         expectations.quantity = 0;
-        expectations.fee = 0;
-        expectations.feeCcy = Currency.None;
         expectations.price = 0;
         expectations.swapInputCcy = Currency.None;
         expectations.swapInput = 0;
@@ -511,7 +446,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             env.positionActions().modifyPosition({ positionId: positionId, cashflow: inputs.cashflow, cashflowCcy: inputs.cashflowCcy });
 
         _assertPosition(positionId, trade, Action.Modify);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -526,19 +460,13 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
         expectations.price = price + spread;
         // uses mark price since that's what we pass to the quoter
-        expectations.flashLoanAmount =
-            (inputs.quantity + inputs.cashflow.abs()).mulDiv(price, instrument.baseUnit) + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = (inputs.quantity + inputs.cashflow.abs()).mulDiv(price, instrument.baseUnit);
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = expectations.swapOutput - inputs.cashflow.abs();
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             positionId: positionId,
@@ -547,11 +475,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt + expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), inputs.cashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
@@ -569,19 +496,13 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
         expectations.price = price + spread;
         // uses mark price since that's what we pass to the quoter
-        expectations.flashLoanAmount =
-            (inputs.quantity + inputs.cashflow.abs()).mulDiv(price, instrument.baseUnit) + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = (inputs.quantity + inputs.cashflow.abs()).mulDiv(price, instrument.baseUnit);
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = expectations.swapOutput - inputs.cashflow.abs();
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             positionId: positionId,
@@ -590,11 +511,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt + expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), inputs.cashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
@@ -612,19 +532,13 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
         expectations.price = price + spread;
         // uses mark price since that's what we pass to the quoter
-        expectations.flashLoanAmount =
-            inputs.quantity.mulDiv(price, instrument.baseUnit) + inputs.cashflow.abs() + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = inputs.quantity.mulDiv(price, instrument.baseUnit) + inputs.cashflow.abs();
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = expectations.flashLoanAmount - inputs.cashflow.abs();
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             positionId: positionId,
@@ -633,11 +547,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt + expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), inputs.cashflow.abs(), "trader quote balance");
@@ -655,19 +568,13 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
         expectations.price = price + spread;
         // uses mark price since that's what we pass to the quoter
-        expectations.flashLoanAmount =
-            inputs.quantity.mulDiv(price, instrument.baseUnit) + inputs.cashflow.abs() + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = inputs.quantity.mulDiv(price, instrument.baseUnit) + inputs.cashflow.abs();
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = expectations.flashLoanAmount - inputs.cashflow.abs();
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             positionId: positionId,
@@ -676,11 +583,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt + expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), inputs.cashflow.abs(), "trader quote balance");
@@ -709,22 +615,18 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         });
 
         expectations.quantity = inputs.quantity;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
 
-        expectations.flashLoanAmount = expectations.quantity - expectations.estimatedFee - quote.transactionFees;
+        expectations.flashLoanAmount = expectations.quantity - quote.transactionFees;
 
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         expectations.collateral = balances.collateral - expectations.quantity;
         expectations.debt = balances.debt - expectations.swapOutput;
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD));
     }
@@ -750,22 +652,16 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.tradeCashflow = inputs.cashflow;
 
         expectations.quantity = inputs.quantity;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
-
-        expectations.flashLoanAmount = expectations.quantity + uint256(inputs.cashflow) - expectations.estimatedFee - quote.transactionFees;
-
+        expectations.flashLoanAmount = expectations.quantity + uint256(inputs.cashflow) - quote.transactionFees;
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         expectations.collateral = balances.collateral - expectations.quantity;
         expectations.debt = balances.debt - expectations.swapOutput;
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD));
     }
@@ -791,22 +687,18 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.tradeCashflow = inputs.cashflow;
 
         expectations.quantity = inputs.quantity;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
 
-        expectations.flashLoanAmount = expectations.quantity - expectations.estimatedFee - quote.transactionFees;
+        expectations.flashLoanAmount = expectations.quantity - quote.transactionFees;
 
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         expectations.collateral = balances.collateral - expectations.quantity;
         expectations.debt = balances.debt - expectations.swapOutput - uint256(inputs.cashflow);
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD));
     }
@@ -832,24 +724,18 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.tradeCashflow = inputs.cashflow;
 
         expectations.quantity = inputs.quantity;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
 
-        expectations.flashLoanAmount = expectations.quantity - inputs.cashflow.abs() - expectations.estimatedFee - quote.transactionFees;
+        expectations.flashLoanAmount = expectations.quantity - inputs.cashflow.abs() - quote.transactionFees;
 
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
-
-        expectations.tradeCashflow -= int256(expectations.estimatedFee - expectations.fee);
 
         expectations.collateral = balances.collateral - expectations.quantity;
         expectations.debt = balances.debt - expectations.swapOutput;
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
@@ -876,25 +762,20 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         });
 
         expectations.quantity = inputs.quantity;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
 
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
         // uses mark price since that's what we pass to the quoter
-        expectations.swapInput =
-            (inputs.cashflow.abs() - expectations.quantity + expectations.estimatedFee).mulDiv(price, instrument.baseUnit);
+        expectations.swapInput = (inputs.cashflow.abs() - expectations.quantity).mulDiv(price, instrument.baseUnit);
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         expectations.collateral = balances.collateral - expectations.quantity;
         expectations.debt = balances.debt + expectations.swapInput;
 
         // cashflow is approx and depends on swap
-        expectations.tradeCashflow = -int256(expectations.quantity - expectations.fee + expectations.swapOutput);
+        expectations.tradeCashflow = -int256(expectations.quantity + expectations.swapOutput);
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
@@ -923,22 +804,18 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.tradeCashflow = inputs.cashflow;
 
         expectations.quantity = inputs.quantity;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
 
-        expectations.flashLoanAmount = expectations.quantity - expectations.estimatedFee - quote.transactionFees;
+        expectations.flashLoanAmount = expectations.quantity - quote.transactionFees;
 
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         expectations.collateral = balances.collateral - expectations.quantity;
         expectations.debt = balances.debt - expectations.swapOutput + inputs.cashflow.abs();
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), inputs.cashflow.abs(), "trader quote balance");
@@ -967,22 +844,18 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.tradeCashflow = inputs.cashflow;
 
         expectations.quantity = inputs.quantity;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
 
-        expectations.flashLoanAmount = expectations.quantity - expectations.estimatedFee - quote.transactionFees;
+        expectations.flashLoanAmount = expectations.quantity - quote.transactionFees;
 
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         expectations.collateral = balances.collateral - expectations.quantity;
         expectations.debt = balances.debt - expectations.swapOutput + inputs.cashflow.abs();
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), inputs.cashflow.abs(), "trader quote balance");
@@ -1009,8 +882,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         });
 
         expectations.quantity = balances.collateral;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         // overshoots debt by 2x slippage
         uint256 currentSlippage = env.positionActions().slippageTolerance();
@@ -1024,13 +895,12 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
 
-        expectations.tradeCashflow = -int256(expectations.quantity - expectations.swapInput - expectations.fee - quote.transactionFees);
+        expectations.tradeCashflow = -int256(expectations.quantity - expectations.swapInput - quote.transactionFees);
 
         expectations.collateral = 0;
         expectations.debt = 0;
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         // TODO where's the leftover quote?
@@ -1062,16 +932,13 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         });
 
         expectations.quantity = balances.collateral;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
 
-        expectations.flashLoanAmount = expectations.quantity - expectations.estimatedFee - quote.transactionFees;
+        expectations.flashLoanAmount = expectations.quantity - quote.transactionFees;
 
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         expectations.tradeCashflow = -int256(expectations.swapOutput - balances.debt);
 
@@ -1079,16 +946,11 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.debt = 0;
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader quote balance");
 
-        env.checkInvariants(
-            instrument,
-            positionId,
-            expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD) + (expectations.estimatedFee - expectations.fee)
-        );
+        env.checkInvariants(instrument, positionId, expectations.quantity.mulDiv(CONTANGO_BASE_DUST_TOLERANCE, WAD));
     }
 
     // Borrow 1k, Sell 1k for ~1 ETH, withdraw ~1 ETH
@@ -1102,8 +964,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         inputs.cashflow = _adjustedBaseI(-1);
         inputs.cashflowCcy = Currency.Base;
 
-        expectations.fee = 0;
-        expectations.feeCcy = Currency.None;
         expectations.quantity = inputs.quantity;
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
@@ -1146,8 +1006,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         // no position quantity change
         // no swap
         expectations.quantity = 0;
-        expectations.fee = 0;
-        expectations.feeCcy = Currency.None;
         expectations.price = 0;
         expectations.swapInputCcy = Currency.None;
         expectations.swapInput = 0;
@@ -1160,7 +1018,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             env.positionActions().modifyPosition({ positionId: positionId, cashflow: inputs.cashflow, cashflowCcy: inputs.cashflowCcy });
 
         _assertPosition(positionId, trade, Action.Modify);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader quote balance");
@@ -1180,20 +1037,13 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         inputs.cashflowCcy = Currency.Base;
 
         expectations.quantity = inputs.quantity;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
 
-        // discount fee from cashflow to ensure no borrow + spot trade
-        inputs.cashflow += int256(expectations.estimatedFee);
         expectations.tradeCashflow = inputs.cashflow;
 
         expectations.price = 0; // No swap happened, the graph will pull the price from the oracle
         expectations.swapInputCcy = Currency.None;
         expectations.swapInput = 0;
         expectations.swapOutput = 0;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
-
-        expectations.tradeCashflow -= int256(expectations.estimatedFee - expectations.fee);
 
         expectations.collateral = balances.collateral - expectations.quantity;
         expectations.debt = balances.debt;
@@ -1206,7 +1056,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         });
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
@@ -1224,17 +1073,12 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
-        expectations.flashLoanAmount = _adjustedQuote(4000) + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = _adjustedQuote(4000);
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = uint256(inputs.cashflow) + expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             positionId: positionId,
@@ -1243,11 +1087,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt + expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -1262,17 +1105,12 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         expectations.tradeCashflow = inputs.cashflow;
 
-        expectations.estimatedFee = tradingFee(inputs.quantity, ADJUSTED_QUOTER_FEE_ON_OPEN);
-        expectations.estimatedFeeInQuote = expectations.estimatedFee.mulDiv(price, instrument.baseUnit);
-
-        expectations.flashLoanAmount = _adjustedQuote(4000) + expectations.estimatedFeeInQuote;
+        expectations.flashLoanAmount = _adjustedQuote(4000);
         expectations.price = price + spread;
         expectations.swapInputCcy = Currency.Quote;
         expectations.swapInput = uint256(inputs.cashflow) + expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(instrument.baseUnit, expectations.price);
         expectations.quantity = expectations.swapOutput;
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         (quote, positionId, trade) = env.positionActions().openPosition({
             positionId: positionId,
@@ -1281,11 +1119,10 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflowCcy: inputs.cashflowCcy
         });
 
-        expectations.collateral = balances.collateral + discountFee(expectations.quantity);
+        expectations.collateral = balances.collateral + expectations.quantity;
         expectations.debt = balances.debt + expectations.flashLoanAmount + quote.transactionFees;
 
         _assertPosition(positionId, trade, Action.Open);
-        _assertTreasuryBalance(expectations.fee);
 
         env.checkInvariants(instrument, positionId);
     }
@@ -1311,24 +1148,18 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.tradeCashflow = inputs.cashflow;
 
         expectations.quantity = inputs.quantity;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
 
-        expectations.flashLoanAmount = expectations.quantity - inputs.cashflow.abs() - expectations.estimatedFee - quote.transactionFees;
+        expectations.flashLoanAmount = expectations.quantity - inputs.cashflow.abs() - quote.transactionFees;
 
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
-
-        expectations.tradeCashflow -= int256(expectations.estimatedFee - expectations.fee);
 
         expectations.collateral = balances.collateral - expectations.quantity;
         expectations.debt = balances.debt - expectations.swapOutput;
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), 0, "trader quote balance");
@@ -1357,22 +1188,18 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.tradeCashflow = inputs.cashflow;
 
         expectations.quantity = inputs.quantity;
-        expectations.estimatedFee = tradingFee(expectations.quantity, ADJUSTED_QUOTER_FEE);
 
-        expectations.flashLoanAmount = expectations.quantity - expectations.estimatedFee - quote.transactionFees;
+        expectations.flashLoanAmount = expectations.quantity - quote.transactionFees;
 
         expectations.price = price - spread;
         expectations.swapInputCcy = Currency.Base;
         expectations.swapInput = expectations.flashLoanAmount;
         expectations.swapOutput = expectations.swapInput.mulDiv(expectations.price, instrument.baseUnit);
-        expectations.fee = tradingFee(expectations.quantity);
-        expectations.feeCcy = Currency.Base;
 
         expectations.collateral = balances.collateral - expectations.quantity;
         expectations.debt = balances.debt - expectations.swapOutput + inputs.cashflow.abs();
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), 0, "trader base balance");
         _assertEqQuote(instrument.quote.balanceOf(TRADER), inputs.cashflow.abs(), "trader quote balance");
@@ -1384,11 +1211,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
     function testScenario32() public {
         uint256 quoteBalance = instrument.quote.balanceOf(TRADER);
 
-        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
-        uint256 prevFee = feeModel.defaultFee();
-        vm.prank(TIMELOCK_ADDRESS);
-        feeModel.setDefaultFee(NO_FEE);
-
         (TSQuote memory quote, PositionId positionId, Trade memory trade) = env.positionActions().openPosition({
             symbol: instrument.symbol,
             mm: mm,
@@ -1396,9 +1218,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             cashflow: _adjustedBaseI(10),
             cashflowCcy: Currency.Base
         });
-
-        vm.prank(TIMELOCK_ADDRESS);
-        feeModel.setDefaultFee(prevFee);
 
         skip(1 seconds);
         Balances memory balances = env.contangoLens().balances(positionId);
@@ -1415,10 +1234,7 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         });
 
         expectations.quantity = balances.collateral;
-        expectations.estimatedFee = tradingFee(expectations.quantity, DEFAULT_TRADING_FEE);
-        expectations.feeCcy = Currency.Base;
-        expectations.fee = expectations.estimatedFee;
-        expectations.tradeCashflow = -int256(expectations.quantity) + int256(expectations.fee);
+        expectations.tradeCashflow = -int256(expectations.quantity);
 
         expectations.flashLoanAmount = 0;
 
@@ -1431,7 +1247,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         expectations.debt = 0;
 
         _assertPosition(positionId, trade, Action.Close);
-        _assertTreasuryBalance(expectations.fee);
 
         _assertEqBase(instrument.base.balanceOf(TRADER), expectations.tradeCashflow.abs(), "trader base balance");
         assertEqDecimal(instrument.quote.balanceOf(TRADER), quoteBalance, instrument.quoteDecimals, "trader quote balance");
@@ -1448,11 +1263,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         int256 previousSpread = poolStub.absoluteSpread();
         poolStub.setAbsoluteSpread(0);
 
-        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
-        uint256 prevFee = feeModel.defaultFee();
-        vm.prank(TIMELOCK_ADDRESS);
-        feeModel.setDefaultFee(NO_FEE);
-
         (quote, positionId, trade) = env.positionActions().openPosition({
             symbol: instrument.symbol,
             mm: mm,
@@ -1463,15 +1273,12 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
 
         poolStub.setAbsoluteSpread(previousSpread);
 
-        vm.prank(TIMELOCK_ADDRESS);
-        feeModel.setDefaultFee(prevFee);
-
         balances = env.contangoLens().balances(positionId);
     }
 
     function _assertPosition(PositionId positionId, Trade memory trade, Action action) private {
         int256 quantity = 0;
-        if (action == Action.Open) quantity = int256(discountFee(expectations.quantity));
+        if (action == Action.Open) quantity = int256(expectations.quantity);
         if (action == Action.Close) quantity = -int256(expectations.quantity);
 
         Trade memory expectedTrade = Trade({
@@ -1485,8 +1292,8 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
             }),
             cashflow: expectations.tradeCashflow,
             cashflowCcy: inputs.cashflowCcy,
-            fee: expectations.fee,
-            feeCcy: expectations.feeCcy
+            fee: 0,
+            feeCcy: Currency.None
         });
 
         _assertEqBase(trade.quantity, expectedTrade.quantity, "trade.quantity");
@@ -1520,15 +1327,6 @@ abstract contract AbstractPositionLifeCycleFunctional is BaseTest {
         if (balances.collateral > env.bounds(instrument.baseData.symbol).dust) {
             assertTrue(contango.positionNFT().exists(positionId), "positionNFT.exists");
         }
-    }
-
-    function _assertTreasuryBalance(uint256 _totalFee) private view {
-        uint256 protocolFee;
-
-        if (address(env.feeManager().referralManager()) != address(0)) {
-            protocolFee = env.feeManager().referralManager().calculateRewardDistribution(TRADER, _totalFee).protocol;
-        }
-        _assertEqBase(vault.balanceOf(instrument.base, TREASURY), protocolFee, "treasury vault base balance");
     }
 
     function _assertEqBase(int256 left, int256 right, string memory message) private view {

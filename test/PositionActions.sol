@@ -315,17 +315,15 @@ contract PositionActions is GasSnapshot {
         if (bytes(testName).length > 0) snapStart(_testName);
 
         if (params.cashflow > 0) {
-            if (signedPermit.amount != 0) (positionId_, trade) = maestro.depositAndTradeWithPermit(params, executionParams, signedPermit);
-            else (positionId_, trade) = maestro.depositAndTrade{ value: value }(params, executionParams);
+            if (signedPermit.amount > 0) maestro.depositWithPermit(_cashflowToken, signedPermit, uint256(params.cashflow));
+            else if (value > 0) maestro.depositNative{ value: value }();
+            else maestro.deposit(_cashflowToken, uint256(params.cashflow));
         }
+        (positionId_, trade) = maestro.trade(params, executionParams);
         if (params.cashflow < 0) {
-            if (_cashflowToken == nativeTokenWrapper) {
-                (positionId_, trade,) = maestro.tradeAndWithdrawNative(params, executionParams, trader);
-            } else {
-                (positionId_, trade,) = maestro.tradeAndWithdraw(params, executionParams, trader);
-            }
+            if (_cashflowToken == nativeTokenWrapper) maestro.withdrawNative(uint256(-trade.cashflow), trader);
+            else maestro.withdraw(_cashflowToken, uint256(-trade.cashflow), trader);
         }
-        if (params.cashflow == 0) (positionId_, trade) = maestro.trade(params, executionParams);
 
         if (bytes(_testName).length > 0) {
             snapEnd();

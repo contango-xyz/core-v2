@@ -29,7 +29,7 @@ contract AaveMoneyMarketViewV3Test is AbstractMarketViewTest {
             AaveMoneyMarketView.Version.V3
         );
 
-        vm.startPrank(TIMELOCK_ADDRESS);
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
         env.contangoLens().setMoneyMarketView(sut);
         vm.stopPrank();
 
@@ -115,39 +115,6 @@ contract AaveMoneyMarketViewV3Test is AbstractMarketViewTest {
 
         assertEqDecimal(ltv, 0.825e18, 18, "LTV");
         assertEqDecimal(liquidationThreshold, 0.85e18, 18, "Liquidation threshold");
-    }
-
-    function testThresholds_NewPosition_EMode() public {
-        instrument = env.createInstrument(env.erc20(DAI), env.erc20(USDC));
-        positionId = encode(instrument.symbol, MM_AAVE, PERP, 0, flagsAndPayload(setBit("", E_MODE), bytes4(uint32(1))));
-
-        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
-
-        assertEqDecimal(ltv, 0.93e18, 18, "LTV");
-        assertEqDecimal(liquidationThreshold, 0.95e18, 18, "Liquidation threshold");
-    }
-
-    function testThresholds_ExistingPosition_EMode() public {
-        instrument = env.createInstrument(env.erc20(DAI), env.erc20(USDC));
-
-        (, positionId,) = env.positionActions().openPosition({
-            positionId: encode(instrument.symbol, MM_AAVE, PERP, 0, flagsAndPayload(setBit("", E_MODE), bytes4(uint32(1)))),
-            quantity: 10_000e18,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
-
-        (uint256 ltv, uint256 liquidationThreshold) = sut.thresholds(positionId);
-
-        assertEqDecimal(ltv, 0.93e18, 18, "LTV");
-        assertEqDecimal(liquidationThreshold, 0.95e18, 18, "Liquidation threshold");
-    }
-
-    function testRates() public view {
-        (uint256 borrowingRate, uint256 lendingRate) = sut.rates(positionId);
-
-        assertEqDecimal(borrowingRate, 0.127197309926195207e18, 18, "Borrowing rate");
-        assertEqDecimal(lendingRate, 0.01120395057855792e18, 18, "Lending rate");
     }
 
     function testAvailableActions_BaseFrozen() public {

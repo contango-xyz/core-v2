@@ -41,7 +41,7 @@ contract MorphoBlueMoneyMarketViewTest is Test {
 
         instrument = env.createInstrument(env.erc20(WSTETH), env.erc20(USDC));
 
-        vm.startPrank(Timelock.unwrap(TIMELOCK));
+        vm.startPrank(CoreTimelock.unwrap(CORE_TIMELOCK));
         reverseLookup.setOracle({
             asset: env.token(USDC),
             oracle: address(env.erc20(USDC).chainlinkUsdOracle),

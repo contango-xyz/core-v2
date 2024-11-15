@@ -78,10 +78,10 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         nativeToken = _contango.vault().nativeToken();
     }
 
-    function initialize(Timelock timelock, uint64 _gasMultiplier, uint64 _gasTip, IContangoOracle _oracle) public initializer {
+    function initialize(CoreTimelock timelock, uint64 _gasMultiplier, uint64 _gasTip, IContangoOracle _oracle) public initializer {
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
         _setGasMultiplier(_gasMultiplier);
         gasStart = INITIAL_GAS_START;
         gasTip = _gasTip;
@@ -90,7 +90,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
 
     // ====================================== Accessors ======================================
 
-    function setGasMultiplier(uint64 _gasMultiplier) public override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setGasMultiplier(uint64 _gasMultiplier) public override onlyRole(OPERATOR_ROLE) {
         _setGasMultiplier(_gasMultiplier);
     }
 
@@ -102,12 +102,12 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         emit GasMultiplierSet(_gasMultiplier);
     }
 
-    function setGasTip(uint64 _gasTip) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setGasTip(uint64 _gasTip) external override onlyRole(OPERATOR_ROLE) {
         gasTip = _gasTip;
         emit GasTipSet(_gasTip);
     }
 
-    function setOracle(IContangoOracle _oracle) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setOracle(IContangoOracle _oracle) external override onlyRole(OPERATOR_ROLE) {
         oracle = _oracle;
         emit OracleSet(_oracle);
     }

@@ -69,3 +69,11 @@ function asUint(PositionId positionId) pure returns (uint256) {
 function fromUint(uint256 n) pure returns (PositionId) {
     return PositionId.wrap(bytes32(n));
 }
+
+function positionIdEquals(PositionId a, PositionId b) pure returns (bool) {
+    return PositionId.unwrap(a) == PositionId.unwrap(b);
+}
+
+function positionIdNotEquals(PositionId a, PositionId b) pure returns (bool) {
+    return !positionIdEquals(a, b);
+}

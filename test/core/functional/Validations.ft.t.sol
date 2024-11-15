@@ -1,8 +1,6 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import "src/models/FixedFeeModel.sol";
-
 import "../../BaseTest.sol";
 
 contract Validations is BaseTest, IContangoEvents, IContangoErrors {
@@ -40,8 +38,8 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
     }
 
     function testSetters() public {
-        vm.startPrank(TIMELOCK_ADDRESS);
-        AccessControlUpgradeable(address(contango)).grantRole(OPERATOR_ROLE, TIMELOCK_ADDRESS);
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        AccessControlUpgradeable(address(contango)).grantRole(OPERATOR_ROLE, CORE_TIMELOCK_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
         emit InstrumentCreated(WETHUSDC, weth, usdc);
@@ -58,7 +56,7 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
     }
 
     function testCreatePositionPermission() public {
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         contango.createInstrument(WETHUSDC, weth, usdc);
 
         TradeParams memory tradeParams;
@@ -183,20 +181,22 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
             leverage: 0
         });
         env.dealAndApprove(instrument.base, TRADER, uint256(quote.cashflowUsed), address(env.vault()));
+        vm.prank(TRADER);
+        maestro.deposit(instrument.base, uint256(quote.cashflowUsed));
 
         IERC7399 flp = new BadFLP(new TestFLP());
         quote.execParams.flashLoanProvider = flp;
 
         vm.prank(TRADER);
         vm.expectRevert(UnexpectedTrade.selector);
-        maestro.depositAndTrade(quote.tradeParams, quote.execParams);
+        maestro.trade(quote.tradeParams, quote.execParams);
     }
 
     function testPauseUnpausePermissions() public {
         expectAccessControl(address(this), EMERGENCY_BREAK_ROLE);
         contango.pause();
 
-        expectAccessControl(address(this), EMERGENCY_BREAK_ROLE);
+        expectAccessControl(address(this), RESTARTER_ROLE);
         contango.unpause();
     }
 
@@ -204,7 +204,7 @@ contract Validations is BaseTest, IContangoEvents, IContangoErrors {
         TradeParams memory tradeParams;
         ExecutionParams memory execParams;
 
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         AccessControlUpgradeable(address(contango)).grantRole(EMERGENCY_BREAK_ROLE, address(this));
 
         contango.pause();

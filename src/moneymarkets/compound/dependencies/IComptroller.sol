@@ -92,7 +92,13 @@ interface IComptroller {
         view
         returns (uint256, uint256);
     function liquidationIncentiveMantissa() external view returns (uint256);
-    function markets(address) external view returns (bool isListed, uint256 collateralFactorMantissa, bool isComped);
+
+    struct Market {
+        bool isListed;
+        uint256 collateralFactorMantissa;
+    }
+
+    function markets(ICToken) external view returns (Market memory);
     function maxAssets() external view returns (uint256);
     function mintAllowed(ICToken cToken, address minter, uint256 mintAmount) external returns (Error);
     function mintGuardianPaused(address) external view returns (bool);

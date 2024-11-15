@@ -62,8 +62,7 @@ contract ExactlyMoneyMarketView is BaseMoneyMarketView {
     }
 
     function _oraclePrice(IERC20 asset) internal view virtual override returns (uint256) {
-        (,,,, address priceFeed) = auditor.markets(reverseLookup.market(asset));
-        return auditor.assetPrice(priceFeed);
+        return auditor.assetPrice(auditor.markets(reverseLookup.market(asset)).priceFeed);
     }
 
     function _oracleUnit() internal view virtual override returns (uint256) {
@@ -76,8 +75,8 @@ contract ExactlyMoneyMarketView is BaseMoneyMarketView {
         override
         returns (uint256 ltv, uint256 liquidationThreshold)
     {
-        (uint256 collateralAdjustFactor,,,,) = auditor.markets(reverseLookup.market(collateralAsset));
-        (uint256 debtAdjustFactor,,,,) = auditor.markets(reverseLookup.market(debtAsset));
+        uint256 collateralAdjustFactor = auditor.markets(reverseLookup.market(collateralAsset)).adjustFactor;
+        uint256 debtAdjustFactor = auditor.markets(reverseLookup.market(debtAsset)).adjustFactor;
 
         liquidationThreshold = collateralAdjustFactor.mulDiv(debtAdjustFactor, WAD, Math.Rounding.Down);
         ltv = liquidationThreshold;

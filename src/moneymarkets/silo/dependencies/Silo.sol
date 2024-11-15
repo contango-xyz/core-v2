@@ -241,9 +241,9 @@ interface ISiloPriceProvidersRepository {
 interface ISiloIncentivesController {
 
     struct AssetData {
-        uint104 index;
-        uint104 emissionPerSecond;
-        uint40 lastUpdateTimestamp;
+        uint256 index;
+        uint256 emissionPerSecond;
+        uint256 lastUpdateTimestamp;
     }
 
     error ClaimerUnauthorized();

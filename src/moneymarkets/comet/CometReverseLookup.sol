@@ -3,7 +3,8 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-import { Payload, Timelock } from "../../libraries/DataTypes.sol";
+import { Payload, CoreTimelock, Operator } from "../../libraries/DataTypes.sol";
+import { OPERATOR_ROLE } from "../../libraries/Roles.sol";
 
 import "./dependencies/IComet.sol";
 
@@ -27,23 +28,15 @@ contract CometReverseLookup is CometReverseLookupEvents, CometReverseLookupError
     mapping(IComet comet => Payload payload) public payloads;
     mapping(IERC20 baseAsset => IComet comet) public cometsByBaseAsset;
 
-    constructor(Timelock timelock, IComet[] memory _comets) {
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
-        uint40 payload = nextPayload;
-        for (uint256 i; i < _comets.length; i++) {
-            _setComet(_comets[i], payload++);
-        }
-        nextPayload = payload;
+    constructor(CoreTimelock timelock, Operator operator) {
+        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(OPERATOR_ROLE, Operator.unwrap(operator));
     }
 
-    function setComet(IComet _comet) external onlyRole(DEFAULT_ADMIN_ROLE) returns (Payload payload) {
-        return _setComet(_comet, nextPayload++);
-    }
-
-    function _setComet(IComet _comet, uint40 _payload) internal returns (Payload payload) {
+    function setComet(IComet _comet) external onlyRole(OPERATOR_ROLE) returns (Payload payload) {
         if (Payload.unwrap(payloads[_comet]) != bytes5(0)) revert CometAlreadySet(_comet, payloads[_comet]);
 
-        payload = Payload.wrap(bytes5(_payload));
+        payload = Payload.wrap(bytes5(nextPayload++));
         comets[payload] = _comet;
         payloads[_comet] = payload;
         cometsByBaseAsset[_comet.baseToken()] = _comet;

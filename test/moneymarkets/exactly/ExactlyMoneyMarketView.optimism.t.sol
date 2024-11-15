@@ -226,8 +226,8 @@ contract ExactlyMoneyMarketViewTest is Test {
         assertEq(borrowing[0].token.symbol, "OP", "Borrow reward[0] symbol");
         assertEq(borrowing[0].token.decimals, 18, "Borrow reward[0] decimals");
         assertEq(borrowing[0].token.unit, 1e18, "Borrow reward[0] unit");
-        assertEqDecimal(borrowing[0].rate, 8.80952576953623012e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
-        assertEqDecimal(borrowing[0].claimable, 7.751756135264213528e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
+        assertEqDecimal(borrowing[0].rate, 8.8095261572122026e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
+        assertEqDecimal(borrowing[0].claimable, 7.751678881795798826e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
         assertEqDecimal(borrowing[0].usdPrice, 1.2986e18, 18, "Borrow reward[0] usdPrice");
 
         assertEq(address(borrowing[1].token.token), address(exa), "Borrow reward[1] token");
@@ -244,8 +244,8 @@ contract ExactlyMoneyMarketViewTest is Test {
         assertEq(lending[0].token.symbol, "OP", "Lend reward[0] symbol");
         assertEq(lending[0].token.decimals, 18, "Lend reward[0] decimals");
         assertEq(lending[0].token.unit, 1e18, "Lend reward[0] unit");
-        assertEqDecimal(lending[0].rate, 3.01717492285583352e18, lending[0].token.decimals, "Lend reward[0] rate");
-        assertEqDecimal(lending[0].claimable, 1.596910666741632862e18, lending[0].token.decimals, "Lend reward[0] claimable");
+        assertEqDecimal(lending[0].rate, 3.01717870895324628e18, lending[0].token.decimals, "Lend reward[0] rate");
+        assertEqDecimal(lending[0].claimable, 1.594226338306137318e18, lending[0].token.decimals, "Lend reward[0] claimable");
         assertEqDecimal(lending[0].usdPrice, 1.2986e18, 18, "Lend reward[0] usdPrice");
 
         assertEq(address(lending[1].token.token), address(exa), "Lend reward[1] token");
@@ -253,8 +253,8 @@ contract ExactlyMoneyMarketViewTest is Test {
         assertEq(lending[1].token.symbol, "EXA", "Lend reward[1] symbol");
         assertEq(lending[1].token.decimals, 18, "Lend reward[1] decimals");
         assertEq(lending[1].token.unit, 1e18, "Lend reward[1] unit");
-        assertEqDecimal(lending[1].rate, 0.00000229965454392e18, lending[1].token.decimals, "Lend reward[1] rate");
-        assertEqDecimal(lending[1].claimable, 0.000602332070501988e18, lending[1].token.decimals, "Lend reward[1] claimable");
+        assertEqDecimal(lending[1].rate, 0.00000229965743472e18, lending[1].token.decimals, "Lend reward[1] rate");
+        assertEqDecimal(lending[1].claimable, 0.000601319579920227e18, lending[1].token.decimals, "Lend reward[1] claimable");
         assertEqDecimal(lending[1].usdPrice, 0.88431652e18, 18, "Lend reward[1] usdPrice");
     }
 

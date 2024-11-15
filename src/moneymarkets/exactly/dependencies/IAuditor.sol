@@ -31,6 +31,14 @@ interface IAuditor {
         uint128 lenders;
     }
 
+    struct Market {
+        uint128 adjustFactor;
+        uint8 decimals;
+        uint8 index;
+        bool isListed;
+        address priceFeed;
+    }
+
     function ASSETS_THRESHOLD() external view returns (uint256);
     function BASE_FEED() external view returns (address);
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
@@ -63,10 +71,7 @@ interface IAuditor {
     function initialize(LiquidationIncentive memory liquidationIncentive_) external;
     function liquidationIncentive() external view returns (uint128 liquidator, uint128 lenders);
     function marketList(uint256) external view returns (address);
-    function markets(IExactlyMarket)
-        external
-        view
-        returns (uint128 adjustFactor, uint8 decimals, uint8 index, bool isListed, address priceFeed);
+    function markets(IExactlyMarket) external view returns (Market memory);
     function priceDecimals() external view returns (uint256);
     function renounceRole(bytes32 role, address account) external;
     function revokeRole(bytes32 role, address account) external;

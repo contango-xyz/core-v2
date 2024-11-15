@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import "../TestSetup.t.sol";
 import "../BaseTest.sol";
 
-import "src/strategies/StrategyBuilder.sol";
 import { GasSnapshot } from "forge-gas-snapshot/GasSnapshot.sol";
 
 contract DecreasePositionFlashloanQuoteTest is BaseTest, GasSnapshot {
@@ -45,11 +44,7 @@ contract DecreasePositionFlashloanQuoteTest is BaseTest, GasSnapshot {
         spotExecutor = env.maestro().spotExecutor();
         router = env.uniswapRouter();
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), env.contangoLens(), env.maestro().spotExecutor());
-
-        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
-        vm.prank(TIMELOCK_ADDRESS);
-        feeModel.setDefaultFee(NO_FEE);
+        sut = env.strategyBuilder();
 
         env.spotStub().stubPrice({
             base: ethUsdc.baseData,
@@ -208,7 +203,7 @@ contract DecreasePositionFlashloanQuoteTest is BaseTest, GasSnapshot {
         steps.push(StepCall(Step.PositionWithdraw, abi.encode(existingPosition, POSITION_ONE, decreaseAmount)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(swapData, ethUsdc.base, ethUsdc.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(ethUsdc.quote, repayAmount)));
-        steps.push(StepCall(Step.VaultWithdrawNative, abi.encode(sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdrawNative, abi.encode(sut.BALANCE(), trader)));
         steps.push(StepCall(Step.PositionRepay, abi.encode(existingPosition, POSITION_ONE, sut.BALANCE())));
 
         snapStart("DecreasePositionFlashloanQuote:Scenario19");
@@ -242,7 +237,7 @@ contract DecreasePositionFlashloanQuoteTest is BaseTest, GasSnapshot {
         steps.push(StepCall(Step.PositionWithdraw, abi.encode(existingPosition, POSITION_ONE, decreaseAmount)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(swapData, ethUsdc.base, ethUsdc.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(ethUsdc.quote, repayAmount)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
 
         snapStart("DecreasePositionFlashloanQuote:Scenario21");
         vm.prank(trader);
@@ -275,8 +270,8 @@ contract DecreasePositionFlashloanQuoteTest is BaseTest, GasSnapshot {
         steps.push(StepCall(Step.PositionClose, abi.encode(existingPosition, POSITION_ONE)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(swapData, ethUsdc.base, ethUsdc.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(ethUsdc.quote, repayAmount)));
-        steps.push(StepCall(Step.VaultWithdrawNative, abi.encode(sut.BALANCE(), trader)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdrawNative, abi.encode(sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
 
         snapStart("DecreasePositionFlashloanQuote:Scenario23");
         vm.prank(trader);
@@ -312,7 +307,7 @@ contract DecreasePositionFlashloanQuoteTest is BaseTest, GasSnapshot {
         steps.push(StepCall(Step.PositionClose, abi.encode(existingPosition, POSITION_ONE)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(swapData, ethUsdc.base, ethUsdc.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(ethUsdc.quote, repayAmount)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
 
         snapStart("DecreasePositionFlashloanQuote:Scenario24");
         vm.prank(trader);
@@ -347,7 +342,7 @@ contract DecreasePositionFlashloanQuoteTest is BaseTest, GasSnapshot {
         steps.push(StepCall(Step.PositionWithdraw, abi.encode(existingPosition, POSITION_ONE, decreaseAmount)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(swapData, ethUsdc.base, ethUsdc.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(ethUsdc.quote, repayAmount)));
-        steps.push(StepCall(Step.VaultWithdrawNative, abi.encode(sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdrawNative, abi.encode(sut.BALANCE(), trader)));
         steps.push(StepCall(Step.PositionRepay, abi.encode(existingPosition, POSITION_ONE, sut.BALANCE())));
 
         snapStart("DecreasePositionFlashloanQuote:Scenario30");
@@ -381,7 +376,7 @@ contract DecreasePositionFlashloanQuoteTest is BaseTest, GasSnapshot {
         steps.push(StepCall(Step.PositionWithdraw, abi.encode(existingPosition, POSITION_ONE, decreaseAmount)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(swapData, ethUsdc.base, ethUsdc.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(ethUsdc.quote, repayAmount)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
 
         snapStart("DecreasePositionFlashloanQuote:Scenario31");
         vm.prank(trader);

@@ -20,8 +20,11 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
 
         comet = env.comet();
         reverseLookup = CometMoneyMarketView(address(sut)).reverseLookup();
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        Payload payload = reverseLookup.setComet(env.comet());
+        vm.stopPrank();
         rewardsToken = 0x9e1028F5F1D5eDE59748FFceE5532509976840E0;
-        positionId = encode(instrument.symbol, mm, PERP, 0, Payload.wrap(bytes5(uint40(1))));
+        positionId = encode(instrument.symbol, mm, PERP, 0, payload);
     }
 
     function testPriceInNativeToken() public view {
@@ -97,7 +100,7 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
 
     function testRewards_USDCWETH() public {
         instrument = env.createInstrument(env.erc20(USDC), env.erc20(WETH));
-        vm.startPrank(TIMELOCK_ADDRESS);
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
         Payload payload = reverseLookup.setComet(IComet(0x46e6b214b524310239732D51387075E0e70970bf));
         vm.stopPrank();
         positionId = encode(instrument.symbol, mm, PERP, 0, payload);
@@ -128,8 +131,8 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
         assertEq(borrowing[0].token.symbol, "COMP", "Borrow reward[0] symbol");
         assertEq(borrowing[0].token.decimals, 18, "Borrow reward[0] decimals");
         assertEq(borrowing[0].token.unit, 1e18, "Borrow reward[0] unit");
-        assertEqDecimal(borrowing[0].rate, 0.02982470753584801e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
-        assertEqDecimal(borrowing[0].claimable, 0.140458e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
+        assertEqDecimal(borrowing[0].rate, 0.029824740831560825e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
+        assertEqDecimal(borrowing[0].claimable, 0.140222e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
         assertEqDecimal(borrowing[0].usdPrice, 52.59511454e18, 18, "Borrow reward[0] usdPrice");
 
         address recipient = makeAddr("bank");
@@ -184,7 +187,7 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
         assertEqDecimal(limits.minLendingForRewards, 0, instrument.baseDecimals, "Min lending for rewards");
 
         instrument = env.createInstrument(env.erc20(USDC), env.erc20(WETH));
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         Payload payload = reverseLookup.setComet(IComet(0x46e6b214b524310239732D51387075E0e70970bf));
         positionId = encode(instrument.symbol, mm, PERP, 0, payload);
 

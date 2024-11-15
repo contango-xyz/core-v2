@@ -17,9 +17,9 @@ contract PositionNFT is ERC721, AccessControl {
     uint256 public counter = 1;
     mapping(address contractAddr => bool enabled) public contangoContracts;
 
-    constructor(Timelock timelock) ERC721("Contango Position", "CTGP") {
+    constructor(CoreTimelock timelock) ERC721("Contango Position", "CTGP") {
         // Grant the admin role to the timelock by default
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
     }
 
     /// @notice creates a new position in the protocol by minting a new NFT instance

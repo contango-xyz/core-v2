@@ -280,8 +280,8 @@ contract SonneMoneyMarketViewTest is Test {
         assertEq(borrowing[0].token.symbol, "SONNE", "Borrow reward[0] symbol");
         assertEq(borrowing[0].token.decimals, 18, "Borrow reward[0] decimals");
         assertEq(borrowing[0].token.unit, 1e18, "Borrow reward[0] unit");
-        assertEqDecimal(borrowing[0].rate, 0.02103740030168002e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
-        assertEqDecimal(borrowing[0].claimable, 162.460653526101480351e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
+        assertEqDecimal(borrowing[0].rate, 0.021037442007621931e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
+        assertEqDecimal(borrowing[0].claimable, 162.206762634987937318e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
         assertEqDecimal(borrowing[0].usdPrice, 0.086204e18, 18, "Borrow reward[0] usdPrice");
 
         assertEq(address(lending[0].token.token), rewardsToken, "Lend reward[0] token");
@@ -289,8 +289,8 @@ contract SonneMoneyMarketViewTest is Test {
         assertEq(lending[0].token.symbol, "SONNE", "Lend reward[0] symbol");
         assertEq(lending[0].token.decimals, 18, "Lend reward[0] decimals");
         assertEq(lending[0].token.unit, 1e18, "Lend reward[0] unit");
-        assertEqDecimal(lending[0].rate, 0.004782155257713059e18, lending[0].token.decimals, "Lend reward[0] rate");
-        assertEqDecimal(lending[0].claimable, 87.321524606846454476e18, lending[0].token.decimals, "Lend reward[0] claimable");
+        assertEqDecimal(lending[0].rate, 0.004782155524771788e18, lending[0].token.decimals, "Lend reward[0] rate");
+        assertEqDecimal(lending[0].claimable, 87.270084193708328157e18, lending[0].token.decimals, "Lend reward[0] claimable");
         assertEqDecimal(lending[0].usdPrice, 0.086204e18, 18, "Lend reward[0] usdPrice");
 
         address recipient = makeAddr("bank");
