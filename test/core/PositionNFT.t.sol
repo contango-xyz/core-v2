@@ -23,8 +23,8 @@ contract PositionNFTTest is BaseTest {
         trader2 = address(0xa11ce);
         minter = address(0x7eca);
 
-        sut = new PositionNFT(TIMELOCK);
-        vm.startPrank(TIMELOCK_ADDRESS);
+        sut = new PositionNFT(CORE_TIMELOCK);
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
         sut.grantRole(MINTER_ROLE, minter);
         vm.stopPrank();
     }
@@ -88,7 +88,7 @@ contract PositionNFTTest is BaseTest {
         assertTrue(sut.isApprovedForAll(trader1, trader1), "caller trader1");
 
         address contango = makeAddr("contango");
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         sut.setContangoContract(contango, true);
         assertTrue(sut.isApprovedForAll(trader1, contango), "caller contango");
 

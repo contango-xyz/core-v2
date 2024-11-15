@@ -20,15 +20,17 @@ contract ExactlyReverseLookupTest is ExactlyReverseLookupEvents, BaseTest {
 
     function testSetMarket() public {
         IERC20 weth = env.token(WETH);
-        IExactlyMarket market = IExactlyMarket(address(0xdeadbeef));
 
-        expectAccessControl(address(this), DEFAULT_ADMIN_ROLE);
-        sut.setMarket(weth, market);
+        IExactlyMarket badMarket = IExactlyMarket(address(0xdeadbeef));
+        vm.expectRevert(abi.encodeWithSelector(ExactlyReverseLookup.MarketNotListed.selector, badMarket));
+        vm.prank(CORE_TIMELOCK_ADDRESS);
+        sut.setMarket(badMarket);
 
+        IExactlyMarket market = IExactlyMarket(address(0xc4d4500326981eacD020e20A81b1c479c161c7EF));
         vm.expectEmit(true, true, true, true);
         emit MarketSet(weth, market);
-        vm.prank(TIMELOCK_ADDRESS);
-        sut.setMarket(weth, market);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
+        sut.setMarket(market);
     }
 
 }

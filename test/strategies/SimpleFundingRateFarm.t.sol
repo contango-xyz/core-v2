@@ -44,17 +44,13 @@ contract SimpleFundingRateFarmTest is Test, GasSnapshot {
         (trader, traderPK) = makeAddrAndKey("trader");
         spotExecutor = env.maestro().spotExecutor();
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), lens, env.maestro().spotExecutor());
+        sut = env.strategyBuilder();
 
         stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
         stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
 
         _longPositionId = env.encoder().encodePositionId(longInstrument.symbol, MM_AAVE, PERP, 0);
         _shortPositionId = env.encoder().encodePositionId(shortInstrument.symbol, MM_RADIANT, PERP, 0);
-
-        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
-        vm.prank(TIMELOCK_ADDRESS);
-        feeModel.setDefaultFee(NO_FEE);
     }
 
     modifier invariants() {
@@ -259,8 +255,8 @@ contract SimpleFundingRateFarmTest is Test, GasSnapshot {
         steps.push(StepCall(Step.PositionRepay, abi.encode(longPositionId, POSITION_ONE, sut.ALL())));
         steps.push(StepCall(Step.PositionClose, abi.encode(longPositionId, POSITION_ONE)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(shortInstrument.quote, flashLoanAmount + flashLoanFee)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.base, sut.BALANCE(), trader)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.base, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.quote, sut.BALANCE(), trader)));
 
         snapStart("SimpleFarmPosition:Close_LongCollateralBiggerThanShortDebt");
         vm.prank(trader);
@@ -278,11 +274,7 @@ contract SimpleFundingRateFarmTest is Test, GasSnapshot {
             "quote cashflow"
         );
         assertApproxEqAbsDecimal(
-            shortInstrument.quote.balanceOf(trader),
-            longBalances.collateral - shortBalances.debt,
-            1,
-            shortInstrument.quoteDecimals,
-            "base cashflow"
+            trader.balance, longBalances.collateral - shortBalances.debt, 1, shortInstrument.quoteDecimals, "base cashflow"
         );
     }
 
@@ -326,8 +318,8 @@ contract SimpleFundingRateFarmTest is Test, GasSnapshot {
         steps.push(StepCall(Step.PositionClose, abi.encode(longPositionId, POSITION_ONE)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(swapData, shortInstrument.base, shortInstrument.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(shortInstrument.quote, flashLoanAmount + flashLoanFee)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.base, sut.BALANCE(), trader)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.base, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.quote, sut.BALANCE(), trader)));
 
         snapStart("SimpleFarmPosition:Close_LongCollateralSmallerThanShortDebt");
         vm.prank(trader);
@@ -345,11 +337,7 @@ contract SimpleFundingRateFarmTest is Test, GasSnapshot {
             "quote cashflow"
         );
         assertApproxEqAbsDecimal(
-            shortInstrument.quote.balanceOf(trader),
-            longBalances.collateral + 0.6 ether - shortBalances.debt,
-            1,
-            shortInstrument.quoteDecimals,
-            "base cashflow"
+            trader.balance, longBalances.collateral + 0.6 ether - shortBalances.debt, 1, shortInstrument.quoteDecimals, "base cashflow"
         );
     }
 

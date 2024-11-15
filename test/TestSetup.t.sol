@@ -11,8 +11,6 @@ import "src/core/Maestro.sol";
 import "src/core/Vault.sol";
 import "src/dependencies/IWETH9.sol";
 import "src/interfaces/IOrderManager.sol";
-import "src/core/ReferralManager.sol";
-import "src/core/FeeManager.sol";
 
 import "test/flp/TestFLP.sol";
 
@@ -45,9 +43,9 @@ import "src/moneymarkets/euler/EulerMoneyMarketView.sol";
 import "src/moneymarkets/fluid/FluidMoneyMarket.sol";
 import "src/moneymarkets/fluid/FluidMoneyMarketView.sol";
 import "src/moneymarkets/ContangoLens.sol";
-import "src/models/FixedFeeModel.sol";
 import "@contango/erc721Permit2/ERC721Permit2.sol";
 import "src/strategies/PositionPermit.sol";
+import "src/strategies/StrategyBuilder.sol";
 
 import "script/constants.sol";
 import "script/Addresses.s.sol";
@@ -180,22 +178,6 @@ function addSlippage(uint256 value) pure returns (uint256) {
     return value + slippage(value);
 }
 
-function tradingFee(uint256 quantity, uint256 fee) pure returns (uint256) {
-    return Math.mulDiv(quantity, fee, 1e18);
-}
-
-function tradingFee(uint256 quantity, uint256 fee, Math.Rounding rounding) pure returns (uint256) {
-    return Math.mulDiv(quantity, fee, 1e18, rounding);
-}
-
-function tradingFee(uint256 quantity) pure returns (uint256) {
-    return Math.mulDiv(quantity, DEFAULT_TRADING_FEE, 1e18);
-}
-
-function discountFee(uint256 quantity) pure returns (uint256) {
-    return quantity - tradingFee(quantity);
-}
-
 /// @dev returns the init code (creation code + ABI-encoded args) used in CREATE2
 /// @param creationCode the creation code of a contract C, as returned by type(C).creationCode
 /// @param args the ABI-encoded arguments to the constructor of C
@@ -209,8 +191,8 @@ struct Deployment {
     Contango contango;
     ContangoLens contangoLens;
     IOrderManager orderManager;
-    IFeeManager feeManager;
     TSQuoter tsQuoter;
+    StrategyBuilder strategyBuilder;
 }
 
 contract Deployer is Addresses {
@@ -245,7 +227,7 @@ contract Deployer is Addresses {
             _flashBorrowEnabled: _flashBorrowEnabled
         });
 
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = AaveMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
@@ -271,7 +253,7 @@ contract Deployer is Addresses {
             _flashBorrowEnabled: true
         });
 
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = AaveMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
@@ -279,80 +261,96 @@ contract Deployer is Addresses {
         moneyMarket = deployAaveMoneyMarket(contango, MM_SPARK_SKY, env.sparkAddressProvider(), env.sparkRewardsController(), false);
     }
 
+    function _update(ExactlyReverseLookup reverseLookup) private {
+        IExactlyMarket[] memory allMarkets = reverseLookup.auditor().allMarkets();
+        for (uint256 i = 0; i < allMarkets.length; i++) {
+            IExactlyMarket _market = allMarkets[i];
+            reverseLookup.setMarket(_market);
+        }
+    }
+
     function deployExactlyMoneyMarket(Env env, IContango contango) public returns (ExactlyMoneyMarket moneyMarket) {
+        ExactlyReverseLookup reverseLookup = new ExactlyReverseLookup(env.auditor());
+        _update(reverseLookup);
         moneyMarket = new ExactlyMoneyMarket({
             _moneyMarketId: MM_EXACTLY,
             _contango: contango,
-            _reverseLookup: new ExactlyReverseLookup(TIMELOCK, env.auditor()),
+            _reverseLookup: reverseLookup,
             _rewardsController: IExactlyRewardsController(0xBd1ba78A3976cAB420A9203E6ef14D18C2B2E031)
         });
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = ExactlyMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
     function deployCometMoneyMarket(Env env, IContango contango) public returns (CometMoneyMarket moneyMarket) {
-        IComet[] memory comets = new IComet[](1);
-        comets[0] = env.comet();
-        CometReverseLookup reverseLookup = new CometReverseLookup(TIMELOCK, comets);
+        CometReverseLookup reverseLookup = new CometReverseLookup(CORE_TIMELOCK, env.operator());
         moneyMarket = new CometMoneyMarket({
             _moneyMarketId: MM_COMET,
             _contango: contango,
             _reverseLookup: reverseLookup,
             _rewards: env.cometRewards()
         });
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = CometMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
+    function _update(CompoundReverseLookup reverseLookup) private {
+        ICToken[] memory allMarkets = reverseLookup.comptroller().getAllMarkets();
+        for (uint256 i = 0; i < allMarkets.length; i++) {
+            ICToken _cToken = allMarkets[i];
+            reverseLookup.setCToken(_cToken);
+        }
+    }
+
     function deployCompoundMoneyMarket(Env env, IContango contango) public returns (CompoundMoneyMarket moneyMarket) {
-        CompoundReverseLookup reverseLookup = new CompoundReverseLookup(TIMELOCK, env.compoundComptroller(), env.nativeToken());
-        reverseLookup.update();
+        CompoundReverseLookup reverseLookup = new CompoundReverseLookup(env.compoundComptroller(), env.nativeToken());
+        _update(reverseLookup);
         moneyMarket = new CompoundMoneyMarket({
             _moneyMarketId: MM_COMPOUND,
             _contango: contango,
             _reverseLookup: reverseLookup,
             _nativeToken: env.nativeToken()
         });
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = CompoundMoneyMarket(payable(address(new ImmutableBeaconProxy(beacon))));
     }
 
     function deploySonneMoneyMarket(Env env, IContango contango) public returns (CompoundMoneyMarket moneyMarket) {
-        CompoundReverseLookup reverseLookup = new CompoundReverseLookup(TIMELOCK, env.compoundComptroller(), env.nativeToken());
-        reverseLookup.update();
+        CompoundReverseLookup reverseLookup = new CompoundReverseLookup(env.compoundComptroller(), env.nativeToken());
+        _update(reverseLookup);
         moneyMarket = new CompoundMoneyMarket({
             _moneyMarketId: MM_SONNE,
             _contango: contango,
             _reverseLookup: reverseLookup,
             _nativeToken: IWETH9(address(0))
         });
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = CompoundMoneyMarket(payable(address(new ImmutableBeaconProxy(beacon))));
     }
 
     function deployMoonwellMoneyMarket(Env env, IContango contango) public returns (CompoundMoneyMarket moneyMarket) {
-        CompoundReverseLookup reverseLookup = new CompoundReverseLookup(TIMELOCK, env.moonwellComptroller(), env.nativeToken());
-        reverseLookup.update();
+        CompoundReverseLookup reverseLookup = new CompoundReverseLookup(env.moonwellComptroller(), env.nativeToken());
+        _update(reverseLookup);
         moneyMarket = new MoonwellMoneyMarket({
             _moneyMarketId: MM_MOONWELL,
             _contango: contango,
             _reverseLookup: reverseLookup,
             _nativeToken: env.nativeToken()
         });
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = CompoundMoneyMarket(payable(address(new ImmutableBeaconProxy(beacon))));
     }
 
     function deployLodestarMoneyMarket(Env env, IContango contango) public returns (CompoundMoneyMarket moneyMarket) {
-        CompoundReverseLookup reverseLookup = new CompoundReverseLookup(TIMELOCK, env.compoundComptroller(), env.nativeToken());
-        reverseLookup.update();
+        CompoundReverseLookup reverseLookup = new CompoundReverseLookup(env.compoundComptroller(), env.nativeToken());
+        _update(reverseLookup);
         moneyMarket = new CompoundMoneyMarket({
             _moneyMarketId: MM_LODESTAR,
             _contango: contango,
             _reverseLookup: reverseLookup,
             _nativeToken: env.nativeToken()
         });
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = CompoundMoneyMarket(payable(address(new ImmutableBeaconProxy(beacon))));
     }
 
@@ -361,11 +359,11 @@ contract Deployer is Addresses {
             _moneyMarketId: MM_MORPHO_BLUE,
             _contango: contango,
             _morpho: env.morpho(),
-            _reverseLookup: new MorphoBlueReverseLookup(TIMELOCK, env.morpho()),
+            _reverseLookup: new MorphoBlueReverseLookup(CORE_TIMELOCK, env.morpho(), env.operator()),
             _ena: new ERC20Mock()
         });
 
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = MorphoBlueMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
@@ -376,68 +374,67 @@ contract Deployer is Addresses {
             MM_SILO, contango, env.siloLens(), env.siloIncentivesController(), env.wstEthSilo(), env.nativeToken(), stable
         );
 
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = SiloMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
     function deployDolomiteMoneyMarket(Env env, IContango contango) public returns (DolomiteMoneyMarket moneyMarket) {
         moneyMarket = new DolomiteMoneyMarket(contango, env.dolomite());
 
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = DolomiteMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
     function deployEulerMoneyMarket(Env env, IContango contango) public returns (EulerMoneyMarket moneyMarket) {
-        EulerReverseLookup reverseLookup = new EulerReverseLookup(TIMELOCK);
+        EulerReverseLookup reverseLookup = new EulerReverseLookup(CORE_TIMELOCK);
 
         EulerRewardsOperator rewardsOperator = new EulerRewardsOperator(
-            TIMELOCK, contango.positionNFT(), contango.positionFactory(), env.eulerVaultConnector(), env.eulerRewards(), reverseLookup
+            CORE_TIMELOCK, contango.positionNFT(), contango.positionFactory(), env.eulerVaultConnector(), env.eulerRewards(), reverseLookup
         );
 
         moneyMarket = new EulerMoneyMarket(contango, env.eulerVaultConnector(), env.eulerRewards(), reverseLookup, rewardsOperator);
 
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = EulerMoneyMarket(address(new ImmutableBeaconProxy(beacon)));
     }
 
     function deployFluidMoneyMarket(Env env, IContango contango) public returns (FluidMoneyMarket moneyMarket) {
         moneyMarket = new FluidMoneyMarket(contango, env.nativeToken(), env.fluidVaultResolver());
 
-        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), address(this));
+        UpgradeableBeacon beacon = new UpgradeableBeaconWithOwner(address(moneyMarket), MarketTimelock.wrap(address(this)));
         moneyMarket = FluidMoneyMarket(payable(address(new ImmutableBeaconProxy(beacon))));
     }
 
     function deployVault(Env env) public returns (Vault vault) {
         vault = new Vault(env.nativeToken());
-        vault.initialize(TIMELOCK);
+        vault.initialize(CORE_TIMELOCK);
         VM.label(address(vault), "Vault");
+        VM.prank(CORE_TIMELOCK_ADDRESS);
+        vault.grantRole(OPERATOR_ROLE, CORE_TIMELOCK_ADDRESS);
+    }
+
+    function deployStrategyBuilder(Env env) public returns (StrategyBuilder strategyBuilder) {
+        strategyBuilder = new StrategyBuilder(env.maestro(), env.erc721Permit2(), env.contangoLens());
+        strategyBuilder.initialize(CORE_TIMELOCK);
+        VM.label(address(strategyBuilder), "StrategyBuilder");
     }
 
     function deployContango(Env env) public returns (Deployment memory deployment) {
-        PositionNFT positionNFT = new PositionNFT(TIMELOCK);
-        UnderlyingPositionFactory positionFactory = new UnderlyingPositionFactory(TIMELOCK);
+        PositionNFT positionNFT = new PositionNFT(CORE_TIMELOCK);
+        UnderlyingPositionFactory positionFactory = new UnderlyingPositionFactory(CORE_TIMELOCK);
 
         deployment.vault = deployVault(env);
-        deployment.feeManager = new FeeManager({
-            _treasury: TREASURY,
-            _vault: deployment.vault,
-            _feeModel: new FixedFeeModel(TIMELOCK),
-            _referralManager: new ReferralManager(TIMELOCK)
-        });
-        FeeManager(address(deployment.feeManager)).initialize(TIMELOCK);
-
-        deployment.contango = new Contango(positionNFT, deployment.vault, positionFactory, deployment.feeManager, new SpotExecutor());
-        Contango(payable(address(deployment.contango))).initialize(TIMELOCK);
+        deployment.contango = new Contango(positionNFT, deployment.vault, positionFactory, new SpotExecutor());
+        Contango(payable(address(deployment.contango))).initialize(CORE_TIMELOCK);
 
         deployment.contangoLens = new ContangoLens(deployment.contango);
-        ContangoLens(address(deployment.contangoLens)).initialize(TIMELOCK);
+        ContangoLens(address(deployment.contangoLens)).initialize(CORE_TIMELOCK);
 
         deployment.tsQuoter = new TSQuoter(Contango(payable(address(deployment.contango))), deployment.contangoLens);
 
-        VM.startPrank(TIMELOCK_ADDRESS);
-        FixedFeeModel(address(deployment.feeManager.feeModel())).setDefaultFee(DEFAULT_TRADING_FEE);
-
-        deployment.contango.grantRole(OPERATOR_ROLE, TIMELOCK_ADDRESS);
+        VM.startPrank(CORE_TIMELOCK_ADDRESS);
+        deployment.contango.grantRole(OPERATOR_ROLE, CORE_TIMELOCK_ADDRESS);
+        deployment.contangoLens.grantRole(OPERATOR_ROLE, CORE_TIMELOCK_ADDRESS);
         positionFactory.grantRole(CONTANGO_ROLE, address(deployment.contango));
 
         if (env.marketAvailable(MM_AAVE)) {
@@ -676,23 +673,23 @@ contract Deployer is Addresses {
 
         deployment.orderManager = new OrderManager(deployment.contango);
         OrderManager(payable(address(deployment.orderManager))).initialize({
-            timelock: TIMELOCK,
+            timelock: CORE_TIMELOCK,
             _gasMultiplier: 2e4,
             _gasTip: 0,
             _oracle: deployment.contangoLens
         });
 
-        deployment.maestro =
-            new Maestro(TIMELOCK, deployment.contango, deployment.orderManager, deployment.vault, env.permit2(), new SimpleSpotExecutor());
+        deployment.maestro = new Maestro(
+            CORE_TIMELOCK, deployment.contango, deployment.orderManager, deployment.vault, env.permit2(), new SimpleSpotExecutor(), TREASURY
+        );
         VM.label(address(deployment.maestro), "Maestro");
 
-        VM.startPrank(TIMELOCK_ADDRESS);
+        VM.startPrank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(deployment.maestro), true);
         positionNFT.setContangoContract(address(deployment.orderManager), true);
         AccessControl(address(deployment.vault)).grantRole(CONTANGO_ROLE, address(deployment.maestro));
         AccessControl(address(deployment.vault)).grantRole(CONTANGO_ROLE, address(deployment.contango));
         AccessControl(address(deployment.vault)).grantRole(CONTANGO_ROLE, address(deployment.orderManager));
-        AccessControl(address(deployment.feeManager)).grantRole(CONTANGO_ROLE, address(deployment.contango));
         VM.stopPrank();
     }
 
@@ -787,11 +784,11 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
     Maestro public maestro;
     IOrderManager public orderManager;
     IUnderlyingPositionFactory public positionFactory;
-    IFeeManager public feeManager;
     Encoder public encoder;
     TSQuoter public tsQuoter;
     ContangoLens public contangoLens;
     PositionNFT public positionNFT;
+    StrategyBuilder public strategyBuilder;
     // Chain
     IWETH9 public nativeToken;
     IAggregatorV2V3 public nativeUsdOracle;
@@ -812,6 +809,8 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
     mapping(Symbol => TestInstrument) public _instruments;
 
     uint256 public blockNumber;
+
+    Operator public constant operator = Operator.wrap(CORE_TIMELOCK_ADDRESS);
 
     constructor(Network _network) {
         VM.makePersistent(address(this));
@@ -939,7 +938,7 @@ abstract contract Env is StdAssertions, StdCheats, Addresses {
         symbol = Symbol.wrap(bytes16(abi.encodePacked(base.symbol(), quote.symbol())));
         instrument = contango.instrument(symbol);
         if (instrument.base == IERC20(address(0))) {
-            VM.startPrank(TIMELOCK_ADDRESS);
+            VM.startPrank(CORE_TIMELOCK_ADDRESS);
             contango.createInstrument({ symbol: symbol, base: base, quote: quote });
             vault.setTokenSupport(base, true);
             vault.setTokenSupport(quote, true);
@@ -1224,15 +1223,15 @@ contract ArbitrumEnv is Env {
         contango = deployment.contango;
         contangoLens = deployment.contangoLens;
         orderManager = deployment.orderManager;
-        feeManager = deployment.feeManager;
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
         encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
-        VM.prank(TIMELOCK_ADDRESS);
+        VM.prank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(erc721Permit2), true);
+        strategyBuilder = deployer.deployStrategyBuilder(this);
     }
 
 }
@@ -1308,15 +1307,15 @@ contract OptimismEnv is Env {
         contango = deployment.contango;
         contangoLens = deployment.contangoLens;
         orderManager = deployment.orderManager;
-        feeManager = deployment.feeManager;
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
         encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
-        VM.prank(TIMELOCK_ADDRESS);
+        VM.prank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(erc721Permit2), true);
+        strategyBuilder = deployer.deployStrategyBuilder(this);
     }
 
 }
@@ -1390,15 +1389,15 @@ contract PolygonEnv is Env {
         contango = deployment.contango;
         contangoLens = deployment.contangoLens;
         orderManager = deployment.orderManager;
-        feeManager = deployment.feeManager;
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
         encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
-        VM.prank(TIMELOCK_ADDRESS);
+        VM.prank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(erc721Permit2), true);
+        strategyBuilder = deployer.deployStrategyBuilder(this);
     }
 
 }
@@ -1521,15 +1520,15 @@ contract MainnetEnv is Env {
         contango = deployment.contango;
         contangoLens = deployment.contangoLens;
         orderManager = deployment.orderManager;
-        feeManager = deployment.feeManager;
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
         encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), sparkAddressProvider.getPoolDataProvider());
 
         erc721Permit2 = new ERC721Permit2();
-        VM.prank(TIMELOCK_ADDRESS);
+        VM.prank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(erc721Permit2), true);
+        strategyBuilder = deployer.deployStrategyBuilder(this);
     }
 
 }
@@ -1588,15 +1587,15 @@ contract GnosisEnv is Env {
         contango = deployment.contango;
         contangoLens = deployment.contangoLens;
         orderManager = deployment.orderManager;
-        feeManager = deployment.feeManager;
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
         encoder = new Encoder(contango, IPoolDataProviderV3(address(0)), sparkAddressProvider.getPoolDataProvider());
 
         erc721Permit2 = new ERC721Permit2();
-        VM.prank(TIMELOCK_ADDRESS);
+        VM.prank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(erc721Permit2), true);
+        strategyBuilder = deployer.deployStrategyBuilder(this);
 
         // Gnosis has lower LTV, but some of our tests need a higer one, setting the same as mainnet
         VM.startPrank(0xc4218C1127cB24a0D6c1e7D25dc34e10f2625f5A);
@@ -1683,15 +1682,15 @@ contract BaseEnv is Env {
         contango = deployment.contango;
         contangoLens = deployment.contangoLens;
         orderManager = deployment.orderManager;
-        feeManager = deployment.feeManager;
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
         encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
-        VM.prank(TIMELOCK_ADDRESS);
+        VM.prank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(erc721Permit2), true);
+        strategyBuilder = deployer.deployStrategyBuilder(this);
     }
 
 }
@@ -1758,15 +1757,15 @@ contract BscEnv is Env {
         contango = deployment.contango;
         contangoLens = deployment.contangoLens;
         orderManager = deployment.orderManager;
-        feeManager = deployment.feeManager;
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
         encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
-        VM.prank(TIMELOCK_ADDRESS);
+        VM.prank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(erc721Permit2), true);
+        strategyBuilder = deployer.deployStrategyBuilder(this);
     }
 
 }
@@ -1814,15 +1813,15 @@ contract LineaEnv is Env {
         contango = deployment.contango;
         contangoLens = deployment.contangoLens;
         orderManager = deployment.orderManager;
-        feeManager = deployment.feeManager;
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
         encoder = new Encoder(contango, zeroLendAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
-        VM.prank(TIMELOCK_ADDRESS);
+        VM.prank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(erc721Permit2), true);
+        strategyBuilder = deployer.deployStrategyBuilder(this);
     }
 
 }
@@ -1870,15 +1869,15 @@ contract ScrollEnv is Env {
         contango = deployment.contango;
         contangoLens = deployment.contangoLens;
         orderManager = deployment.orderManager;
-        feeManager = deployment.feeManager;
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
         encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
-        VM.prank(TIMELOCK_ADDRESS);
+        VM.prank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(erc721Permit2), true);
+        strategyBuilder = deployer.deployStrategyBuilder(this);
     }
 
 }
@@ -1926,15 +1925,15 @@ contract AvalancheEnv is Env {
         contango = deployment.contango;
         contangoLens = deployment.contangoLens;
         orderManager = deployment.orderManager;
-        feeManager = deployment.feeManager;
         tsQuoter = deployment.tsQuoter;
         positionFactory = contango.positionFactory();
         positionNFT = contango.positionNFT();
         encoder = new Encoder(contango, aaveAddressProvider.getPoolDataProvider(), IPoolDataProviderV3(address(0)));
 
         erc721Permit2 = new ERC721Permit2();
-        VM.prank(TIMELOCK_ADDRESS);
+        VM.prank(CORE_TIMELOCK_ADDRESS);
         positionNFT.setContangoContract(address(erc721Permit2), true);
+        strategyBuilder = deployer.deployStrategyBuilder(this);
     }
 
 }

@@ -27,7 +27,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
 
     uint256 public constant ALL = 0; // used to indicate that the full amount should be used, 0 is cheaper on calldata than type(uint256).max
 
-    Timelock public immutable timelock;
+    CoreTimelock public immutable timelock;
     IContango public immutable contango;
     IOrderManager public immutable orderManager;
     IVault public immutable vault;
@@ -35,14 +35,16 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
     IWETH9 public immutable nativeToken;
     IPermit2 public immutable permit2;
     SimpleSpotExecutor public immutable spotExecutor;
+    address public immutable treasury;
 
     constructor(
-        Timelock _timelock,
+        CoreTimelock _timelock,
         IContango _contango,
         IOrderManager _orderManager,
         IVault _vault,
         IPermit2 _permit2,
-        SimpleSpotExecutor _spotExecutor
+        SimpleSpotExecutor _spotExecutor,
+        address _treasury
     ) {
         timelock = _timelock;
         contango = _contango;
@@ -50,6 +52,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
         vault = _vault;
         permit2 = _permit2;
         spotExecutor = _spotExecutor;
+        treasury = _treasury;
         positionNFT = _contango.positionNFT();
         nativeToken = _vault.nativeToken();
     }
@@ -73,11 +76,6 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
 
     function usePermit2(IERC20 token, EIP2098Permit calldata permit, uint256 amount, address to) public {
         permit2.pullFundsWithPermit2(token, permit, amount, msg.sender, to);
-    }
-
-    // delete in next upgrade
-    function depositWithPermit2(IERC20 token, EIP2098Permit calldata permit) public payable returns (uint256) {
-        return depositWithPermit2(token, permit, ALL);
     }
 
     function depositWithPermit2(IERC20 token, EIP2098Permit calldata permit, uint256 amount) public payable override returns (uint256) {
@@ -139,11 +137,19 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
     }
 
     function withdraw(IERC20 token, uint256 amount, address to) public payable override returns (uint256) {
-        return vault.withdraw(token, msg.sender, amount == ALL ? vault.balanceOf(token, msg.sender) : amount, to);
+        if (amount == ALL) amount = vault.balanceOf(token, msg.sender);
+        if (amount == 0) return 0;
+        return vault.withdraw(token, msg.sender, amount, to);
+    }
+
+    function transfer(IERC20 token, uint256 amount, address to) public payable returns (uint256) {
+        return vault.transfer(token, msg.sender, to, amount == ALL ? vault.balanceOf(token, msg.sender) : amount);
     }
 
     function withdrawNative(uint256 amount, address to) public payable override returns (uint256) {
-        return vault.withdrawNative(msg.sender, amount == ALL ? vault.balanceOf(nativeToken, msg.sender) : amount, to);
+        if (amount == ALL) amount = vault.balanceOf(nativeToken, msg.sender);
+        if (amount == 0) return 0;
+        return vault.withdrawNative(msg.sender, amount, to);
     }
 
     function swapAndWithdraw(IERC20 tokenToSell, IERC20 tokenToReceive, SwapData calldata swapData, address to)
@@ -183,72 +189,29 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
         nativeToken.transferOutNative(to, output);
     }
 
-    function trade(TradeParams memory tradeParams, ExecutionParams calldata execParams) public payable returns (PositionId, Trade memory) {
+    function tradeWithFees(TradeParams memory tradeParams, ExecutionParams calldata execParams, FeeParams memory feeParams)
+        public
+        payable
+        returns (PositionId positionId_, Trade memory trade_)
+    {
         if (positionNFT.exists(tradeParams.positionId)) positionNFT.validateModifyPositionPermissions(tradeParams.positionId);
         if (tradeParams.cashflow == type(int256).max) {
             tradeParams.cashflow = vault.balanceOf(_cashflowToken(tradeParams), msg.sender).toInt256();
         }
-        return contango.tradeOnBehalfOf(tradeParams, execParams, msg.sender);
-    }
-
-    function depositAndTrade(TradeParams calldata tradeParams, ExecutionParams calldata execParams)
-        public
-        payable
-        returns (PositionId, Trade memory)
-    {
-        _deposit(_cashflowToken(tradeParams), tradeParams.cashflow.toUint256());
-        return trade(tradeParams, execParams);
-    }
-
-    function depositAndTradeWithPermit(TradeParams calldata tradeParams, ExecutionParams calldata execParams, EIP2098Permit calldata permit)
-        public
-        payable
-        override
-        returns (PositionId, Trade memory)
-    {
-        _validatePermitAmount(tradeParams.cashflow, permit);
-        depositWithPermit(_cashflowToken(tradeParams), permit, tradeParams.cashflow.toUint256());
-        return trade(tradeParams, execParams);
-    }
-
-    function tradeAndWithdraw(TradeParams calldata tradeParams, ExecutionParams calldata execParams, address to)
-        public
-        payable
-        returns (PositionId positionId, Trade memory trade_, uint256 amount)
-    {
-        return _tradeAndWithdraw(tradeParams, execParams, to, false);
-    }
-
-    function tradeAndWithdrawNative(TradeParams calldata tradeParams, ExecutionParams calldata execParams, address to)
-        public
-        payable
-        returns (PositionId positionId, Trade memory trade_, uint256 amount)
-    {
-        return _tradeAndWithdraw(tradeParams, execParams, to, true);
-    }
-
-    function _tradeAndWithdraw(TradeParams calldata tradeParams, ExecutionParams calldata execParams, address to, bool native)
-        public
-        payable
-        returns (PositionId positionId, Trade memory trade_, uint256 amount)
-    {
-        if (tradeParams.cashflow > 0) revert InvalidCashflow();
-
-        (positionId, trade_) = trade(tradeParams, execParams);
-        // avoid reverting on vault if actual trade cashflow is not negative
-        if (trade_.cashflow < 0) {
-            amount = trade_.cashflow.abs();
-
-            Instrument memory instrument = contango.instrument(positionId.getSymbol());
-            IERC20 cashflowToken = trade_.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
-
-            if (native) {
-                if (nativeToken != cashflowToken) revert NotNativeToken(cashflowToken);
-                withdrawNative(amount, to);
-            } else {
-                withdraw(cashflowToken, amount, to);
-            }
+        (positionId_, trade_) = contango.tradeOnBehalfOf(tradeParams, execParams, msg.sender);
+        if (feeParams.amount > 0) {
+            withdraw(feeParams.token, feeParams.amount, treasury);
+            emit FeeCollected(positionId_, msg.sender, treasury, feeParams.token, feeParams.amount, feeParams.basisPoints);
         }
+    }
+
+    function trade(TradeParams calldata tradeParams, ExecutionParams calldata execParams)
+        external
+        payable
+        returns (PositionId, Trade memory)
+    {
+        FeeParams memory feeParams;
+        return tradeWithFees(tradeParams, execParams, feeParams);
     }
 
     function tradeAndLinkedOrder(
@@ -256,7 +219,17 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
         ExecutionParams calldata execParams,
         LinkedOrderParams memory linkedOrderParams
     ) external payable returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId) {
-        (positionId, trade_) = trade(tradeParams, execParams);
+        FeeParams memory feeParams;
+        return tradeAndLinkedOrderWithFees(tradeParams, execParams, linkedOrderParams, feeParams);
+    }
+
+    function tradeAndLinkedOrderWithFees(
+        TradeParams calldata tradeParams,
+        ExecutionParams calldata execParams,
+        LinkedOrderParams memory linkedOrderParams,
+        FeeParams memory feeParams
+    ) public payable returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId) {
+        (positionId, trade_) = tradeWithFees(tradeParams, execParams, feeParams);
         linkedOrderId = placeLinkedOrder(positionId, linkedOrderParams);
     }
 
@@ -266,72 +239,25 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
         LinkedOrderParams memory linkedOrderParams1,
         LinkedOrderParams memory linkedOrderParams2
     ) external payable returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId1, OrderId linkedOrderId2) {
-        (positionId, trade_) = trade(tradeParams, execParams);
-        linkedOrderId1 = placeLinkedOrder(positionId, linkedOrderParams1);
-        linkedOrderId2 = placeLinkedOrder(positionId, linkedOrderParams2);
+        FeeParams memory feeParams;
+        return tradeAndLinkedOrdersWithFees(tradeParams, execParams, linkedOrderParams1, linkedOrderParams2, feeParams);
     }
 
-    function depositTradeAndLinkedOrder(
-        TradeParams calldata tradeParams,
-        ExecutionParams calldata execParams,
-        LinkedOrderParams memory linkedOrderParams
-    ) public payable override returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId) {
-        (positionId, trade_) = depositAndTrade(tradeParams, execParams);
-        linkedOrderId = placeLinkedOrder(positionId, linkedOrderParams);
-    }
-
-    function depositTradeAndLinkedOrderWithPermit(
-        TradeParams calldata tradeParams,
-        ExecutionParams calldata execParams,
-        LinkedOrderParams memory linkedOrderParams,
-        EIP2098Permit calldata permit
-    ) public payable override returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId) {
-        (positionId, trade_) = depositAndTradeWithPermit(tradeParams, execParams, permit);
-        linkedOrderId = placeLinkedOrder(positionId, linkedOrderParams);
-    }
-
-    function depositTradeAndLinkedOrders(
-        TradeParams calldata tradeParams,
-        ExecutionParams calldata execParams,
-        LinkedOrderParams memory linkedOrderParams1,
-        LinkedOrderParams memory linkedOrderParams2
-    ) public payable override returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId1, OrderId linkedOrderId2) {
-        (positionId, trade_) = depositAndTrade(tradeParams, execParams);
-        linkedOrderId1 = placeLinkedOrder(positionId, linkedOrderParams1);
-        linkedOrderId2 = placeLinkedOrder(positionId, linkedOrderParams2);
-    }
-
-    function depositTradeAndLinkedOrdersWithPermit(
+    function tradeAndLinkedOrdersWithFees(
         TradeParams calldata tradeParams,
         ExecutionParams calldata execParams,
         LinkedOrderParams memory linkedOrderParams1,
         LinkedOrderParams memory linkedOrderParams2,
-        EIP2098Permit calldata permit
-    ) public payable override returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId1, OrderId linkedOrderId2) {
-        (positionId, trade_) = depositAndTradeWithPermit(tradeParams, execParams, permit);
+        FeeParams memory feeParams
+    ) public payable returns (PositionId positionId, Trade memory trade_, OrderId linkedOrderId1, OrderId linkedOrderId2) {
+        (positionId, trade_) = tradeWithFees(tradeParams, execParams, feeParams);
         linkedOrderId1 = placeLinkedOrder(positionId, linkedOrderParams1);
         linkedOrderId2 = placeLinkedOrder(positionId, linkedOrderParams2);
-    }
-
-    function place(OrderParams memory params) public payable override returns (OrderId orderId) {
-        if (positionNFT.exists(params.positionId)) positionNFT.validateModifyPositionPermissions(params.positionId);
-
-        return orderManager.placeOnBehalfOf(params, msg.sender);
     }
 
     function placeLinkedOrder(PositionId positionId, LinkedOrderParams memory params) public payable override returns (OrderId orderId) {
         positionNFT.validateModifyPositionPermissions(positionId);
         orderId = _placeLinkedOrder(positionId, params);
-    }
-
-    function placeLinkedOrders(
-        PositionId positionId,
-        LinkedOrderParams memory linkedOrderParams1,
-        LinkedOrderParams memory linkedOrderParams2
-    ) public payable override returns (OrderId linkedOrderId1, OrderId linkedOrderId2) {
-        positionNFT.validateModifyPositionPermissions(positionId);
-        linkedOrderId1 = _placeLinkedOrder(positionId, linkedOrderParams1);
-        linkedOrderId2 = _placeLinkedOrder(positionId, linkedOrderParams2);
     }
 
     function _placeLinkedOrder(PositionId positionId, LinkedOrderParams memory params) private returns (OrderId orderId) {
@@ -350,76 +276,9 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
         );
     }
 
-    function depositAndPlace(OrderParams memory params) public payable override returns (OrderId orderId) {
-        Instrument memory instrument = contango.instrument(params.positionId.getSymbol());
-        IERC20 cashflowToken = params.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
-        _deposit(cashflowToken, int256(params.cashflow).toUint256());
-        return place(params);
-    }
-
-    function depositAndPlaceWithPermit(OrderParams memory params, EIP2098Permit calldata permit) public payable returns (OrderId orderId) {
-        _validatePermitAmount(params.cashflow, permit);
-
-        Instrument memory instrument = contango.instrument(params.positionId.getSymbol());
-        IERC20 cashflowToken = params.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
-
-        depositWithPermit(cashflowToken, permit, params.cashflow.toUint256());
-        return place(params);
-    }
-
     function cancel(OrderId orderId) public payable override {
         if (!positionNFT.isApprovedForAll(orderManager.orders(orderId).owner, msg.sender)) revert Unauthorised(msg.sender);
         orderManager.cancel(orderId);
-    }
-
-    function cancel(OrderId orderId1, OrderId orderId2) public payable override {
-        cancel(orderId1);
-        cancel(orderId2);
-    }
-
-    function cancelReplaceLinkedOrder(OrderId cancelOrderId, LinkedOrderParams memory newLinkedOrderParams)
-        external
-        payable
-        override
-        returns (OrderId newLinkedOrderId)
-    {
-        PositionId positionId = orderManager.orders(cancelOrderId).positionId;
-        cancel(cancelOrderId);
-        return placeLinkedOrder(positionId, newLinkedOrderParams);
-    }
-
-    function cancelReplaceLinkedOrders(
-        OrderId cancelOrderId1,
-        OrderId cancelOrderId2,
-        LinkedOrderParams memory newLinkedOrderParams1,
-        LinkedOrderParams memory newLinkedOrderParams2
-    ) external payable override returns (OrderId newLinkedOrderId1, OrderId newLinkedOrderId2) {
-        PositionId positionId = orderManager.orders(cancelOrderId1).positionId;
-        if (PositionId.unwrap(positionId) != PositionId.unwrap(orderManager.orders(cancelOrderId2).positionId)) {
-            revert MismatchingPositionId(cancelOrderId1, cancelOrderId2);
-        }
-
-        cancel(cancelOrderId1, cancelOrderId2);
-        (newLinkedOrderId1, newLinkedOrderId2) = placeLinkedOrders(positionId, newLinkedOrderParams1, newLinkedOrderParams2);
-    }
-
-    function cancelAndWithdraw(OrderId orderId, address to) public payable override returns (uint256) {
-        Order memory order = orderManager.orders(orderId);
-        cancel(orderId);
-        Instrument memory instrument = contango.instrument(order.positionId.getSymbol());
-        IERC20 cashflowToken = order.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
-        return withdraw(cashflowToken, order.cashflow.toUint256(), to);
-    }
-
-    function cancelAndWithdrawNative(OrderId orderId, address to) public payable override returns (uint256) {
-        Order memory order = orderManager.orders(orderId);
-        cancel(orderId);
-        Instrument memory instrument = contango.instrument(order.positionId.getSymbol());
-
-        IERC20 cashflowToken = order.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
-        if (nativeToken != cashflowToken) revert NotNativeToken(cashflowToken);
-
-        return withdrawNative(order.cashflow.toUint256(), to);
     }
 
     function _deposit(IERC20 token, uint256 amount) internal returns (uint256) {
@@ -436,7 +295,7 @@ contract Maestro is IMaestro, UUPSUpgradeable, PayableMulticall {
     }
 
     function _authorizeUpgrade(address) internal virtual override {
-        if (msg.sender != Timelock.unwrap(timelock)) revert Unauthorised(msg.sender);
+        if (msg.sender != CoreTimelock.unwrap(timelock)) revert Unauthorised(msg.sender);
     }
 
     function _cashflowToken(TradeParams memory tradeParams) internal view returns (IERC20 cashflowToken) {

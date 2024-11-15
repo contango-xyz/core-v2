@@ -75,8 +75,7 @@ contract CompoundMoneyMarketView is BaseMoneyMarketView {
         override
         returns (uint256 ltv, uint256 liquidationThreshold)
     {
-        (, ltv,) = comptroller.markets(address(_cToken(collateralAsset)));
-        liquidationThreshold = ltv;
+        liquidationThreshold = ltv = comptroller.markets(_cToken(collateralAsset)).collateralFactorMantissa;
     }
 
     function _liquidity(PositionId, IERC20 collateralAsset, IERC20 debtAsset)

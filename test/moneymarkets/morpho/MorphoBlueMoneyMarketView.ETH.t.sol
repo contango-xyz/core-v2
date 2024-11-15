@@ -53,7 +53,7 @@ contract MorphoBlueMoneyMarketViewTest is Test {
         vm.prank(lp);
         morpho.supply({ marketParams: params, assets: 100_000e6, shares: 0, onBehalf: lp, data: "" });
 
-        vm.startPrank(Timelock.unwrap(TIMELOCK));
+        vm.startPrank(CoreTimelock.unwrap(CORE_TIMELOCK));
         reverseLookup.setOracle({
             asset: env.token(USDC),
             oracle: address(env.erc20(USDC).chainlinkUsdOracle),

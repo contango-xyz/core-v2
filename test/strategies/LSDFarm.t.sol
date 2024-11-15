@@ -44,7 +44,7 @@ contract LSDFarmTest is Test, GasSnapshot {
         (trader, traderPK) = makeAddrAndKey("trader");
         spotExecutor = env.maestro().spotExecutor();
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), lens, env.maestro().spotExecutor());
+        sut = env.strategyBuilder();
 
         address poolAddress = env.spotStub().stubPrice({
             base: longInstrument.baseData,
@@ -61,10 +61,6 @@ contract LSDFarmTest is Test, GasSnapshot {
 
         _longPositionId = encode(longInstrument.symbol, MM_AAVE, PERP, 0, flagsAndPayload(setBit("", E_MODE), bytes4(uint32(2))));
         _shortPositionId = env.encoder().encodePositionId(shortInstrument.symbol, MM_SONNE, PERP, 0);
-
-        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
-        vm.prank(TIMELOCK_ADDRESS);
-        feeModel.setDefaultFee(NO_FEE);
     }
 
     modifier invariants() {
@@ -160,8 +156,8 @@ contract LSDFarmTest is Test, GasSnapshot {
         steps.push(StepCall(Step.Trade, abi.encode(POSITION_ONE, quote.tradeParams, quote.execParams)));
         steps.push(StepCall(Step.PositionRepay, abi.encode(shortPositionId, POSITION_TWO, sut.ALL())));
         steps.push(StepCall(Step.PositionClose, abi.encode(shortPositionId, POSITION_TWO)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.base, sut.BALANCE(), trader)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.base, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.quote, sut.BALANCE(), trader)));
 
         snapStart("LSDFarm:Close");
         vm.prank(trader);
@@ -175,9 +171,7 @@ contract LSDFarmTest is Test, GasSnapshot {
             shortInstrument.base.balanceOf(trader), shortBalances.collateral, 1, shortInstrument.baseDecimals, "quote cashflow"
         );
         // 110.009422337537754852 * 1.2 - 119.165335891327421655 - 10.477152769016799995 = 2.3688181447
-        assertApproxEqAbsDecimal(
-            shortInstrument.quote.balanceOf(trader), 2.36881814468577835 ether, 1, shortInstrument.quoteDecimals, "base cashflow"
-        );
+        assertApproxEqAbsDecimal(trader.balance, 2.36881814468577835 ether, 1, shortInstrument.quoteDecimals, "base cashflow");
     }
 
 }

@@ -1,9 +1,12 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import { StorageSlot } from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
 import { IPermit2 } from "../dependencies/Uniswap.sol";
 import "@contango/erc721Permit2/interfaces/IERC721Permit2.sol";
@@ -20,10 +23,17 @@ interface IStrategyBlocksEvents {
 
 }
 
-abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, AccessControl {
+abstract contract StrategyBlocks is
+    IERC721Receiver,
+    IStrategyBlocksEvents,
+    AccessControlUpgradeable,
+    UUPSUpgradeable,
+    PausableUpgradeable
+{
 
     using ERC20Lib for *;
     using Address for address payable;
+    using StorageSlot for bytes32;
 
     error PositionLeftBehind();
     error InvalidCallback();
@@ -40,35 +50,46 @@ abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, Acce
 
     uint256 public constant ALL = type(uint256).max;
     uint256 public constant BALANCE = type(uint256).max - 1;
+    bytes32 public constant FLASH_LOAN_HASH_SLOT = keccak256("StrategyBlocks.flashLoanHash");
 
+    IMaestro public immutable maestro;
     IContango public immutable contango;
     IVault public immutable vault;
     PositionNFT public immutable positionNFT;
     IERC721Permit2 public immutable erc721Permit2;
     ContangoLens public immutable lens;
-    SimpleSpotExecutor public immutable spotExecutor;
     IPermit2 public immutable erc20Permit2;
     IWETH9 public immutable nativeToken;
 
-    bytes32 internal flashLoanHash;
-
-    constructor(Timelock timelock, IMaestro _maestro, IERC721Permit2 _erc721Permit2, ContangoLens _lens, SimpleSpotExecutor _spotExecutor) {
-        // Grant the admin role to the timelock by default
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
-
+    constructor(IMaestro _maestro, IERC721Permit2 _erc721Permit2, ContangoLens _lens) {
+        maestro = _maestro;
         contango = _maestro.contango();
         vault = _maestro.vault();
         positionNFT = contango.positionNFT();
-        spotExecutor = _spotExecutor;
         erc721Permit2 = _erc721Permit2;
         lens = _lens;
         erc20Permit2 = _maestro.permit2();
         nativeToken = _maestro.nativeToken();
     }
 
+    function initialize(CoreTimelock timelock) public initializer {
+        __AccessControl_init_unchained();
+        __UUPSUpgradeable_init_unchained();
+        __Pausable_init_unchained();
+        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(EMERGENCY_BREAK_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(RESTARTER_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(OPERATOR_ROLE, CoreTimelock.unwrap(timelock));
+    }
+
     // ======================== Public functions ========================
 
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external override returns (bytes4) {
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+        external
+        override
+        whenNotPaused
+        returns (bytes4)
+    {
         if (msg.sender != address(positionNFT)) revert NotPositionNFT();
 
         // When's not a position creation
@@ -81,15 +102,28 @@ abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, Acce
         return this.onERC721Received.selector;
     }
 
+    function spotExecutor() public view returns (SimpleSpotExecutor) {
+        return maestro.spotExecutor();
+    }
+
     // ======================== Modifiers ========================
 
     modifier validFlashloan(bytes memory data) {
-        if (keccak256(data) != flashLoanHash) revert InvalidCallback();
+        bytes32 hash = _flashLoanHash();
+        if (hash == "" || keccak256(data) != hash) revert InvalidCallback();
         _;
-        delete flashLoanHash;
+        _flashLoanHash("");
     }
 
     // ======================== Internal functions ========================
+
+    function _flashLoanHash() internal view returns (bytes32) {
+        return FLASH_LOAN_HASH_SLOT.getBytes32Slot().value;
+    }
+
+    function _flashLoanHash(bytes32 hash) internal {
+        FLASH_LOAN_HASH_SLOT.getBytes32Slot().value = hash;
+    }
 
     function _onPositionReceived(address operator, address from, uint256 tokenId, bytes calldata data) internal virtual;
 
@@ -104,11 +138,13 @@ abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, Acce
 
     function _vaultWithdraw(IERC20 asset, uint256 amount, address to) internal returns (uint256 actual) {
         if (amount == BALANCE) amount = vault.balanceOf(asset, address(this));
+        if (amount == 0) return 0;
         return vault.withdraw(asset, address(this), amount, to);
     }
 
     function _vaultWithdrawNative(uint256 amount, address payable to) internal returns (uint256 actual) {
         if (amount == BALANCE) amount = vault.balanceOf(nativeToken, address(this));
+        if (amount == 0) return 0;
         return vault.withdrawNative(address(this), amount, to);
     }
 
@@ -147,7 +183,7 @@ abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, Acce
         internal
         returns (SwapResult memory result)
     {
-        vault.withdraw(tokenToSell, address(this), swapData.amountIn, address(spotExecutor));
+        vault.withdraw(tokenToSell, address(this), swapData.amountIn, address(spotExecutor()));
         result = _swap(user, swapData, tokenToSell, tokenToBuy, address(vault));
         vault.depositTo(tokenToBuy, address(this), result.amountOut);
     }
@@ -156,7 +192,7 @@ abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, Acce
         internal
         returns (SwapResult memory)
     {
-        uint256 amountOut = spotExecutor.executeSwap({
+        uint256 amountOut = spotExecutor().executeSwap({
             tokenToSell: tokenToSell,
             tokenToBuy: tokenToBuy,
             amountIn: swapData.amountIn,
@@ -192,6 +228,21 @@ abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, Acce
             positionNFT.safeTransferFrom(address(this), owner, positionId.asUint());
             emit EndStrategy(positionId, owner);
         }
+    }
+
+    function _sweepDust(IERC20[10] memory tokens, uint256 tokenCount, address payable to) internal {
+        for (uint256 i = 0; i < tokenCount; i++) {
+            IERC20 token = tokens[i];
+            if (token == nativeToken) {
+                _vaultWithdrawNative(BALANCE, to);
+                nativeToken.transferBalanceNative(to);
+            } else {
+                _vaultWithdraw(token, BALANCE, to);
+                token.transferBalance(to);
+            }
+        }
+        uint256 balance = address(this).balance;
+        if (balance > 0) to.sendValue(balance);
     }
 
     function _trade(TradeParams memory params) internal returns (PositionId positionId_, Trade memory trade_) {
@@ -255,19 +306,32 @@ abstract contract StrategyBlocks is IERC721Receiver, IStrategyBlocksEvents, Acce
         if (msg.sender != address(nativeToken)) revert NotNativeToken();
     }
 
-    function retrieve(IERC20 token, address to) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) { }
+
+    // ======================== Admin functions ========================
+
+    function pause() external onlyRole(EMERGENCY_BREAK_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(RESTARTER_ROLE) {
+        _unpause();
+    }
+
+    // TODO these should be useless now, but will keep them for now
+    function retrieve(IERC20 token, address to) external onlyRole(OPERATOR_ROLE) {
         token.transferBalance(to);
     }
 
-    function retrieveNative(address payable to) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function retrieveNative(address payable to) external onlyRole(OPERATOR_ROLE) {
         to.sendValue(address(this).balance);
     }
 
-    function retrieve(PositionId positionId, address to) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function retrieve(PositionId positionId, address to) external onlyRole(OPERATOR_ROLE) {
         positionNFT.safeTransferFrom(address(this), to, positionId.asUint());
     }
 
-    function retrieveFromVault(IERC20 token, address to) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function retrieveFromVault(IERC20 token, address to) external onlyRole(OPERATOR_ROLE) {
         _vaultWithdraw(token, BALANCE, to);
     }
 

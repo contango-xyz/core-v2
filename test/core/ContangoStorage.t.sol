@@ -1,8 +1,6 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import "src/models/FixedFeeModel.sol";
-
 import "../BaseTest.sol";
 import "../StorageUtils.t.sol";
 
@@ -33,7 +31,7 @@ contract ContangoStorageTest is BaseTest {
         contango = env.contango();
         su = new StorageUtils(address(contango));
 
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         contango.grantRole(OPERATOR_ROLE, address(this));
     }
 

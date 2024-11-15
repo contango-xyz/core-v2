@@ -43,7 +43,7 @@ contract ContangoLens is AccessControlUpgradeable, UUPSUpgradeable, IContangoOra
         bytes irmRaw;
         AvailableActions[] availableActions;
         Limits limits;
-        uint256 fee;
+        uint256 fee; // Deprecated
         bool supportsFlashBorrow;
         TokenMetadata baseToken;
         TokenMetadata quoteToken;
@@ -58,13 +58,13 @@ contract ContangoLens is AccessControlUpgradeable, UUPSUpgradeable, IContangoOra
         positionNFT = _contango.positionNFT();
     }
 
-    function initialize(Timelock timelock) public initializer {
+    function initialize(CoreTimelock timelock) public initializer {
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
     }
 
-    function setMoneyMarketView(IMoneyMarketView immv) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setMoneyMarketView(IMoneyMarketView immv) public onlyRole(OPERATOR_ROLE) {
         MoneyMarketId mm = immv.moneyMarketId();
         moneyMarketViews[mm] = immv;
         emit MoneyMarketViewRegistered(mm, immv);
@@ -196,7 +196,6 @@ contract ContangoLens is AccessControlUpgradeable, UUPSUpgradeable, IContangoOra
         metaData_.irmRaw = mmv.irmRaw(positionId);
         metaData_.availableActions = mmv.availableActions(positionId);
         metaData_.limits = mmv.limits(positionId);
-        metaData_.fee = contango.feeManager().feeModel().calculateFee(address(0), positionId, WAD);
         metaData_.supportsFlashBorrow =
             contango.positionFactory().moneyMarket(positionId.getMoneyMarket()).supportsInterface(type(IFlashBorrowProvider).interfaceId);
         metaData_.baseToken = _tokenMetadata(instrument.base);

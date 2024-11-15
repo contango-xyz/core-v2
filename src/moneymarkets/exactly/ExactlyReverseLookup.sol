@@ -1,9 +1,6 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-
-import "../../libraries/DataTypes.sol";
 import "./dependencies/IAuditor.sol";
 
 interface ExactlyReverseLookupEvents {
@@ -12,42 +9,31 @@ interface ExactlyReverseLookupEvents {
 
 }
 
-contract ExactlyReverseLookup is ExactlyReverseLookupEvents, AccessControl {
+contract ExactlyReverseLookup is ExactlyReverseLookupEvents {
 
     error MarketNotFound(IERC20 asset);
+    error MarketNotListed(IExactlyMarket market);
 
     IAuditor public immutable auditor;
 
-    mapping(IERC20 token => IExactlyMarket market) private _markets;
+    mapping(IERC20 token => IExactlyMarket market) public markets;
+    mapping(IExactlyMarket market => IERC20 token) public assets;
 
-    constructor(Timelock timelock, IAuditor _auditor) {
+    constructor(IAuditor _auditor) {
         auditor = _auditor;
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
-        _update(_auditor);
     }
 
-    function update() external {
-        _update(auditor);
-    }
+    function setMarket(IExactlyMarket _market) external {
+        require(auditor.markets(_market).isListed, MarketNotListed(_market));
+        IERC20 asset = _market.asset();
 
-    function _update(IAuditor _auditor) private {
-        if (address(_auditor) != address(0)) {
-            IExactlyMarket[] memory allMarkets = _auditor.allMarkets();
-            for (uint256 i = 0; i < allMarkets.length; i++) {
-                IExactlyMarket _market = allMarkets[i];
-                _markets[_market.asset()] = _market;
-                emit MarketSet(_market.asset(), _market);
-            }
-        }
-    }
-
-    function setMarket(IERC20 asset, IExactlyMarket _market) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _markets[asset] = _market;
+        markets[asset] = _market;
+        assets[_market] = asset;
         emit MarketSet(asset, _market);
     }
 
     function market(IERC20 asset) external view returns (IExactlyMarket _market) {
-        _market = _markets[asset];
+        _market = markets[asset];
         if (_market == IExactlyMarket(address(0))) revert MarketNotFound(asset);
     }
 

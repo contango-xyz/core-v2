@@ -289,8 +289,8 @@ contract LodestarMoneyMarketViewTest is Test {
         assertEq(borrowing[0].token.symbol, "LODE", "Borrow reward[0] symbol");
         assertEq(borrowing[0].token.decimals, 18, "Borrow reward[0] decimals");
         assertEq(borrowing[0].token.unit, 1e18, "Borrow reward[0] unit");
-        assertEqDecimal(borrowing[0].rate, 0.021858691774497167e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
-        assertEqDecimal(borrowing[0].claimable, 244.749177770556468575e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
+        assertEqDecimal(borrowing[0].rate, 0.021859714903317657e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
+        assertEqDecimal(borrowing[0].claimable, 244.430003576525477819e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
         assertEqDecimal(borrowing[0].usdPrice, 0.069799336764938e18, 18, "Borrow reward[0] usdPrice");
 
         assertEq(address(lending[0].token.token), rewardsToken, "Lend reward[0] token");
@@ -298,8 +298,8 @@ contract LodestarMoneyMarketViewTest is Test {
         assertEq(lending[0].token.symbol, "LODE", "Lend reward[0] symbol");
         assertEq(lending[0].token.decimals, 18, "Lend reward[0] decimals");
         assertEq(lending[0].token.unit, 1e18, "Lend reward[0] unit");
-        assertEqDecimal(lending[0].rate, 0.016890434998734378e18, lending[0].token.decimals, "Lend reward[0] rate");
-        assertEqDecimal(lending[0].claimable, 288.777153511697578182e18, lending[0].token.decimals, "Lend reward[0] claimable");
+        assertEqDecimal(lending[0].rate, 0.016890439617573218e18, lending[0].token.decimals, "Lend reward[0] rate");
+        assertEqDecimal(lending[0].claimable, 288.709462938474531514e18, lending[0].token.decimals, "Lend reward[0] claimable");
         assertEqDecimal(lending[0].usdPrice, 0.069799336764938e18, 18, "Lend reward[0] usdPrice");
 
         address recipient = makeAddr("bank");

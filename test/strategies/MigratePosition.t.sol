@@ -49,11 +49,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
         spotExecutor = env.maestro().spotExecutor();
         router = env.uniswapRouter();
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), env.contangoLens(), env.maestro().spotExecutor());
-
-        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
-        vm.prank(TIMELOCK_ADDRESS);
-        feeModel.setDefaultFee(NO_FEE);
+        sut = env.strategyBuilder();
 
         env.spotStub().stubPrice({
             base: ethUsdc.baseData,
@@ -219,7 +215,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
         steps.push(StepCall(Step.PositionBorrow, abi.encode(0, POSITION_TWO, repayAmountInDaiWithBuffer)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(swapData, ethDai.quote, ethUsdc.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(ethUsdc.quote, repayAmount)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
 
         snapStart("MigratePositionTest:DifferentQuoteSameMarket");
         vm.prank(trader);
@@ -270,7 +266,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
         steps.push(StepCall(Step.PositionBorrow, abi.encode(0, POSITION_TWO, repayAmountInDaiWithBuffer)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(swapData, ethDai.quote, ethUsdc.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(ethUsdc.quote, repayAmount)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
 
         snapStart("MigratePositionTest:DifferentQuoteDifferentMarket");
         vm.prank(trader);
@@ -323,7 +319,7 @@ contract MigratePositionTest is BaseTest, GasSnapshot {
         steps.push(StepCall(Step.PositionBorrow, abi.encode(0, POSITION_TWO, repayAmountInDaiWithBuffer)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(quoteSwapData, ethDai.quote, ethUsdc.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(ethUsdc.quote, repayAmount)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(ethUsdc.quote, sut.BALANCE(), trader)));
         steps.push(StepCall(Step.EmitEvent, abi.encode(bytes32("PositionMigrated"), "some data")));
 
         snapStart("MigratePositionTest:DifferentBaseDifferentQuoteDifferentMarket");

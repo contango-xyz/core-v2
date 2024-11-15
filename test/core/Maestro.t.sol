@@ -1,12 +1,11 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import "src/models/FixedFeeModel.sol";
-
 import "../BaseTest.sol";
 import "forge-std/console.sol";
+import { GasSnapshot } from "forge-gas-snapshot/GasSnapshot.sol";
 
-contract MaestroTest is BaseTest {
+contract MaestroTest is BaseTest, IMaestroEvents, GasSnapshot {
 
     using SignedMath for *;
     using SafeCast for *;
@@ -89,15 +88,6 @@ contract MaestroTest is BaseTest {
         maestro.depositWithPermit(usdc, signedPermit, 9000e6);
 
         assertEq(vault.balanceOf(usdc, TRADER), 9000e6, "trader vault balance");
-    }
-
-    function testDepositWithPermit2_PermitAmount() public {
-        EIP2098Permit memory signedPermit = env.dealAndPermit2(usdc, TRADER, TRADER_PK, 10_000e6, address(maestro));
-
-        vm.prank(TRADER);
-        maestro.depositWithPermit2(usdc, signedPermit);
-
-        assertEq(vault.balanceOf(usdc, TRADER), 10_000e6, "trader vault balance");
     }
 
     function testDepositWithPermit2_LessThanPermitAmount() public {
@@ -196,10 +186,27 @@ contract MaestroTest is BaseTest {
         maestro.deposit(usdc, 10_000e6);
 
         vm.prank(TRADER);
+        snapStart("Maestro:Withdraw_PartialAmount");
         maestro.withdraw(usdc, 5000e6, TRADER);
+        snapEnd();
 
         assertEq(vault.balanceOf(usdc, TRADER), 5000e6, "trader vault balance");
         assertEq(usdc.balanceOf(TRADER), 5000e6, "trader balance");
+    }
+
+    function testTransfer_PartialAmount() public {
+        env.dealAndApprove(usdc, TRADER, 10_000e6, address(vault));
+        vm.prank(TRADER);
+        maestro.deposit(usdc, 10_000e6);
+        address otherGuy = makeAddr("other guy");
+
+        vm.prank(TRADER);
+        snapStart("Maestro:Transfer_PartialAmount");
+        maestro.transfer(usdc, 5000e6, otherGuy);
+        snapEnd();
+
+        assertEq(vault.balanceOf(usdc, TRADER), 5000e6, "trader vault balance");
+        assertEq(vault.balanceOf(usdc, otherGuy), 5000e6, "other guy balance");
     }
 
     function testWithdraw_All() public {
@@ -283,17 +290,28 @@ contract MaestroTest is BaseTest {
     }
 
     function testTrade() public {
-        env.dealAndApprove(usdc, TRADER, 4000e6, address(vault));
+        env.dealAndApprove(usdc, TRADER, 4004e6, address(vault));
         vm.prank(TRADER);
-        maestro.deposit(usdc, 4000e6);
+        maestro.deposit(usdc, 4004e6);
 
         (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
+        FeeParams memory feeParams = FeeParams({ token: usdc, amount: 4e6, basisPoints: 10 });
 
         vm.prank(TRADER);
-        (PositionId positionId,) = maestro.trade(tradeParams, executionParams);
+        vm.expectEmit(true, true, true, true);
+        emit FeeCollected(
+            PositionId.wrap(0x5745544855534443000000000000000001ffffffff0000000000000000000001),
+            TRADER,
+            TREASURY,
+            feeParams.token,
+            feeParams.amount,
+            feeParams.basisPoints
+        );
+        (PositionId positionId,) = maestro.tradeWithFees(tradeParams, executionParams, feeParams);
 
         assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
         assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
+        assertEq(usdc.balanceOf(TREASURY), 4e6, "fees collected");
     }
 
     function testTradeWithBalance() public {
@@ -308,30 +326,6 @@ contract MaestroTest is BaseTest {
         (PositionId positionId,) = maestro.trade(tradeParams, executionParams);
 
         assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
-        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
-    }
-
-    function testDepositAndTradeVanilla() public {
-        env.dealAndApprove(usdc, TRADER, 4000e6, address(vault));
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
-
-        vm.prank(TRADER);
-        (PositionId positionId,) = maestro.depositAndTrade(tradeParams, executionParams);
-
-        assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
-        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
-    }
-
-    function testDepositAndTradeNative() public {
-        vm.deal(TRADER, 4 ether);
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Base, 4 ether);
-
-        vm.prank(TRADER);
-        (PositionId positionId,) = maestro.depositAndTrade{ value: 4 ether }(tradeParams, executionParams);
-
-        assertEq(vault.balanceOf(weth, TRADER), 0, "trader vault balance");
         assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
     }
 
@@ -353,118 +347,13 @@ contract MaestroTest is BaseTest {
         assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
     }
 
-    function testDepositAndTradeNative_FailOnNonNativeToken() public {
-        vm.deal(TRADER, 4 ether);
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4 ether);
-
-        vm.prank(TRADER);
-        vm.expectRevert(abi.encodeWithSelector(IMaestro.NotNativeToken.selector, usdc));
-        maestro.depositAndTrade{ value: 4 ether }(tradeParams, executionParams);
-    }
-
-    function testDepositAndTradeWithPermit() public {
-        EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, 4000e6, address(vault));
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
-
-        vm.prank(TRADER);
-        (PositionId positionId,) = maestro.depositAndTradeWithPermit(tradeParams, executionParams, signedPermit);
-
-        assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
-        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
-    }
-
-    function testDepositAndTradeWithPermit_FailOnInsufficientPermitAmount() public {
-        uint256 cashflow = 4000e6;
-
-        EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, cashflow - 1, address(vault));
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, int256(cashflow));
-
-        vm.expectRevert(abi.encodeWithSelector(IMaestro.InsufficientPermitAmount.selector, cashflow, cashflow - 1));
-        vm.prank(TRADER);
-        maestro.depositAndTradeWithPermit(tradeParams, executionParams, signedPermit);
-    }
-
-    function testTradeAndWithdraw() public {
-        (, PositionId positionId,) = positionActions.openPosition({
-            symbol: instrument.symbol,
-            mm: MM_AAVE,
-            quantity: 10 ether,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
-
-        // decrease without cashflow without failing
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareCloseTrade(1 ether, positionId, Currency.None);
-
-        vm.prank(TRADER);
-        maestro.tradeAndWithdraw(tradeParams, executionParams, TRADER);
-
-        // fully close
-        (tradeParams, executionParams) = _prepareCloseTrade(positionId, Currency.Quote);
-
-        vm.prank(TRADER);
-        (, Trade memory trade_,) = maestro.tradeAndWithdraw(tradeParams, executionParams, TRADER);
-
-        assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
-        assertEq(usdc.balanceOf(TRADER), trade_.cashflow.abs(), "trader balance");
-    }
-
-    function testTradeAndWithdrawNative() public {
-        (, PositionId positionId,) = positionActions.openPosition({
-            symbol: instrument.symbol,
-            mm: MM_AAVE,
-            quantity: 10 ether,
-            cashflow: 4 ether,
-            cashflowCcy: Currency.Base
-        });
-
-        // decrease without cashflow without failing
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareCloseTrade(1 ether, positionId, Currency.None);
-
-        vm.prank(TRADER);
-        maestro.tradeAndWithdrawNative(tradeParams, executionParams, TRADER);
-
-        // fully close
-        (tradeParams, executionParams) = _prepareCloseTrade(positionId, Currency.Base);
-
-        vm.prank(TRADER);
-        (, Trade memory trade_,) = maestro.tradeAndWithdrawNative(tradeParams, executionParams, TRADER);
-
-        assertEq(vault.balanceOf(weth, TRADER), 0, "trader vault balance");
-        assertGt(TRADER.balance, trade_.cashflow.abs(), "trader balance");
-    }
-
-    function testTradeAndWithdraw_FailOnInvalidCashflow() public {
-        positionActions.openPosition({
-            symbol: instrument.symbol,
-            mm: MM_AAVE,
-            quantity: 10 ether,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
-
-        // increase with positive cashflow and try to withdraw
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
-        vm.expectRevert(IMaestro.InvalidCashflow.selector);
-        vm.prank(TRADER);
-        maestro.tradeAndWithdraw(tradeParams, executionParams, TRADER);
-
-        (tradeParams, executionParams) = _prepareTrade(Currency.Base, 4 ether);
-        vm.expectRevert(IMaestro.InvalidCashflow.selector);
-        vm.prank(TRADER);
-        maestro.tradeAndWithdrawNative(tradeParams, executionParams, TRADER);
-    }
-
     function testTradeAndLinkedOrder() public {
-        env.dealAndApprove(usdc, TRADER, 4000e6, address(vault));
+        env.dealAndApprove(usdc, TRADER, 4004e6, address(vault));
         vm.prank(TRADER);
-        maestro.deposit(usdc, 4000e6);
+        maestro.deposit(usdc, 4004e6);
 
         (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
+        FeeParams memory feeParams = FeeParams({ token: usdc, amount: 4e6, basisPoints: 10 });
 
         LinkedOrderParams memory linkedOrderParams = LinkedOrderParams({
             limitPrice: 1100e6,
@@ -475,7 +364,17 @@ contract MaestroTest is BaseTest {
         });
 
         vm.prank(TRADER);
-        (PositionId positionId,, OrderId linkedOrderId) = maestro.tradeAndLinkedOrder(tradeParams, executionParams, linkedOrderParams);
+        vm.expectEmit(true, true, true, true);
+        emit FeeCollected(
+            PositionId.wrap(0x5745544855534443000000000000000001ffffffff0000000000000000000001),
+            TRADER,
+            TREASURY,
+            feeParams.token,
+            feeParams.amount,
+            feeParams.basisPoints
+        );
+        (PositionId positionId,, OrderId linkedOrderId) =
+            maestro.tradeAndLinkedOrderWithFees(tradeParams, executionParams, linkedOrderParams, feeParams);
 
         assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
         assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
@@ -489,14 +388,16 @@ contract MaestroTest is BaseTest {
         assertEq(uint8(order.cashflowCcy), uint8(linkedOrderParams.cashflowCcy), "order cashflowCcy");
         assertEq(order.deadline, linkedOrderParams.deadline, "order deadline");
         assertEq(uint8(order.orderType), uint8(linkedOrderParams.orderType), "order orderType");
+        assertEq(usdc.balanceOf(TREASURY), 4e6, "fees collected");
     }
 
     function testTradeAndLinkedOrders() public {
-        env.dealAndApprove(usdc, TRADER, 4000e6, address(vault));
+        env.dealAndApprove(usdc, TRADER, 4004e6, address(vault));
         vm.prank(TRADER);
-        maestro.deposit(usdc, 4000e6);
+        maestro.deposit(usdc, 4004e6);
 
         (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
+        FeeParams memory feeParams = FeeParams({ token: usdc, amount: 4e6, basisPoints: 10 });
 
         LinkedOrderParams memory takeProfit = LinkedOrderParams({
             limitPrice: 1100e6,
@@ -515,202 +416,27 @@ contract MaestroTest is BaseTest {
         });
 
         vm.prank(TRADER);
+        vm.expectEmit(true, true, true, true);
+        emit FeeCollected(
+            PositionId.wrap(0x5745544855534443000000000000000001ffffffff0000000000000000000001),
+            TRADER,
+            TREASURY,
+            feeParams.token,
+            feeParams.amount,
+            feeParams.basisPoints
+        );
         (PositionId positionId,, OrderId takeProfitOrderId, OrderId stopLossOrderId) =
-            maestro.tradeAndLinkedOrders(tradeParams, executionParams, takeProfit, stopLoss);
+            maestro.tradeAndLinkedOrdersWithFees(tradeParams, executionParams, takeProfit, stopLoss, feeParams);
 
         assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
         assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
         assertEq(orderManager.orders(takeProfitOrderId).owner, TRADER, "tp owner");
         assertEq(orderManager.orders(stopLossOrderId).owner, TRADER, "sl owner");
+        assertEq(usdc.balanceOf(TREASURY), 4e6, "fees collected");
     }
 
-    function testDepositTradeAndLinkedOrder() public {
-        env.dealAndApprove(usdc, TRADER, 4000e6, address(vault));
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
-
-        LinkedOrderParams memory linkedOrderParams = LinkedOrderParams({
-            limitPrice: 1100e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        vm.prank(TRADER);
-        (PositionId positionId,, OrderId linkedOrderId) =
-            maestro.depositTradeAndLinkedOrder(tradeParams, executionParams, linkedOrderParams);
-
-        assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
-        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
-        Order memory order = orderManager.orders(linkedOrderId);
-        assertEq(order.owner, TRADER, "order owner");
-        assertEq(PositionId.unwrap(order.positionId), PositionId.unwrap(positionId), "order positionId");
-        assertEq(order.quantity, type(int128).min, "order quantity");
-        assertEq(order.limitPrice, linkedOrderParams.limitPrice, "order limitPrice");
-        assertEq(order.tolerance, linkedOrderParams.tolerance, "order tolerance");
-        assertEq(order.cashflow, 0, "order cashflow");
-        assertEq(uint8(order.cashflowCcy), uint8(linkedOrderParams.cashflowCcy), "order cashflowCcy");
-        assertEq(order.deadline, linkedOrderParams.deadline, "order deadline");
-        assertEq(uint8(order.orderType), uint8(linkedOrderParams.orderType), "order orderType");
-    }
-
-    function testDepositTradeAndLinkedOrderNative() public {
-        vm.deal(TRADER, 4 ether);
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Base, 4 ether);
-
-        LinkedOrderParams memory linkedOrderParams = LinkedOrderParams({
-            limitPrice: 1100e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Base,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        vm.prank(TRADER);
-        (PositionId positionId,, OrderId linkedOrderId) =
-            maestro.depositTradeAndLinkedOrder{ value: 4 ether }(tradeParams, executionParams, linkedOrderParams);
-
-        assertEq(vault.balanceOf(weth, TRADER), 0, "trader vault balance");
-        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
-        assertEq(orderManager.orders(linkedOrderId).owner, TRADER, "order owner");
-    }
-
-    function testDepositTradeAndLinkedOrderWithPermit() public {
-        EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, 4000e6, address(vault));
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
-
-        LinkedOrderParams memory linkedOrderParams = LinkedOrderParams({
-            limitPrice: 1100e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        vm.prank(TRADER);
-        (PositionId positionId,, OrderId linkedOrderId) =
-            maestro.depositTradeAndLinkedOrderWithPermit(tradeParams, executionParams, linkedOrderParams, signedPermit);
-
-        assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
-        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
-        assertEq(orderManager.orders(linkedOrderId).owner, TRADER, "order owner");
-    }
-
-    function testDepositTradeAndLinkedOrders() public {
-        env.dealAndApprove(usdc, TRADER, 4000e6, address(vault));
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
-
-        LinkedOrderParams memory takeProfit = LinkedOrderParams({
-            limitPrice: 1100e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        LinkedOrderParams memory stopLoss = LinkedOrderParams({
-            limitPrice: 900e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.StopLoss
-        });
-
-        vm.prank(TRADER);
-        (PositionId positionId,, OrderId takeProfitOrderId, OrderId stopLossOrderId) =
-            maestro.depositTradeAndLinkedOrders(tradeParams, executionParams, takeProfit, stopLoss);
-
-        assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
-        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
-        assertEq(orderManager.orders(takeProfitOrderId).owner, TRADER, "tp owner");
-        assertEq(orderManager.orders(stopLossOrderId).owner, TRADER, "sl owner");
-    }
-
-    function testDepositTradeAndLinkedOrdersNative() public {
-        vm.deal(TRADER, 4 ether);
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Base, 4 ether);
-
-        LinkedOrderParams memory takeProfit = LinkedOrderParams({
-            limitPrice: 1100e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Base,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        LinkedOrderParams memory stopLoss = LinkedOrderParams({
-            limitPrice: 900e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.StopLoss
-        });
-
-        vm.prank(TRADER);
-        (PositionId positionId,, OrderId takeProfitOrderId, OrderId stopLossOrderId) =
-            maestro.depositTradeAndLinkedOrders{ value: 4 ether }(tradeParams, executionParams, takeProfit, stopLoss);
-
-        assertEq(vault.balanceOf(weth, TRADER), 0, "trader vault balance");
-        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
-        assertEq(orderManager.orders(takeProfitOrderId).owner, TRADER, "tp owner");
-        assertEq(orderManager.orders(stopLossOrderId).owner, TRADER, "sl owner");
-    }
-
-    function testDepositTradeAndLinkedOrdersWithPermit() public {
-        EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, 4000e6, address(vault));
-
-        (TradeParams memory tradeParams, ExecutionParams memory executionParams) = _prepareTrade(Currency.Quote, 4000e6);
-
-        LinkedOrderParams memory takeProfit = LinkedOrderParams({
-            limitPrice: 1100e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        LinkedOrderParams memory stopLoss = LinkedOrderParams({
-            limitPrice: 900e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.StopLoss
-        });
-
-        vm.prank(TRADER);
-        (PositionId positionId,, OrderId takeProfitOrderId, OrderId stopLossOrderId) =
-            maestro.depositTradeAndLinkedOrdersWithPermit(tradeParams, executionParams, takeProfit, stopLoss, signedPermit);
-
-        assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
-        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
-        assertEq(orderManager.orders(takeProfitOrderId).owner, TRADER, "tp owner");
-        assertEq(orderManager.orders(stopLossOrderId).owner, TRADER, "sl owner");
-    }
-
-    function testPlace() public {
-        OrderParams memory params = OrderParams({
-            positionId: env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0),
-            quantity: 10 ether,
-            limitPrice: 1000e6,
-            tolerance: 0,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp),
-            orderType: OrderType.Limit
-        });
-
-        vm.prank(TRADER);
-        OrderId orderId = maestro.place(params);
-        assertEq(orderManager.orders(orderId).owner, TRADER, "order owner");
-    }
-
-    function testPlaceLinkedOrder() public {
-        (, PositionId positionId,) = positionActions.openPosition({
+    function testPlaceLinkedOrder() public returns (PositionId positionId, OrderId orderId) {
+        (, positionId,) = positionActions.openPosition({
             symbol: instrument.symbol,
             mm: MM_AAVE,
             quantity: 10 ether,
@@ -730,143 +456,12 @@ contract MaestroTest is BaseTest {
         maestro.placeLinkedOrder(positionId, linkedOrderParams);
 
         vm.prank(TRADER);
-        OrderId orderId = maestro.placeLinkedOrder(positionId, linkedOrderParams);
+        orderId = maestro.placeLinkedOrder(positionId, linkedOrderParams);
         assertEq(orderManager.orders(orderId).owner, TRADER, "order owner");
-    }
-
-    function testPlaceLinkedOrders() public {
-        (, PositionId positionId,) = positionActions.openPosition({
-            symbol: instrument.symbol,
-            mm: MM_AAVE,
-            quantity: 10 ether,
-            cashflow: 4 ether,
-            cashflowCcy: Currency.Base
-        });
-
-        LinkedOrderParams memory linkedOrderParams1 = LinkedOrderParams({
-            limitPrice: 1100e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        LinkedOrderParams memory linkedOrderParams2 = LinkedOrderParams({
-            limitPrice: 900e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.StopLoss
-        });
-
-        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
-        maestro.placeLinkedOrders(positionId, linkedOrderParams1, linkedOrderParams2);
-
-        vm.prank(TRADER);
-        (OrderId linkedOrderId1, OrderId linkedOrderId2) = maestro.placeLinkedOrders(positionId, linkedOrderParams1, linkedOrderParams2);
-        assertEq(orderManager.orders(linkedOrderId1).owner, TRADER, "linkedOrder1 owner");
-        assertEq(orderManager.orders(linkedOrderId2).owner, TRADER, "linkedOrder2 owner");
-    }
-
-    function testDepositAndPlace() public {
-        env.dealAndApprove(usdc, TRADER, 4000e6, address(vault));
-
-        OrderParams memory params = OrderParams({
-            positionId: env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0),
-            quantity: 10 ether,
-            limitPrice: 1000e6,
-            tolerance: 0,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp),
-            orderType: OrderType.Limit
-        });
-
-        vm.prank(TRADER);
-        OrderId orderId = maestro.depositAndPlace(params);
-        assertEq(orderManager.orders(orderId).owner, TRADER, "order owner");
-        assertEq(vault.balanceOf(usdc, TRADER), 4000e6, "trader vault balance");
-    }
-
-    function testDepositAndPlaceNative() public {
-        vm.deal(TRADER, 4 ether);
-
-        OrderParams memory params = OrderParams({
-            positionId: env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0),
-            quantity: 10 ether,
-            limitPrice: 1000e6,
-            tolerance: 0,
-            cashflow: 4 ether,
-            cashflowCcy: Currency.Base,
-            deadline: uint32(block.timestamp),
-            orderType: OrderType.Limit
-        });
-
-        vm.prank(TRADER);
-        OrderId orderId = maestro.depositAndPlace{ value: 4 ether }(params);
-        assertEq(orderManager.orders(orderId).owner, TRADER, "order owner");
-        assertEq(vault.balanceOf(weth, TRADER), 4 ether, "trader vault balance");
-    }
-
-    function testDepositAndPlaceWithPermit() public {
-        EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, 4000e6, address(vault));
-
-        OrderParams memory params = OrderParams({
-            positionId: env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0),
-            quantity: 10 ether,
-            limitPrice: 1000e6,
-            tolerance: 0,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp),
-            orderType: OrderType.Limit
-        });
-
-        vm.prank(TRADER);
-        OrderId orderId = maestro.depositAndPlaceWithPermit(params, signedPermit);
-        assertEq(orderManager.orders(orderId).owner, TRADER, "order owner");
-        assertEq(vault.balanceOf(usdc, TRADER), 4000e6, "trader vault balance");
-    }
-
-    function testDepositAndPlaceWithPermit_FailOnInsufficientPermitAmount() public {
-        uint256 cashflow = 4000e6;
-
-        EIP2098Permit memory signedPermit = env.dealAndPermit(usdc, TRADER, TRADER_PK, cashflow - 1, address(vault));
-
-        OrderParams memory params = OrderParams({
-            positionId: env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0),
-            quantity: 10 ether,
-            limitPrice: 1000e6,
-            tolerance: 0,
-            cashflow: int128(int256(cashflow)),
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp),
-            orderType: OrderType.Limit
-        });
-
-        vm.expectRevert(abi.encodeWithSelector(IMaestro.InsufficientPermitAmount.selector, cashflow, cashflow - 1));
-        vm.prank(TRADER);
-        maestro.depositAndPlaceWithPermit(params, signedPermit);
     }
 
     function testCancel() public {
-        env.dealAndApprove(usdc, TRADER, 4000e6, address(vault));
-
-        OrderParams memory params = OrderParams({
-            positionId: env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0),
-            quantity: 10 ether,
-            limitPrice: 1000e6,
-            tolerance: 0,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp),
-            orderType: OrderType.Limit
-        });
-
-        vm.prank(TRADER);
-        OrderId orderId = maestro.depositAndPlace(params);
-        assertEq(orderManager.orders(orderId).owner, TRADER, "order owner");
-        assertEq(vault.balanceOf(usdc, TRADER), 4000e6, "trader vault balance");
+        (, OrderId orderId) = testPlaceLinkedOrder();
 
         vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
         maestro.cancel(orderId);
@@ -874,244 +469,6 @@ contract MaestroTest is BaseTest {
         vm.prank(TRADER);
         maestro.cancel(orderId);
         assertEq(orderManager.orders(orderId).owner, address(0), "order owner");
-        assertEq(vault.balanceOf(usdc, TRADER), 4000e6, "trader vault balance");
-    }
-
-    function testCancelMultipleOrders() public {
-        (, PositionId positionId,) = positionActions.openPosition({
-            symbol: instrument.symbol,
-            mm: MM_AAVE,
-            quantity: 10 ether,
-            cashflow: 4 ether,
-            cashflowCcy: Currency.Base
-        });
-
-        LinkedOrderParams memory linkedOrderParams1 = LinkedOrderParams({
-            limitPrice: 1100e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        LinkedOrderParams memory linkedOrderParams2 = LinkedOrderParams({
-            limitPrice: 900e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.StopLoss
-        });
-
-        vm.prank(TRADER);
-        (OrderId linkedOrderId1, OrderId linkedOrderId2) = maestro.placeLinkedOrders(positionId, linkedOrderParams1, linkedOrderParams2);
-        assertEq(orderManager.orders(linkedOrderId1).owner, TRADER, "linkedOrder1 owner");
-        assertEq(orderManager.orders(linkedOrderId2).owner, TRADER, "linkedOrder2 owner");
-
-        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
-        maestro.cancel(linkedOrderId1, linkedOrderId2);
-
-        vm.prank(TRADER);
-        maestro.cancel(linkedOrderId1, linkedOrderId2);
-        assertEq(orderManager.orders(linkedOrderId1).owner, address(0), "linkedOrder1 owner");
-        assertEq(orderManager.orders(linkedOrderId2).owner, address(0), "linkedOrder2 owner");
-    }
-
-    function testCancelReplaceLinkedOrder() public {
-        (, PositionId positionId,) = positionActions.openPosition({
-            symbol: instrument.symbol,
-            mm: MM_AAVE,
-            quantity: 10 ether,
-            cashflow: 4 ether,
-            cashflowCcy: Currency.Base
-        });
-
-        LinkedOrderParams memory linkedOrderParams = LinkedOrderParams({
-            limitPrice: 1100e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        vm.prank(TRADER);
-        OrderId linkedOrderId = maestro.placeLinkedOrder(positionId, linkedOrderParams);
-        assertEq(orderManager.orders(linkedOrderId).owner, TRADER, "linkedOrder owner");
-
-        LinkedOrderParams memory newLinkedOrderParams = LinkedOrderParams({
-            limitPrice: 900e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.StopLoss
-        });
-
-        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
-        maestro.cancelReplaceLinkedOrder(linkedOrderId, newLinkedOrderParams);
-
-        vm.prank(TRADER);
-        OrderId newLinkedOrderId = maestro.cancelReplaceLinkedOrder(linkedOrderId, newLinkedOrderParams);
-        assertEq(orderManager.orders(linkedOrderId).owner, address(0), "linkedOrder owner");
-        assertEq(orderManager.orders(newLinkedOrderId).owner, TRADER, "newLinkedOrder owner");
-    }
-
-    function testCancelReplaceLinkedOrders() public {
-        (, PositionId positionId,) = positionActions.openPosition({
-            symbol: instrument.symbol,
-            mm: MM_AAVE,
-            quantity: 10 ether,
-            cashflow: 4 ether,
-            cashflowCcy: Currency.Base
-        });
-
-        LinkedOrderParams memory linkedOrderParams1 = LinkedOrderParams({
-            limitPrice: 1100e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        LinkedOrderParams memory linkedOrderParams2 = LinkedOrderParams({
-            limitPrice: 900e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.StopLoss
-        });
-
-        vm.prank(TRADER);
-        (OrderId linkedOrderId1, OrderId linkedOrderId2) = maestro.placeLinkedOrders(positionId, linkedOrderParams1, linkedOrderParams2);
-        assertEq(orderManager.orders(linkedOrderId1).owner, TRADER, "linkedOrder1 owner");
-        assertEq(orderManager.orders(linkedOrderId2).owner, TRADER, "linkedOrder2 owner");
-
-        LinkedOrderParams memory newLinkedOrderParams1 = LinkedOrderParams({
-            limitPrice: 1200e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.TakeProfit
-        });
-
-        LinkedOrderParams memory newLinkedOrderParams2 = LinkedOrderParams({
-            limitPrice: 800e6,
-            tolerance: 0.01e4,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp + 1 days),
-            orderType: OrderType.StopLoss
-        });
-
-        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
-        maestro.cancelReplaceLinkedOrders(linkedOrderId1, linkedOrderId2, newLinkedOrderParams1, newLinkedOrderParams2);
-
-        vm.prank(TRADER);
-        (OrderId newLinkedOrderId1, OrderId newLinkedOrderId2) =
-            maestro.cancelReplaceLinkedOrders(linkedOrderId1, linkedOrderId2, newLinkedOrderParams1, newLinkedOrderParams2);
-        assertEq(orderManager.orders(linkedOrderId1).owner, address(0), "cancelledLinkedOrder1 owner");
-        assertEq(orderManager.orders(linkedOrderId2).owner, address(0), "cancelledLinkedOrder2 owner");
-        assertEq(orderManager.orders(newLinkedOrderId1).owner, TRADER, "newLinkedOrder1 owner");
-        assertEq(orderManager.orders(newLinkedOrderId2).owner, TRADER, "newLinkedOrder2 owner");
-    }
-
-    function testCancelReplaceLinkedOrders_FailOnDifferentPositionIds() public {
-        (, PositionId positionId1,) = positionActions.openPosition({
-            symbol: instrument.symbol,
-            mm: MM_AAVE,
-            quantity: 10 ether,
-            cashflow: 4 ether,
-            cashflowCcy: Currency.Base
-        });
-        (, PositionId positionId2,) = positionActions.openPosition({
-            symbol: instrument.symbol,
-            mm: MM_AAVE,
-            quantity: 9 ether,
-            cashflow: 3 ether,
-            cashflowCcy: Currency.Base
-        });
-
-        vm.prank(TRADER);
-        OrderId linkedOrderId1 = maestro.placeLinkedOrder(
-            positionId1,
-            LinkedOrderParams({
-                limitPrice: 1100e6,
-                tolerance: 0.01e4,
-                cashflowCcy: Currency.Quote,
-                deadline: uint32(block.timestamp + 1 days),
-                orderType: OrderType.TakeProfit
-            })
-        );
-
-        vm.prank(TRADER);
-        OrderId linkedOrderId2 = maestro.placeLinkedOrder(
-            positionId2,
-            LinkedOrderParams({
-                limitPrice: 1100e6,
-                tolerance: 0.01e4,
-                cashflowCcy: Currency.Quote,
-                deadline: uint32(block.timestamp + 1 days),
-                orderType: OrderType.TakeProfit
-            })
-        );
-
-        assertEq(orderManager.orders(linkedOrderId1).owner, TRADER, "linkedOrder1 owner");
-        assertEq(orderManager.orders(linkedOrderId2).owner, TRADER, "linkedOrder2 owner");
-
-        LinkedOrderParams memory emptyLinkedOrderParams;
-
-        vm.expectRevert(abi.encodeWithSelector(IMaestro.MismatchingPositionId.selector, linkedOrderId1, linkedOrderId2));
-        vm.prank(TRADER);
-        maestro.cancelReplaceLinkedOrders(linkedOrderId1, linkedOrderId2, emptyLinkedOrderParams, emptyLinkedOrderParams);
-    }
-
-    function testCancelAndWithdraw() public {
-        env.dealAndApprove(usdc, TRADER, 4000e6, address(vault));
-
-        OrderParams memory params = OrderParams({
-            positionId: env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0),
-            quantity: 10 ether,
-            limitPrice: 1000e6,
-            tolerance: 0,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote,
-            deadline: uint32(block.timestamp),
-            orderType: OrderType.Limit
-        });
-
-        vm.prank(TRADER);
-        OrderId orderId = maestro.depositAndPlace(params);
-        assertEq(orderManager.orders(orderId).owner, TRADER, "order owner");
-        assertEq(vault.balanceOf(usdc, TRADER), 4000e6, "trader vault balance");
-
-        vm.prank(TRADER);
-        maestro.cancelAndWithdraw(orderId, TRADER);
-        assertEq(orderManager.orders(orderId).owner, address(0), "order owner");
-        assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
-        assertEq(usdc.balanceOf(TRADER), 4000e6, "trader balance");
-    }
-
-    function testCancelAndWithdrawNative() public {
-        vm.deal(TRADER, 4 ether);
-
-        OrderParams memory params = OrderParams({
-            positionId: env.encoder().encodePositionId(instrument.symbol, MM_AAVE, PERP, 0),
-            quantity: 10 ether,
-            limitPrice: 1000e6,
-            tolerance: 0,
-            cashflow: 4 ether,
-            cashflowCcy: Currency.Base,
-            deadline: uint32(block.timestamp),
-            orderType: OrderType.Limit
-        });
-
-        vm.prank(TRADER);
-        OrderId orderId = maestro.depositAndPlace{ value: 4 ether }(params);
-        assertEq(orderManager.orders(orderId).owner, TRADER, "order owner");
-        assertEq(vault.balanceOf(weth, TRADER), 4 ether, "trader vault balance");
-
-        vm.prank(TRADER);
-        maestro.cancelAndWithdrawNative(orderId, TRADER);
-        assertEq(orderManager.orders(orderId).owner, address(0), "order owner");
-        assertEq(vault.balanceOf(weth, TRADER), 0, "trader vault balance");
-        assertEq(TRADER.balance, 4 ether, "trader balance");
     }
 
     function _prepareCloseTrade(PositionId positionId, Currency cashflowCcy)

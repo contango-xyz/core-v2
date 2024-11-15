@@ -44,7 +44,7 @@ contract CrossStableFundingRateFarmTest is Test, GasSnapshot {
         (trader, traderPK) = makeAddrAndKey("trader");
         spotExecutor = env.maestro().spotExecutor();
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), lens, env.maestro().spotExecutor());
+        sut = env.strategyBuilder();
 
         stubChainlinkPrice(1000e8, address(env.erc20(WETH).chainlinkUsdOracle));
         stubChainlinkPrice(1e8, address(env.erc20(USDC).chainlinkUsdOracle));
@@ -52,10 +52,6 @@ contract CrossStableFundingRateFarmTest is Test, GasSnapshot {
 
         _longPositionId = env.encoder().encodePositionId(longInstrument.symbol, MM_AAVE, PERP, 0);
         _shortPositionId = env.encoder().encodePositionId(shortInstrument.symbol, MM_EXACTLY, PERP, 0);
-
-        FixedFeeModel feeModel = FixedFeeModel(address(contango.feeManager().feeModel()));
-        vm.prank(TIMELOCK_ADDRESS);
-        feeModel.setDefaultFee(NO_FEE);
     }
 
     modifier invariants() {
@@ -174,9 +170,9 @@ contract CrossStableFundingRateFarmTest is Test, GasSnapshot {
         steps.push(StepCall(Step.PositionClose, abi.encode(longPositionId, POSITION_ONE)));
         steps.push(StepCall(Step.SwapFromVault, abi.encode(swapData1, shortInstrument.base, shortInstrument.quote)));
         steps.push(StepCall(Step.RepayFlashloan, abi.encode(shortInstrument.quote, flashLoanAmount + flashLoanFee)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.base, sut.BALANCE(), trader)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.quote, sut.BALANCE(), trader)));
-        steps.push(StepCall(Step.VaultWithdraw, abi.encode(longInstrument.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.base, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(shortInstrument.quote, sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.VaultWithdraw, abi.encode(longInstrument.quote, sut.BALANCE(), trader)));
 
         snapStart("CrossStableFarmPosition:Close");
         vm.prank(trader);
@@ -187,9 +183,7 @@ contract CrossStableFundingRateFarmTest is Test, GasSnapshot {
         assertFalse(positionNFT.exists(shortPositionId), "shortPositionId exists");
 
         assertApproxEqAbsDecimal(shortInstrument.base.balanceOf(trader), 9752.808197e6, 1, shortInstrument.baseDecimals, "quote cashflow");
-        assertApproxEqAbsDecimal(
-            shortInstrument.quote.balanceOf(trader), 0.083965569592839651 ether, 1, shortInstrument.quoteDecimals, "base cashflow"
-        );
+        assertApproxEqAbsDecimal(trader.balance, 0.083965569592839651 ether, 1, shortInstrument.quoteDecimals, "base cashflow");
         assertApproxEqAbsDecimal(
             longInstrument.quote.balanceOf(trader), 27.100309638357927773e18, 1, longInstrument.quoteDecimals, "quote 2 cashflow"
         );

@@ -9,15 +9,13 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol"
 import "../interfaces/IVault.sol";
 import "../libraries/DataTypes.sol";
 import "../libraries/ERC20Lib.sol";
-import { CONTANGO_ROLE } from "../libraries/Roles.sol";
+import { CONTANGO_ROLE, OPERATOR_ROLE } from "../libraries/Roles.sol";
 import { SenderIsNotNativeToken } from "../libraries/Errors.sol";
 
 contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, PausableUpgradeable, UUPSUpgradeable {
 
     using ERC20Lib for IERC20;
     using ERC20Lib for IWETH9;
-
-    event TokenSupportSet(IERC20 indexed token, bool indexed isSupported);
 
     struct TokenData {
         bool isSupported;
@@ -43,16 +41,16 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
         nativeToken = _nativeToken;
     }
 
-    function initialize(Timelock timelock) public initializer {
+    function initialize(CoreTimelock timelock) public initializer {
         __ReentrancyGuard_init_unchained();
         __AccessControl_init_unchained();
         __Pausable_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
         _setTokenSupport(nativeToken, true);
     }
 
-    function setTokenSupport(IERC20 token, bool isSupported) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTokenSupport(IERC20 token, bool isSupported) external onlyRole(OPERATOR_ROLE) {
         _setTokenSupport(token, isSupported);
     }
 
@@ -84,6 +82,8 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
 
         if (available < amount) token.transferOut({ payer: payer, to: address(this), amount: amount - available });
 
+        emit Deposited(token, account, amount);
+
         return amount;
     }
 
@@ -101,6 +101,26 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
 
         nativeToken.deposit{ value: amount }();
         return deposit(nativeToken, account, amount);
+    }
+
+    function transfer(IERC20 token, address sender, address recipient, uint256 amount)
+        public
+        override
+        authorised(sender)
+        returns (uint256)
+    {
+        _validAmount(amount);
+        if (recipient == address(0)) revert ZeroAddress();
+        TokenData storage tokenData = tokens[token];
+        uint256 balance = tokenData.accountBalances[sender];
+        if (balance < amount) revert NotEnoughBalance(token, balance, amount);
+
+        tokenData.accountBalances[sender] = balance - amount;
+        tokenData.accountBalances[recipient] += amount;
+
+        emit Transferred(token, sender, recipient, amount);
+
+        return amount;
     }
 
     function withdraw(IERC20 token, address account, uint256 amount, address to) public authorised(account) returns (uint256) {
@@ -122,6 +142,8 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
 
         if (address(token) == address(_nativeToken)) _nativeToken.transferOutNative({ to: payable(to), amount: amount });
         else token.transferOut({ payer: address(this), to: to, amount: amount });
+
+        emit Withdrawn(token, account, amount, to);
 
         return amount;
     }

@@ -55,7 +55,6 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     PositionNFT public immutable positionNFT;
     IVault public immutable vault;
     IUnderlyingPositionFactory public immutable positionFactory;
-    IFeeManager public immutable feeManager;
     SpotExecutor public immutable spotExecutor;
 
     /**
@@ -73,19 +72,18 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
     mapping(PositionId positionId => address owner) public lastOwner;
     mapping(Symbol symbol => InstrumentStorage instrument) private instruments;
 
-    constructor(PositionNFT nft, IVault v, IUnderlyingPositionFactory pf, IFeeManager fm, SpotExecutor spot) {
+    constructor(PositionNFT nft, IVault v, IUnderlyingPositionFactory pf, SpotExecutor spot) {
         positionNFT = nft;
         vault = v;
         positionFactory = pf;
-        feeManager = fm;
         spotExecutor = spot;
     }
 
-    function initialize(Timelock timelock) public initializer {
+    function initialize(CoreTimelock timelock) public initializer {
         __AccessControl_init_unchained();
         __Pausable_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
     }
 
     // ============================= IContango =========================
@@ -242,9 +240,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         // if applicable, protect against swap overspending base
         _ensureEnoughBaseAfterSwap(trade_.swap, cb.cashflow, quantity);
 
-        (trade_.fee, trade_.feeCcy) = _applyFee(cb, quantity);
-
-        trade_.quantity = cb.moneyMarket.lend(cb.positionId, cb.instrument.base, quantity - trade_.fee).toInt256();
+        trade_.quantity = cb.moneyMarket.lend(cb.positionId, cb.instrument.base, quantity).toInt256();
 
         uint256 repaid = ERC20Lib.myBalance(cb.instrument.quote);
         if (repaid > 0 && cb.cashflow > 0) {
@@ -330,8 +326,8 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             cashflow: _trade.cashflow,
             quantityDelta: _trade.quantity,
             price: _trade.swap.price,
-            fee: _trade.fee,
-            feeCcy: _trade.feeCcy
+            fee: 0,
+            feeCcy: Currency.None
         });
     }
 
@@ -383,8 +379,6 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         if (asset == cb.instrument.quote) trade_.swap = _executeSwap(cb.ep, cb.instrument, cb.instrument.quote, cb.limitPrice);
 
         if (repayTo != address(0)) ERC20Lib.transferOut(asset, address(this), repayTo, amountOwed);
-
-        (trade_.fee, trade_.feeCcy) = _applyFee(cb, withdrawn);
 
         trade_.quantity = -cb.quantity.toInt256();
         if (cb.cashflow <= 0) {
@@ -468,10 +462,6 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             uint256 requiredBase = uint256(cashflow) - quantity;
             if ((-swap.input).toUint256() > requiredBase) revert InsufficientBaseOnOpen(requiredBase, -swap.input);
         }
-    }
-
-    function _applyFee(FlashLoanCallback memory cb, uint256 quantity) private returns (uint256 fee, Currency feeCcy) {
-        (fee, feeCcy) = feeManager.applyFee(cb.owner, cb.positionId, quantity);
     }
 
     function _flash(
@@ -627,7 +617,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         if (_trade.cashflowCcy == Currency.Base) {
             // Scenario 17
             // distributes debt repayment to the quantity decrease
-            cost = (withdrawn - _trade.fee).mulDiv(repaid, (-_trade.swap.input).toUint256());
+            cost = withdrawn.mulDiv(repaid, (-_trade.swap.input).toUint256());
         } else {
             // Scenario 18
             // distributes spot cost + debt delta to the cashflow
@@ -641,11 +631,11 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             if (repaid != 0) {
                 // Scenarios 19, 23, 30
                 // distributes debt repayment to the quantity decrease
-                cost = (withdrawn - _trade.fee).mulDiv(repaid, (-_trade.swap.input).toUint256());
+                cost = withdrawn.mulDiv(repaid, (-_trade.swap.input).toUint256());
             } else {
                 // Scenario 20
                 // distributes swap cost to the quantity decrease
-                cost = (withdrawn - _trade.fee).mulDiv((-_trade.swap.input).toUint256(), _trade.swap.output.toUint256());
+                cost = withdrawn.mulDiv((-_trade.swap.input).toUint256(), _trade.swap.output.toUint256());
             }
         } else {
             uint256 spotCost = _trade.swap.output.toUint256();
@@ -707,9 +697,6 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         instruments[symbol].quote = quote;
         instruments[symbol].quoteUnit = ERC20Lib.unit(quote).toUint64();
 
-        ERC20Lib.approveIfNecessary(base, address(feeManager));
-        ERC20Lib.approveIfNecessary(quote, address(feeManager));
-
         emit InstrumentCreated(symbol, base, quote);
     }
 
@@ -722,7 +709,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         _pause();
     }
 
-    function unpause() external override onlyRole(EMERGENCY_BREAK_ROLE) {
+    function unpause() external override onlyRole(RESTARTER_ROLE) {
         _unpause();
     }
 

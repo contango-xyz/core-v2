@@ -35,7 +35,7 @@ contract AaveMoneyMarketPolygonTest is Test {
         uint256 borrowAmount = 5000e6;
 
         sut = env.deployer().deployAaveMoneyMarket(env, IContango(contango));
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         IContango(contango).createInstrument(Symbol.wrap("EURSUSDC"), lendToken, borrowToken);
         positionId = encode(Symbol.wrap("EURSUSDC"), MM_AAVE, PERP, 1, flagsAndPayload(setBit("", ISOLATION_MODE), ""));
         vm.startPrank(contango);
@@ -89,7 +89,7 @@ contract AaveMoneyMarketPolygonTest is Test {
         uint256 borrowAmount = 9000e6;
 
         sut = env.deployer().deployAaveMoneyMarket(env, IContango(contango));
-        vm.prank(TIMELOCK_ADDRESS);
+        vm.prank(CORE_TIMELOCK_ADDRESS);
         IContango(contango).createInstrument(Symbol.wrap("EURSUSDC"), lendToken, borrowToken);
         positionId = encode(
             Symbol.wrap("EURSUSDC"), MM_AAVE, PERP, 1, flagsAndPayload(setBit(setBit("", E_MODE), ISOLATION_MODE), bytes4(uint32(1)))

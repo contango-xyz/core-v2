@@ -66,7 +66,7 @@ contract SiloMoneyMarketViewEthereumTest is Test {
         Balances memory balances = sut.balances(positionId);
 
         assertApproxEqRelDecimal(balances.collateral, 10.033696393348613946e18, TOLERANCE, instrument.baseDecimals, "Collateral balance");
-        assertApproxEqRelDecimal(balances.debt, 3.650738554839231413e18, TOLERANCE, instrument.quoteDecimals, "Debt balance");
+        assertApproxEqRelDecimal(balances.debt, 3.638971308898843791e18, TOLERANCE, instrument.quoteDecimals, "Debt balance");
     }
 
     function testPrices() public view {
@@ -105,7 +105,7 @@ contract SiloMoneyMarketViewEthereumTest is Test {
         Balances memory balances = sut.balancesUSD(positionId);
 
         assertApproxEqRelDecimal(balances.collateral, 11_678.190444438632545296e18, TOLERANCE, 18, "Collateral balance");
-        assertApproxEqRelDecimal(balances.debt, 3650.738554839231413e18, TOLERANCE, 18, "Debt balance");
+        assertApproxEqRelDecimal(balances.debt, 3638.971308898843791e18, TOLERANCE, 18, "Debt balance");
     }
 
     function testBorrowingLiquidity() public {
@@ -123,7 +123,7 @@ contract SiloMoneyMarketViewEthereumTest is Test {
 
         assertEqDecimal(beforePosition, 5.007188324600535793e18, instrument.quoteDecimals, "Borrowing liquidity");
         assertApproxEqRelDecimal(
-            beforePosition - afterPosition, 3.650738554839231412e18, TOLERANCE, instrument.quoteDecimals, "Borrowing liquidity delta"
+            beforePosition - afterPosition, 3.63897130889884379e18, TOLERANCE, instrument.quoteDecimals, "Borrowing liquidity delta"
         );
     }
 

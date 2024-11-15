@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 import { OPERATOR_ROLE } from "../../libraries/Roles.sol";
-import { Timelock, PositionId, Payload } from "../../libraries/DataTypes.sol";
+import { CoreTimelock, PositionId, Payload } from "../../libraries/DataTypes.sol";
 import "./dependencies/IEulerVault.sol";
 
 interface EulerReverseLookupEvents {
@@ -22,9 +22,9 @@ contract EulerReverseLookup is EulerReverseLookupEvents, AccessControl {
     mapping(uint16 id => IEulerVault vault) public idToVault;
     mapping(IEulerVault vault => uint16 id) public vaultToId;
 
-    constructor(Timelock timelock) {
-        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
-        _grantRole(OPERATOR_ROLE, Timelock.unwrap(timelock));
+    constructor(CoreTimelock timelock) {
+        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(OPERATOR_ROLE, CoreTimelock.unwrap(timelock));
     }
 
     function setVault(IEulerVault _vault) external onlyRole(OPERATOR_ROLE) returns (uint16 id) {

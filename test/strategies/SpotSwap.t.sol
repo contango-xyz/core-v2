@@ -43,7 +43,7 @@ contract SpotSwapTest is BaseTest, GasSnapshot {
         usdc = env.token(USDC);
         dai = env.token(DAI);
 
-        sut = new StrategyBuilder(TIMELOCK, env.maestro(), env.erc721Permit2(), env.contangoLens(), env.maestro().spotExecutor());
+        sut = env.strategyBuilder();
 
         env.spotStub().stubPrice({ base: env.erc20(WETH), quote: env.erc20(USDC), baseUsdPrice: 1000e8, quoteUsdPrice: 1e8, uniswapFee: 500 });
 
@@ -132,7 +132,7 @@ contract SpotSwapTest is BaseTest, GasSnapshot {
 
         steps.push(StepCall(Step.PullFundsWithPermit, abi.encode(sell, signedPermit, quantity, spotExecutor)));
         steps.push(StepCall(Step.Swap, abi.encode(swapData, sell, buy, sut)));
-        steps.push(StepCall(Step.UnwrapNativeToken, abi.encode(sut.BALANCE(), trader)));
+        // steps.push(StepCall(Step.UnwrapNativeToken, abi.encode(sut.BALANCE(), trader)));
 
         vm.prank(trader);
         sut.process(steps);

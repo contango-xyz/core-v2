@@ -60,11 +60,11 @@ contract Hacks is BaseTest {
 
         Balances memory balances1 = env.contangoLens().balances(positionId1);
         assertApproxEqAbsDecimal(balances1.collateral, 9.99 ether, 0.001 ether, instrument.baseDecimals, "collateral 1");
-        assertApproxEqAbsDecimal(balances1.debt, 6010e6, 1e6, instrument.quoteDecimals, "debt 1");
+        assertApproxEqAbsDecimal(balances1.debt, 6000e6, 1e6, instrument.quoteDecimals, "debt 1");
 
         Balances memory balances2 = env.contangoLens().balances(positionId2);
         assertApproxEqAbsDecimal(balances2.collateral, 9.99 ether, 0.001 ether, instrument.baseDecimals, "collateral 2");
-        assertApproxEqAbsDecimal(balances2.debt, 6010e6, 1e6, instrument.quoteDecimals, "debt 2");
+        assertApproxEqAbsDecimal(balances2.debt, 6000e6, 1e6, instrument.quoteDecimals, "debt 2");
 
         IERC20 weth = env.token(WETH);
 

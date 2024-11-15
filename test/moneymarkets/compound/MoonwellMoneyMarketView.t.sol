@@ -282,8 +282,8 @@ contract MoonwellMoneyMarketViewTest is Test {
         assertEq(lending[0].token.symbol, "WELL", "Lend reward[0] symbol");
         assertEq(lending[0].token.decimals, 18, "Lend reward[0] decimals");
         assertEq(lending[0].token.unit, 1e18, "Lend reward[0] unit");
-        assertEqDecimal(lending[0].rate, 0.107626424604698657e18, lending[0].token.decimals, "Lend reward[0] rate");
-        assertEqDecimal(lending[0].claimable, 3143.73263062793752074e18, lending[0].token.decimals, "Lend reward[0] claimable");
+        assertEqDecimal(lending[0].rate, 0.107626426043995116e18, lending[0].token.decimals, "Lend reward[0] rate");
+        assertEqDecimal(lending[0].claimable, 3143.701196969140417551e18, lending[0].token.decimals, "Lend reward[0] claimable");
         assertEqDecimal(lending[0].usdPrice, 0.014074495497785e18, 18, "Lend reward[0] usdPrice");
 
         address recipient = makeAddr("bank");

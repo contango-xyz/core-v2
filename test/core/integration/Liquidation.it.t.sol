@@ -172,12 +172,23 @@ abstract contract AbstractCompoundV2Liquidation is Liquidation {
     using { first } for Vm.Log[];
     using { asAddress } for bytes32;
 
+    int256 internal cashflow;
+
+    function setUp(Network network, MoneyMarketId _mm, bytes32 base, bytes32 quote, int256 _cashflow) internal virtual {
+        setUp(network, forkBlock(network), _mm, base, quote, _cashflow);
+    }
+
+    function setUp(Network network, uint256 blockNo, MoneyMarketId _mm, bytes32 base, bytes32 quote, int256 _cashflow) internal virtual {
+        super.setUp(network, blockNo, _mm, base, quote);
+        cashflow = _cashflow;
+    }
+
     function test_Liquidate() public {
         (, positionId,) = env.positionActions().openPosition({
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
-            cashflow: 0,
+            cashflow: cashflow,
             cashflowCcy: Currency.Quote
         });
 
@@ -204,10 +215,38 @@ abstract contract AbstractCompoundV2Liquidation is Liquidation {
 
 }
 
+contract CompoundV2Liquidation is AbstractCompoundV2Liquidation {
+
+    function setUp() public {
+        super.setUp(Network.Mainnet, MM_COMPOUND, WETH, DAI, 1751e18);
+
+        address oracle = env.compoundComptroller().oracle();
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5),
+            abi.encode(1000e18)
+        );
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643),
+            abi.encode(1e18)
+        );
+    }
+
+    function _movePrice(int256 percentage) internal override {
+        vm.mockCall(
+            env.compoundComptroller().oracle(),
+            abi.encodeWithSelector(IUniswapAnchoredView.getUnderlyingPrice.selector, 0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5),
+            abi.encode(1000e18 * (percentage + 1e18) / 1e18)
+        );
+    }
+
+}
+
 contract LodestarLiquidation is AbstractCompoundV2Liquidation {
 
     function setUp() public {
-        super.setUp(Network.Arbitrum, 152_284_580, MM_LODESTAR, WETH, USDC);
+        super.setUp(Network.Arbitrum, 152_284_580, MM_LODESTAR, WETH, USDC, 2001e6);
     }
 
 }
@@ -215,7 +254,7 @@ contract LodestarLiquidation is AbstractCompoundV2Liquidation {
 contract MoonwellLiquidation is AbstractCompoundV2Liquidation {
 
     function setUp() public {
-        super.setUp(Network.Base, MM_MOONWELL, WETH, USDC);
+        super.setUp(Network.Base, MM_MOONWELL, WETH, USDC, 2001e6);
     }
 
 }
@@ -235,7 +274,7 @@ contract EulerLiquidation is Liquidation {
 
         EulerMoneyMarket mm = EulerMoneyMarket(address(contango.positionFactory().moneyMarket(MM_EULER)));
 
-        vm.startPrank(TIMELOCK_ADDRESS);
+        vm.startPrank(CORE_TIMELOCK_ADDRESS);
         uint16 ethId = mm.reverseLookup().setVault(ethVault);
         uint16 usdcId = mm.reverseLookup().setVault(usdcVault);
         vm.stopPrank();
@@ -255,7 +294,7 @@ contract EulerLiquidation is Liquidation {
             symbol: instrument.symbol,
             mm: mm,
             quantity: 10 ether,
-            cashflow: 0,
+            cashflow: 2101e6,
             cashflowCcy: Currency.Quote
         });
 
