@@ -194,21 +194,6 @@ contract MaestroTest is BaseTest, IMaestroEvents, GasSnapshot {
         assertEq(usdc.balanceOf(TRADER), 5000e6, "trader balance");
     }
 
-    function testTransfer_PartialAmount() public {
-        env.dealAndApprove(usdc, TRADER, 10_000e6, address(vault));
-        vm.prank(TRADER);
-        maestro.deposit(usdc, 10_000e6);
-        address otherGuy = makeAddr("other guy");
-
-        vm.prank(TRADER);
-        snapStart("Maestro:Transfer_PartialAmount");
-        maestro.transfer(usdc, 5000e6, otherGuy);
-        snapEnd();
-
-        assertEq(vault.balanceOf(usdc, TRADER), 5000e6, "trader vault balance");
-        assertEq(vault.balanceOf(usdc, otherGuy), 5000e6, "other guy balance");
-    }
-
     function testWithdraw_All() public {
         env.dealAndApprove(usdc, TRADER, 10_000e6, address(vault));
         vm.prank(TRADER);
@@ -506,5 +491,83 @@ contract MaestroTest is BaseTest, IMaestroEvents, GasSnapshot {
         tradeParams = quote.tradeParams;
         executionParams = quote.execParams;
     }
+
+    function testRoute() public {
+        address validIntegration = address(new Integration());
+        address invalidIntegration = address(new Integration());
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, address(this)));
+        maestro.setIntegration(validIntegration, true);
+
+        vm.prank(TIMELOCK_ADDRESS);
+        maestro.setIntegration(validIntegration, true);
+        assertEq(maestro.isIntegration(validIntegration), true, "valid integration");
+
+        vm.expectCall(validIntegration, abi.encodeWithSelector(Integration.foo.selector));
+        maestro.route(validIntegration, 0, abi.encodeWithSelector(Integration.foo.selector));
+
+        vm.expectRevert(abi.encodeWithSelector(IMaestro.UnknownIntegration.selector, invalidIntegration));
+        maestro.route(invalidIntegration, 0, "");
+
+        vm.prank(TIMELOCK_ADDRESS);
+        maestro.setIntegration(validIntegration, false);
+        assertEq(maestro.isIntegration(validIntegration), false, "now is invalid integration");
+
+        vm.expectRevert(abi.encodeWithSelector(IMaestro.UnknownIntegration.selector, validIntegration));
+        maestro.route(validIntegration, 0, "");
+    }
+
+    function testTransferPosition() public {
+        (, PositionId positionId,) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4000e6,
+            cashflowCcy: Currency.Quote
+        });
+
+        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
+
+        vm.expectRevert("ERC721: transfer from incorrect owner");
+        maestro.transferPosition(positionId, TRADER2, "");
+
+        vm.prank(TRADER);
+        maestro.transferPosition(positionId, TRADER2, "");
+
+        assertEq(positionNFT.positionOwner(positionId), TRADER2, "new position owner");
+    }
+
+    function testTradeOnExistingPosition() public {
+        (, PositionId positionId,) = env.positionActions().openPosition({
+            symbol: instrument.symbol,
+            mm: MM_AAVE,
+            quantity: 10 ether,
+            cashflow: 4000e6,
+            cashflowCcy: Currency.Quote
+        });
+
+        env.dealAndApprove(usdc, TRADER, 4004e6, address(vault));
+        vm.prank(TRADER);
+        maestro.deposit(usdc, 4004e6);
+
+        TSQuote memory quote =
+            positionActions.quoteWithCashflow({ positionId: positionId, quantity: 10 ether, cashflow: 4000e6, cashflowCcy: Currency.Quote });
+        FeeParams memory feeParams = FeeParams({ token: usdc, amount: 4e6, basisPoints: 10 });
+
+        vm.prank(TRADER);
+        vm.expectEmit(true, true, true, true);
+        emit FeeCollected(positionId, TRADER, TREASURY, feeParams.token, feeParams.amount, feeParams.basisPoints);
+        (positionId,) = maestro.tradeWithFees(quote.tradeParams, quote.execParams, feeParams);
+
+        assertEq(vault.balanceOf(usdc, TRADER), 0, "trader vault balance");
+        assertEq(positionNFT.positionOwner(positionId), TRADER, "position owner");
+        assertEq(usdc.balanceOf(TREASURY), 4e6, "fees collected");
+    }
+
+}
+
+contract Integration {
+
+    function foo() external pure { }
 
 }

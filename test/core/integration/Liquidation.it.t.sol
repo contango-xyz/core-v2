@@ -274,7 +274,7 @@ contract EulerLiquidation is Liquidation {
 
         EulerMoneyMarket mm = EulerMoneyMarket(address(contango.positionFactory().moneyMarket(MM_EULER)));
 
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         uint16 ethId = mm.reverseLookup().setVault(ethVault);
         uint16 usdcId = mm.reverseLookup().setVault(usdcVault);
         vm.stopPrank();

@@ -18,7 +18,6 @@ interface IVaultEvents {
     event TokenSupportSet(IERC20 indexed token, bool indexed isSupported);
     event Deposited(IERC20 indexed token, address indexed account, uint256 amount);
     event Withdrawn(IERC20 indexed token, address indexed account, uint256 amount, address indexed to);
-    event Transferred(IERC20 indexed token, address indexed sender, address indexed recipient, uint256 amount);
 
 }
 
@@ -39,8 +38,6 @@ interface IVault is IVaultErrors, IVaultEvents {
     function depositTo(IERC20 token, address account, uint256 amount) external returns (uint256);
 
     function depositNative(address account) external payable returns (uint256);
-
-    function transfer(IERC20 token, address sender, address recipient, uint256 amount) external returns (uint256);
 
     function withdraw(IERC20 token, address account, uint256 amount, address to) external returns (uint256);
 

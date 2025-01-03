@@ -53,13 +53,7 @@ contract MorphoBlueMoneyMarketViewTest is Test {
         vm.prank(lp);
         morpho.supply({ marketParams: params, assets: 100_000e6, shares: 0, onBehalf: lp, data: "" });
 
-        vm.startPrank(CoreTimelock.unwrap(CORE_TIMELOCK));
-        reverseLookup.setOracle({
-            asset: env.token(USDC),
-            oracle: address(env.erc20(USDC).chainlinkUsdOracle),
-            oracleType: "CHAINLINK",
-            oracleCcy: QuoteOracleCcy.USD
-        });
+        vm.startPrank(Timelock.unwrap(TIMELOCK));
         payload = reverseLookup.setMarket(params.id());
         vm.stopPrank();
 
@@ -105,35 +99,6 @@ contract MorphoBlueMoneyMarketViewTest is Test {
         assertEqDecimal(prices.collateral, 1000e24, 24, "Collateral price");
         assertEqDecimal(prices.debt, 1e24, 24, "Debt price");
         assertEq(prices.unit, 1e24, "Oracle Unit");
-    }
-
-    function testBaseQuoteRate() public view {
-        uint256 baseQuoteRate = sut.baseQuoteRate(positionId);
-        assertEqDecimal(baseQuoteRate, 1000e6, instrument.quoteDecimals, "Base quote rate");
-    }
-
-    function testPriceInNativeToken() public view {
-        assertEqDecimal(sut.priceInNativeToken(instrument.base), 1e18, 18, "Base price in native token");
-        assertEqDecimal(sut.priceInNativeToken(instrument.quote), 0.001e18, 18, "Quote price in native token");
-    }
-
-    function testPriceInUSD() public view {
-        assertEqDecimal(sut.priceInUSD(instrument.base), 1000e18, 18, "Base price in USD");
-        assertEqDecimal(sut.priceInUSD(instrument.quote), 1e18, 18, "Quote price in USD");
-    }
-
-    function testBalancesUSD() public {
-        (, positionId,) = env.positionActions().openPosition({
-            positionId: positionId,
-            quantity: 10 ether,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
-
-        Balances memory balances = sut.balancesUSD(positionId);
-
-        assertApproxEqRelDecimal(balances.collateral, 10_000e18, TOLERANCE, 18, "Collateral balance");
-        assertApproxEqRelDecimal(balances.debt, 6000e18, TOLERANCE, 18, "Debt balance");
     }
 
     function testBorrowingLiquidity() public {

@@ -142,6 +142,7 @@ mainnet = { key = "${ETHERSCAN_MAINNET_KEY}" }
 gnosis = { key = "${ETHERSCAN_GNOSIS_KEY}" }
 base = { key = "${ETHERSCAN_BASE_KEY}" }
 bsc = { key = "${ETHERSCAN_BSC_KEY}" }
+scroll = { key = "${ETHERSCAN_SCROLL_KEY}" }
 # polygonZK = { key = "${ETHERSCAN_POLYGON_ZK_KEY}" }
 
 [fmt]
@@ -184,9 +185,9 @@ include_push_bytes = true
 # The number of runs that must execute for each invariant test group
 runs = 256
 # The number of calls executed to attempt to break invariants in one run
-depth = 15
+depth = 25
 # Fails the invariant fuzzing if a revert occurs
-fail_on_revert = false
+fail_on_revert = true
 # Allows overriding an unsafe external call when running invariant tests. eg. reentrancy checks
 call_override = false
 # The weight of the dictionary

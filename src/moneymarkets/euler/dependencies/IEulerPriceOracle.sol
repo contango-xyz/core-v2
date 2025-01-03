@@ -3,11 +3,7 @@ pragma solidity ^0.8.4;
 
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-/// @title IPriceOracle
-/// @custom:security-contact security@euler.xyz
-/// @author Euler Labs (https://www.eulerlabs.com/)
-/// @notice Common PriceOracle interface.
-interface IPriceOracle {
+interface IEulerPriceOracle {
 
     /// @notice Get the name of the oracle.
     /// @return The name of the oracle.

@@ -26,6 +26,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     IOrderManager internal om;
     IVault internal vault;
     PositionActions internal positionActions;
+    IERC20 internal usdc;
 
     address internal keeper = address(0xb07);
     address internal uniswap;
@@ -37,6 +38,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         env = provider(Network.Arbitrum);
         env.init();
         mm = MM_AAVE;
+        usdc = env.token(USDC);
         instrument = env.createInstrument(env.erc20(WETH), env.erc20(USDC));
         contango = env.contango();
         positionActions = env.positionActions();
@@ -57,11 +59,11 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         maestro = env.maestro();
         uniswap = env.uniswap();
 
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         OrderManager(address(om)).grantRole(BOT_ROLE, keeper);
 
-        vm.prank(CORE_TIMELOCK_ADDRESS);
-        OrderManager(address(om)).grantRole(OPERATOR_ROLE, CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
+        OrderManager(address(om)).grantRole(OPERATOR_ROLE, TIMELOCK_ADDRESS);
 
         // Sets block.basefee
         vm.fee(1.5e9); // 1.5 gwei
@@ -77,7 +79,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
     function testStorage() public {
         StorageUtils su = new StorageUtils(address(om));
 
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         om.setGasMultiplier(3e4);
         om.setGasTip(3e9);
         vm.stopPrank();
@@ -318,9 +320,13 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         OrderId orderId = om.place(params);
         assertTrue(om.hasOrder(orderId), "order placed");
 
+        FeeParams memory feeParams = FeeParams({ token: usdc, amount: 4e6, basisPoints: 10 });
+
         vm.recordLogs();
         vm.prank(keeper);
-        (, Trade memory trade, uint256 keeperReward) = om.execute(orderId, quote.execParams);
+        vm.expectEmit(true, true, true, true);
+        emit FeeCollected(orderId, positionId, TRADER, TREASURY, feeParams.token, feeParams.amount, feeParams.basisPoints);
+        (, Trade memory trade, uint256 keeperReward) = om.executeWithFees(orderId, quote.execParams, feeParams);
 
         _assertOrderExecutedEvent(orderId, positionId, keeperReward);
         assertFalse(om.hasOrder(orderId), "order removed");
@@ -331,6 +337,8 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         assertGt(keeperReward, 0, "keeper reward");
         assertEqDecimal(instrument.quote.balanceOf(keeper), keeperReward, instrument.quoteDecimals, "keeper balance");
+
+        assertEq(usdc.balanceOf(TREASURY), 4e6, "fees collected");
     }
 
     function testCancel_HP() public {
@@ -1020,16 +1028,16 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
         om.setGasMultiplier(1e4);
 
         vm.expectRevert(abi.encodeWithSelector(AboveMaxGasMultiplier.selector, 11e4));
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         om.setGasMultiplier(11e4);
 
         vm.expectRevert(abi.encodeWithSelector(BelowMinGasMultiplier.selector, 0.9e4));
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         om.setGasMultiplier(0.9e4);
 
         vm.expectEmit(true, true, true, true);
         emit GasMultiplierSet(5e4);
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         om.setGasMultiplier(5e4);
     }
 
@@ -1039,7 +1047,7 @@ contract OrderManagerFunctional is BaseTest, IOrderManagerEvents, IOrderManagerE
 
         vm.expectEmit(true, true, true, true);
         emit GasTipSet(3e9);
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         om.setGasTip(3e9);
     }
 

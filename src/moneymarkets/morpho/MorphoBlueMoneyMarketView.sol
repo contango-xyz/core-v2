@@ -65,52 +65,6 @@ contract MorphoBlueMoneyMarketView is BaseMoneyMarketView {
         prices_.debt = prices_.unit = 10 ** priceDecimals;
     }
 
-    // Morpho's Oracles don't follow the pattern of returning the price of the base currency in USD or ETH
-    // Instead, they return the price of the collateral in the loan token
-    // So these 2 functions can't be implemented
-    // The reason why they are not made to revert is because Solidity would thrown an "Unreachable code" error
-    function _oraclePrice(IERC20 asset) internal view virtual override returns (uint256) { }
-    function _oracleUnit() internal view virtual override returns (uint256) { }
-
-    function priceInNativeToken(IERC20 asset) public view virtual override returns (uint256 price_) {
-        uint256 nativeTokenDecimals = nativeToken.decimals();
-        uint256 nativeTokenUnit = 10 ** nativeTokenDecimals;
-        if (asset == nativeToken) return nativeTokenUnit;
-
-        MorphoMarketId marketId = reverseLookup.assetToMarketId(asset);
-        if (MorphoMarketId.unwrap(marketId) != bytes32(0)) {
-            MarketParams memory params = morpho.idToMarketParams(marketId);
-            uint256 priceDecimals = ORACLE_PRICE_DECIMALS + params.loanToken.decimals() - params.collateralToken.decimals();
-            price_ = params.oracle.price();
-            if (priceDecimals < 18) price_ *= 10 ** (18 - priceDecimals);
-            if (priceDecimals > 18) price_ /= 10 ** (priceDecimals - 18);
-            if (params.loanToken == nativeToken) return price_;
-            asset = params.loanToken;
-        }
-
-        QuoteOracle memory quoteOracle = reverseLookup.assetToQuoteOracle(asset);
-        if (quoteOracle.oracle == address(0)) revert OracleNotFound(asset);
-
-        uint256 oraclePrice;
-        if (quoteOracle.oracleType == "CHAINLINK") {
-            oraclePrice = uint256(IAggregatorV2V3(quoteOracle.oracle).latestAnswer());
-            uint256 oracleDecimals = uint256(IAggregatorV2V3(quoteOracle.oracle).decimals());
-            if (oracleDecimals < 18) oraclePrice *= 10 ** (18 - oracleDecimals);
-        }
-
-        price_ = price_ > 0 ? price_ * oraclePrice / WAD : oraclePrice;
-
-        if (quoteOracle.oracleCcy == QuoteOracleCcy.NATIVE) return price_;
-
-        uint256 nativeAssetPrice = uint256(nativeUsdOracle.latestAnswer()) * 1e10;
-
-        price_ = price_ * nativeTokenUnit / nativeAssetPrice;
-    }
-
-    function priceInUSD(IERC20 asset) public view virtual override returns (uint256 price_) {
-        return _derivePriceInUSD(asset);
-    }
-
     function _thresholds(PositionId positionId, IERC20, IERC20)
         internal
         view
@@ -155,5 +109,12 @@ contract MorphoBlueMoneyMarketView is BaseMoneyMarketView {
             })
         );
     }
+
+    // So these functions can't be implemented
+    // The reason why they are not made to revert is because Solidity would thrown an "Unreachable code" error
+    function _oraclePrice(IERC20 asset) internal view virtual override returns (uint256) { }
+    function _oracleUnit() internal view virtual override returns (uint256) { }
+    function priceInUSD(IERC20 asset) public view virtual override returns (uint256 price_) { }
+    function priceInNativeToken(IERC20 asset) public view virtual override returns (uint256 price_) { }
 
 }

@@ -44,7 +44,7 @@ contract EulerMoneyMarketView is BaseMoneyMarketView {
     {
         IEulerVault quoteVault = reverseLookup.quote(positionId);
         IERC20 unitOfAccount = quoteVault.unitOfAccount();
-        IPriceOracle oracle = quoteVault.oracle();
+        IEulerPriceOracle oracle = quoteVault.oracle();
 
         prices_.debt = oracle.getQuote(10 ** debtAsset.decimals(), debtAsset, unitOfAccount);
         prices_.collateral = oracle.getQuote(10 ** collateralAsset.decimals(), collateralAsset, unitOfAccount);

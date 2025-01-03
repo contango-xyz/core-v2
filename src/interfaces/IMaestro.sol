@@ -24,17 +24,12 @@ struct SwapData {
     bytes swapBytes;
 }
 
-struct FeeParams {
-    IERC20 token;
-    uint256 amount;
-    uint8 basisPoints;
-}
-
 interface IMaestroEvents {
 
     event FeeCollected(
         PositionId indexed positionId, address indexed trader, address treasury, IERC20 token, uint256 amount, uint8 basisPoints
     );
+    event IntegrationSet(address indexed integration, bool whitelisted);
 
 }
 
@@ -44,6 +39,7 @@ interface IMaestro is IContangoErrors, IOrderManagerErrors, IVaultErrors, IMaest
     error InsufficientPermitAmount(uint256 required, uint256 actual);
     error MismatchingPositionId(OrderId orderId1, OrderId orderId2);
     error NotNativeToken(IERC20 token);
+    error UnknownIntegration(address integration);
 
     function contango() external view returns (IContango);
     function orderManager() external view returns (IOrderManager);
@@ -52,6 +48,13 @@ interface IMaestro is IContangoErrors, IOrderManagerErrors, IVaultErrors, IMaest
     function nativeToken() external view returns (IWETH9);
     function spotExecutor() external view returns (SimpleSpotExecutor);
     function permit2() external view returns (IPermit2);
+
+    // =================== Routing management ===================
+
+    function route(address integration, uint256 value, bytes calldata data) external payable returns (bytes memory result);
+    function isIntegration(address integration) external view returns (bool);
+    function setIntegration(address integration, bool whitelisted) external;
+    function transferPosition(PositionId positionId, address to, bytes memory data) external payable;
 
     // =================== Funding primitives ===================
 

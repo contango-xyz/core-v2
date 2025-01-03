@@ -47,7 +47,7 @@ contract EulerMoneyMarketViewRewardsTest is BaseTest, Addresses {
 
         assertEq(data.rewardsData.length, 0);
 
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         rewardOperator.addLiveReward(woethVault, ogn);
 
         data = mmv.rawData(positionId);

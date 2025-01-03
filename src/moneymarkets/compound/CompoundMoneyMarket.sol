@@ -40,7 +40,7 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
         if (debtAsset != nativeToken) debtAsset.forceApprove(address(cToken(debtAsset)), type(uint256).max);
     }
 
-    function _lend(PositionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
+    function _lend(PositionId, IERC20 asset, uint256 amount, address payer, uint256) internal override returns (uint256 actualAmount) {
         asset.transferOut(payer, address(this), amount);
 
         Error _error;
@@ -58,7 +58,7 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
         if (_error != Error.NO_ERROR) revert FailedToEnterMarket(_error);
     }
 
-    function _withdraw(PositionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _withdraw(PositionId, IERC20 asset, uint256 amount, address to, uint256) internal override returns (uint256 actualAmount) {
         ICToken _cToken = cToken(asset);
         actualAmount = Math.min(amount, _cToken.balanceOfUnderlying(address(this)));
         Error _error = _cToken.redeemUnderlying(actualAmount);
@@ -68,7 +68,7 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
         asset.transferOut(address(this), to, actualAmount);
     }
 
-    function _borrow(PositionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _borrow(PositionId, IERC20 asset, uint256 amount, address to, uint256) internal override returns (uint256 actualAmount) {
         Error _error = cToken(asset).borrow(amount);
         if (_error != Error.NO_ERROR) revert FailedToBorrow(_error);
 
@@ -76,9 +76,13 @@ contract CompoundMoneyMarket is BaseMoneyMarket {
         actualAmount = asset.transferOut(address(this), to, amount);
     }
 
-    function _repay(PositionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
+    function _repay(PositionId, IERC20 asset, uint256 amount, address payer, uint256 debt)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         ICToken _cToken = cToken(asset);
-        actualAmount = Math.min(amount, _cToken.borrowBalanceCurrent(address(this)));
+        actualAmount = Math.min(amount, debt);
         asset.transferOut(payer, address(this), actualAmount);
 
         if (asset == nativeToken) {

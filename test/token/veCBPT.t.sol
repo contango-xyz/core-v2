@@ -7,6 +7,7 @@ import { IBalancerVault } from "../dependencies/Balancer.sol";
 import "./dependencies/IVotingEscrow.sol";
 import "./dependencies/IRewardDistributor.sol";
 import "./dependencies/IRewardFaucet.sol";
+import "src/token/SmartWalletChecker.sol";
 
 import { ERC20Mock } from "../stub/ERC20Mock.sol";
 
@@ -38,8 +39,7 @@ contract VeCbptTest is BaseTest {
         LP3 = makeAddr("LP3");
         keeper = makeAddr("keeper");
 
-        address smartWalletChecker = makeAddr("SmartWalletChecker");
-        vm.mockCall(smartWalletChecker, abi.encodeWithSelector(SmartWalletChecker.check.selector), abi.encode(true));
+        address smartWalletChecker = address(new SmartWalletChecker());
 
         vm.startPrank(owner);
         veCBPT.commit_smart_wallet_checker(smartWalletChecker);
@@ -115,12 +115,62 @@ contract VeCbptTest is BaseTest {
         rewardDistributor.depositToken(REWARD_TOKEN, 10e18);
         vm.stopPrank();
 
-        assertEqDecimal(
-            rewardDistributor.getTokensDistributedInWeek(REWARD_TOKEN, rewardDistributorStartTime), 10e18, 18, "Total rewards for the week"
+        uint256 distributedTokens = rewardDistributor.getTokensDistributedInWeek(REWARD_TOKEN, rewardDistributorStartTime);
+        assertEqDecimal(distributedTokens, 10e18, 18, "Total rewards for the week");
+
+        // LP1: 9.824183789934328002e18 * 10e18 / 15.280770547914081606e18 = 6.45e18
+        uint256 expectedLP1Balance = 6.45e18;
+
+        // Gotta checkpoint the user and totalSupply to get the correct balance
+        rewardDistributor.checkpointUser(LP1);
+        rewardDistributor.checkpoint();
+
+        assertApproxEqAbsDecimal(
+            rewardDistributor.getUserBalanceAtTimestamp(LP1, rewardDistributorStartTime) * distributedTokens
+                / rewardDistributor.getTotalSupplyAtTimestamp(rewardDistributorStartTime),
+            expectedLP1Balance,
+            0.1e18,
+            18,
+            "LP1 balance"
         );
 
         // Rewards deposited on week N are claimable on week N+1
         skip(1 weeks + 1 days);
+
+        // LP2: 4.837882420081470402e18 * 10e18 / 15.280770547914081606e18 = 3.16e18
+        // LP3: 0.618704337898283202e18 * 10e18 / 15.280770547914081606e18 = 0.39e18
+        // 6.45 + 3.16 + 0.39 = 10
+
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP1, REWARD_TOKEN), expectedLP1Balance, 0.1e18, 18, "LP1 rewards");
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP2, REWARD_TOKEN), 3.16e18, 0.1e18, 18, "LP2 rewards");
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP3, REWARD_TOKEN), 0.39e18, 0.1e18, 18, "LP3 rewards");
+    }
+
+    function testRewardsDistribution_DiffLocks_SameAmount_ClaimAfterExpiry() public {
+        _createLock(LP1, 10e18, 52 weeks);
+        _createLock(LP2, 10e18, 26 weeks);
+        _createLock(LP3, 10e18, 4 weeks);
+
+        assertEqDecimal(veCBPT.balanceOf(LP1), 9.824183789934328002e18, 18, "LP1 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP2), 4.837882420081470402e18, 18, "LP2 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP3), 0.618704337898283202e18, 18, "LP3 balance");
+        assertEqDecimal(veCBPT.totalSupply(), 15.280770547914081606e18, 18, "Total supply");
+
+        vm.warp(rewardDistributorStartTime + 1);
+
+        REWARD_TOKEN.mint(keeper, 10e18);
+        vm.startPrank(keeper);
+        REWARD_TOKEN.approve(address(rewardDistributor), 10e18);
+        rewardDistributor.depositToken(REWARD_TOKEN, 10e18);
+        vm.stopPrank();
+
+        uint256 distributedTokens = rewardDistributor.getTokensDistributedInWeek(REWARD_TOKEN, rewardDistributorStartTime);
+        assertEqDecimal(distributedTokens, 10e18, 18, "Total rewards for the week");
+
+        // LP3 stake is already expired
+        skip(6 weeks + 1 days);
+
+        assertEqDecimal(veCBPT.balanceOf(LP3), 0, 18, "LP3 balance");
 
         // LP1: 9.824183789934328002e18 * 10e18 / 15.280770547914081606e18 = 6.45e18
         // LP2: 4.837882420081470402e18 * 10e18 / 15.280770547914081606e18 = 3.16e18
@@ -130,6 +180,108 @@ contract VeCbptTest is BaseTest {
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP1, REWARD_TOKEN), 6.45e18, 0.1e18, 18, "LP1 rewards");
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP2, REWARD_TOKEN), 3.16e18, 0.1e18, 18, "LP2 rewards");
         assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP3, REWARD_TOKEN), 0.39e18, 0.1e18, 18, "LP3 rewards");
+    }
+
+    function testRewardsDistribution_DiffLocks_SameAmount_ClaimAfterExpiry_AndUnstake() public {
+        _createLock(LP1, 10e18, 52 weeks);
+        _createLock(LP2, 10e18, 26 weeks);
+        _createLock(LP3, 10e18, 4 weeks);
+
+        assertEqDecimal(veCBPT.balanceOf(LP1), 9.824183789934328002e18, 18, "LP1 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP2), 4.837882420081470402e18, 18, "LP2 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP3), 0.618704337898283202e18, 18, "LP3 balance");
+        assertEqDecimal(veCBPT.totalSupply(), 15.280770547914081606e18, 18, "Total supply");
+
+        vm.warp(rewardDistributorStartTime + 1);
+
+        REWARD_TOKEN.mint(keeper, 10e18);
+        vm.startPrank(keeper);
+        REWARD_TOKEN.approve(address(rewardDistributor), 10e18);
+        rewardDistributor.depositToken(REWARD_TOKEN, 10e18);
+        vm.stopPrank();
+
+        uint256 distributedTokens = rewardDistributor.getTokensDistributedInWeek(REWARD_TOKEN, rewardDistributorStartTime);
+        assertEqDecimal(distributedTokens, 10e18, 18, "Total rewards for the week");
+
+        // LP3 stake is already expired
+        skip(6 weeks + 1 days);
+        vm.prank(LP3);
+        veCBPT.withdraw();
+        assertEqDecimal(veCBPT.balanceOf(LP3), 0, 18, "LP3 balance");
+
+        // LP1: 9.824183789934328002e18 * 10e18 / 15.280770547914081606e18 = 6.45e18
+        // LP2: 4.837882420081470402e18 * 10e18 / 15.280770547914081606e18 = 3.16e18
+        // LP3: 0.618704337898283202e18 * 10e18 / 15.280770547914081606e18 = 0.39e18
+        // 6.45 + 3.16 + 0.39 = 10
+
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP1, REWARD_TOKEN), 6.45e18, 0.1e18, 18, "LP1 rewards");
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP2, REWARD_TOKEN), 3.16e18, 0.1e18, 18, "LP2 rewards");
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP3, REWARD_TOKEN), 0.39e18, 0.1e18, 18, "LP3 rewards");
+    }
+
+    function testStakeWithoutUnstaking() public {
+        _createLock(LP1, 10e18, 52 weeks);
+        _createLock(LP2, 10e18, 26 weeks);
+        _createLock(LP3, 10e18, 4 weeks);
+
+        assertEqDecimal(veCBPT.balanceOf(LP1), 9.824183789934328002e18, 18, "LP1 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP2), 4.837882420081470402e18, 18, "LP2 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP3), 0.618704337898283202e18, 18, "LP3 balance");
+
+        // LP3 stake is already expired
+        skip(6 weeks + 1 days);
+        assertEqDecimal(veCBPT.balanceOf(LP3), 0, 18, "LP3 balance");
+
+        vm.prank(LP3);
+        vm.expectRevert("Withdraw old tokens first");
+        veCBPT.create_lock(1e18, block.timestamp + 10 weeks);
+    }
+
+    function testRewardsDistribution_DiffLocks_SameAmount_ClaimAfterExpiry_AndRestake() public {
+        _createLock(LP1, 10e18, 52 weeks);
+        _createLock(LP2, 10e18, 26 weeks);
+        _createLock(LP3, 10e18, 4 weeks);
+
+        assertEqDecimal(veCBPT.balanceOf(LP1), 9.824183789934328002e18, 18, "LP1 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP2), 4.837882420081470402e18, 18, "LP2 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP3), 0.618704337898283202e18, 18, "LP3 balance");
+        assertEqDecimal(veCBPT.totalSupply(), 15.280770547914081606e18, 18, "Total supply");
+
+        vm.warp(rewardDistributorStartTime + 1);
+
+        REWARD_TOKEN.mint(keeper, 10e18);
+        vm.startPrank(keeper);
+        REWARD_TOKEN.approve(address(rewardDistributor), 10e18);
+        rewardDistributor.depositToken(REWARD_TOKEN, 10e18);
+        vm.stopPrank();
+
+        uint256 distributedTokens = rewardDistributor.getTokensDistributedInWeek(REWARD_TOKEN, rewardDistributorStartTime);
+        assertEqDecimal(distributedTokens, 10e18, 18, "Total rewards for the week");
+
+        // LP3 stake is already expired
+        skip(6 weeks + 1 days);
+        vm.prank(LP3);
+        veCBPT.withdraw();
+
+        _createLock(LP3, 10e18, 4 weeks);
+
+        skip(1 weeks + 1 days);
+
+        assertEqDecimal(veCBPT.balanceOf(LP1), 8.383561326720620963e18, 18, "LP1 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP2), 3.397259956867763363e18, 18, "LP2 balance");
+        assertEqDecimal(veCBPT.balanceOf(LP3), 0.520547628106499363e18, 18, "LP3 balance");
+
+        REWARD_TOKEN.mint(keeper, 10e18);
+        vm.startPrank(keeper);
+        REWARD_TOKEN.approve(address(rewardDistributor), 10e18);
+        rewardDistributor.depositToken(REWARD_TOKEN, 10e18);
+        vm.stopPrank();
+
+        skip(1 weeks + 1 days);
+
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP1, REWARD_TOKEN), 13.224926971762414799e18, 0.1e18, 18, "LP1 rewards");
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP2, REWARD_TOKEN), 5.933787731256085685e18, 0.1e18, 18, "LP2 rewards");
+        assertApproxEqAbsDecimal(rewardDistributor.claimToken(LP3, REWARD_TOKEN), 0.841285296981499512e18, 0.1e18, 18, "LP3 rewards");
     }
 
     function testRewardsDistribution_LockIncreases() public {
@@ -310,11 +462,5 @@ contract VeCbptTest is BaseTest {
         vm.prank(addr);
         veCBPT.increase_unlock_time(currEnd + extension);
     }
-
-}
-
-interface SmartWalletChecker {
-
-    function check(address) external view returns (bool);
 
 }

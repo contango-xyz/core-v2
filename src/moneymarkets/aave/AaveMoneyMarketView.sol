@@ -93,7 +93,9 @@ contract AaveMoneyMarketView is BaseMoneyMarketView {
         override
         returns (uint256 ltv, uint256 liquidationThreshold)
     {
-        uint256 eModeCategory = isBitSet(positionId.getFlags(), E_MODE) ? uint32(positionId.getPayloadNoFlags()) : 0;
+        uint256 eModeCategory = positionId.getNumber() > 0
+            ? pool().getUserEMode(_account(positionId)) // Backwards compatibility
+            : isBitSet(positionId.getFlags(), E_MODE) ? uint32(positionId.getPayloadNoFlags()) : 0;
 
         if (eModeCategory == 0) (, ltv, liquidationThreshold,,,,,,,) = dataProvider().getReserveConfigurationData(address(collateralAsset));
         else (, ltv, liquidationThreshold) = pool().getEModeCategoryData(uint8(eModeCategory));

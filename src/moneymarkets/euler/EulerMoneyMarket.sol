@@ -67,25 +67,35 @@ contract EulerMoneyMarket is BaseMoneyMarket {
         return reverseLookup.quote(positionId).debtOf(address(this));
     }
 
-    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
+    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         asset.transferOut(payer, address(this), amount);
         IEulerVault vault = reverseLookup.base(positionId);
         uint256 sharesDeposited = vault.deposit(amount, address(this));
         actualAmount = vault.convertToAssets(sharesDeposited);
     }
 
-    function _borrow(PositionId positionId, IERC20, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _borrow(PositionId positionId, IERC20, uint256 amount, address to, uint256) internal override returns (uint256 actualAmount) {
         actualAmount = reverseLookup.quote(positionId).borrow(amount, to);
     }
 
-    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
-        uint256 debt = _debtBalance(positionId, asset);
-        if (debt == 0) return 0;
+    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256 debt)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         amount = asset.transferOut(payer, address(this), Math.min(amount, debt));
         actualAmount = reverseLookup.quote(positionId).repay(amount, address(this));
     }
 
-    function _withdraw(PositionId positionId, IERC20, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _withdraw(PositionId positionId, IERC20, uint256 amount, address to, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         IEulerVault vault = reverseLookup.base(positionId);
         uint256 sharesWithdrawn = vault.withdraw(amount, to, address(this));
         actualAmount = vault.convertToAssets(sharesWithdrawn);

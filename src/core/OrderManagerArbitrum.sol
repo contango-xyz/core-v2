@@ -8,7 +8,7 @@ contract OrderManagerArbitrum is OrderManager {
 
     ArbGasInfo public constant GAS_INFO = ArbGasInfo(0x000000000000000000000000000000000000006C);
 
-    constructor(IContango _contango) OrderManager(_contango) { }
+    constructor(IContango _contango, address _treasury) OrderManager(_contango, _treasury) { }
 
     function _gasCost() internal view override returns (uint256 gasCost) {
         (,,,,, uint256 totalGasPrice) = GAS_INFO.getPricesInWei();

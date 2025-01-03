@@ -40,26 +40,29 @@ contract ExactlyMoneyMarket is BaseMoneyMarket {
         debtAsset.forceApprove(address(reverseLookup.market(debtAsset)), type(uint256).max);
     }
 
-    function _lend(PositionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
+    function _lend(PositionId, IERC20 asset, uint256 amount, address payer, uint256) internal override returns (uint256 actualAmount) {
         asset.transferOut(payer, address(this), amount);
         reverseLookup.market(asset).deposit(amount, address(this));
         actualAmount = amount;
     }
 
-    function _withdraw(PositionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _withdraw(PositionId, IERC20 asset, uint256 amount, address to, uint256) internal override returns (uint256 actualAmount) {
         reverseLookup.market(asset).withdraw(amount, to, address(this));
         actualAmount = amount;
     }
 
-    function _borrow(PositionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _borrow(PositionId, IERC20 asset, uint256 amount, address to, uint256) internal override returns (uint256 actualAmount) {
         reverseLookup.market(asset).borrow(amount, to, address(this));
         actualAmount = amount;
     }
 
-    function _repay(PositionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
+    function _repay(PositionId, IERC20 asset, uint256 amount, address payer, uint256 debt)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         IExactlyMarket market = reverseLookup.market(asset);
-        uint256 debt = market.previewDebt(address(this));
-        if (debt == 0 || market.previewRepay(amount) == 0) return 0;
+        if (market.previewRepay(amount) == 0) return 0;
         asset.transferOut(payer, address(this), Math.min(amount, debt));
 
         (actualAmount,) = market.repay(amount, address(this));

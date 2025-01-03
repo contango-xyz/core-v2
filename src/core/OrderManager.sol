@@ -53,6 +53,7 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     IWETH9 public immutable nativeToken;
     IVault public immutable vault;
     IUnderlyingPositionFactory public immutable positionFactory;
+    address public immutable treasury;
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
@@ -70,18 +71,19 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
 
     mapping(OrderId id => OrderStorage order) private _orders;
 
-    constructor(IContango _contango) {
+    constructor(IContango _contango, address _treasury) {
         contango = _contango;
         positionNFT = _contango.positionNFT();
         vault = _contango.vault();
         positionFactory = _contango.positionFactory();
         nativeToken = _contango.vault().nativeToken();
+        treasury = _treasury;
     }
 
-    function initialize(CoreTimelock timelock, uint64 _gasMultiplier, uint64 _gasTip, IContangoOracle _oracle) public initializer {
+    function initialize(Timelock timelock, uint64 _gasMultiplier, uint64 _gasTip, IContangoOracle _oracle) public initializer {
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
         _setGasMultiplier(_gasMultiplier);
         gasStart = INITIAL_GAS_START;
         gasTip = _gasTip;
@@ -183,6 +185,15 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
     function execute(OrderId orderId, ExecutionParams calldata execParams)
         external
         payable
+        returns (PositionId positionId, Trade memory trade_, uint256 keeperReward)
+    {
+        FeeParams memory feeParams;
+        return executeWithFees(orderId, execParams, feeParams);
+    }
+
+    function executeWithFees(OrderId orderId, ExecutionParams calldata execParams, FeeParams memory feeParams)
+        public
+        payable
         gasMeasured
         onlyRole(BOT_ROLE)
         orderExists(orderId)
@@ -194,20 +205,29 @@ contract OrderManager is IOrderManager, AccessControlUpgradeable, UUPSUpgradeabl
         (Symbol symbol,,, uint256 number) = order.positionId.decode();
         if (number > 0 && order.owner != positionNFT.positionOwner(order.positionId)) revert OrderInvalidated(orderId);
 
-        Instrument memory instrument = contango.instrument(symbol);
-        // If cashflowCcy is None, we use the quote for keeper rewards
-        IERC20 cashflowToken = order.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
-
         (positionId, trade_) = order.quantity > 0 ? _open(order, execParams) : _close(order, execParams);
-
         delete _orders[orderId];
-        keeperReward = _keeperReward(order.positionId, cashflowToken);
 
-        emit OrderExecuted(orderId, positionId, keeperReward);
+        if (feeParams.amount > 0) {
+            _withdraw(feeParams.token, order.owner, feeParams.amount, treasury);
+            emit FeeCollected(orderId, positionId, order.owner, treasury, feeParams.token, feeParams.amount, feeParams.basisPoints);
+        }
+
+        IERC20 cashflowToken;
+        {
+            Instrument memory instrument = contango.instrument(symbol);
+            // If cashflowCcy is None, we use the quote for keeper rewards
+            cashflowToken = order.cashflowCcy == Currency.Base ? instrument.base : instrument.quote;
+
+            keeperReward = _keeperReward(order.positionId, cashflowToken);
+            emit OrderExecuted(orderId, positionId, keeperReward);
+        }
 
         if (keeperReward > 0) _withdraw(cashflowToken, order.owner, keeperReward, msg.sender);
 
-        if (trade_.cashflow < 0) _withdraw(cashflowToken, order.owner, trade_.cashflow.abs() - keeperReward, order.owner);
+        if (trade_.cashflow < 0) {
+            _withdraw(cashflowToken, order.owner, trade_.cashflow.abs() - keeperReward - feeParams.amount, order.owner);
+        }
     }
 
     function _withdraw(IERC20 cashflowToken, address account, uint256 amount, address to) internal returns (uint256) {

@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 import "./interfaces/IUnderlyingPositionFactory.sol";
-import { CoreTimelock, PositionId } from "../libraries/DataTypes.sol";
+import { Timelock, PositionId } from "../libraries/DataTypes.sol";
 import { CONTANGO_ROLE } from "../libraries/Roles.sol";
 
 contract UnderlyingPositionFactory is IUnderlyingPositionFactory, AccessControl {
@@ -20,8 +20,8 @@ contract UnderlyingPositionFactory is IUnderlyingPositionFactory, AccessControl 
 
     mapping(MoneyMarketId moneyMarketId => MoneyMarketData mmData) public moneyMarkets;
 
-    constructor(CoreTimelock timelock) {
-        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+    constructor(Timelock timelock) {
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
     }
 
     function registerMoneyMarket(IMoneyMarket imm) external override onlyRole(DEFAULT_ADMIN_ROLE) {

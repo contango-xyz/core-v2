@@ -148,13 +148,13 @@ contract ContangoPerpetualOptionHandler is TestBase, StdCheats, StdUtils {
         uAmount = _bound(uAmount, 0.001e18, actorBalance);
 
         SD59x18 amount = sd(int256(uAmount));
-        (,,, uint256 cost) = sut.previewExercise(amount);
+        (,, SD59x18 strikePrice, uint256 cost) = sut.previewExercise(amount);
 
         usdc.mint(currentActor, cost);
 
         vm.startPrank(currentActor);
         usdc.approve(address(sut), cost);
-        sut.exercise(amount);
+        sut.exercise(amount, strikePrice);
         vm.stopPrank();
 
         ghost_exceriseSum += uAmount;

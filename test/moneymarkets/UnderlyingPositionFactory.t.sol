@@ -60,7 +60,7 @@ contract UnderlyingPositionFactoryTest is BaseTest, IUnderlyingPositionFactoryEv
     }
 
     function testPermissions(address rando) public {
-        vm.assume(rando != CORE_TIMELOCK_ADDRESS && rando != contango);
+        vm.assume(rando != TIMELOCK_ADDRESS && rando != contango);
 
         expectAccessControl(rando, "");
         sut.registerMoneyMarket(IMoneyMarket(address(0)));
@@ -77,7 +77,7 @@ contract UnderlyingPositionFactoryTest is BaseTest, IUnderlyingPositionFactoryEv
 
         vm.expectEmit(true, true, true, true);
         emit MoneyMarketRegistered(MM_COMPOUND, IMoneyMarket(compound));
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.registerMoneyMarket(IMoneyMarket(compound));
     }
 
@@ -87,7 +87,7 @@ contract UnderlyingPositionFactoryTest is BaseTest, IUnderlyingPositionFactoryEv
         vm.mockCall(compound, abi.encodeWithSelector(IMoneyMarket.NEEDS_ACCOUNT.selector), abi.encode(true));
 
         // can't register money market twice
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         sut.registerMoneyMarket(IMoneyMarket(compound));
 
         vm.expectRevert(

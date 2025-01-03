@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
+import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./extensions/PositionIdExt.sol";
 
 uint256 constant WAD = 1e18;
@@ -17,6 +18,12 @@ enum Currency {
 type Symbol is bytes16;
 
 type Payload is bytes5;
+
+function payloadEquals(Payload a, Payload b) pure returns (bool) {
+    return Payload.unwrap(a) == Payload.unwrap(b);
+}
+
+using { payloadEquals as == } for Payload global;
 
 type PositionId is bytes32;
 
@@ -47,9 +54,7 @@ function mmEquals(MoneyMarketId a, MoneyMarketId b) pure returns (bool) {
 
 using { mmEquals as == } for MoneyMarketId global;
 
-type CoreTimelock is address;
-
-type MarketTimelock is address;
+type Timelock is address;
 
 type Operator is address;
 
@@ -58,4 +63,10 @@ struct EIP2098Permit {
     uint256 deadline;
     bytes32 r;
     bytes32 vs;
+}
+
+struct FeeParams {
+    IERC20 token;
+    uint256 amount;
+    uint8 basisPoints;
 }

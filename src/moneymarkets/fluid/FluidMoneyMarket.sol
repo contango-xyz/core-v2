@@ -48,7 +48,11 @@ contract FluidMoneyMarket is BaseMoneyMarket {
         balance = userPosition.borrow;
     }
 
-    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
+    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         asset.transferOut(payer, address(this), amount);
 
         uint256 value;
@@ -61,7 +65,11 @@ contract FluidMoneyMarket is BaseMoneyMarket {
         actualAmount = lent.toUint256();
     }
 
-    function _borrow(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _borrow(PositionId positionId, IERC20 asset, uint256 amount, address to, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         bool isNative = asset == nativeToken;
 
         (,, int256 borrowed) = vault(positionId).operate(nftId(), 0, amount.toInt256(), isNative ? address(this) : to);
@@ -70,9 +78,11 @@ contract FluidMoneyMarket is BaseMoneyMarket {
         if (isNative) nativeToken.transferOut(address(this), to, actualAmount);
     }
 
-    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
-        uint256 debt = _debtBalance(positionId, asset);
-        if (debt == 0) return 0;
+    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256 debt)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         asset.transferOut(payer, address(this), amount);
 
         uint256 value;
@@ -85,10 +95,14 @@ contract FluidMoneyMarket is BaseMoneyMarket {
         if (actualAmount < amount) asset.transferOut(address(this), payer, amount - actualAmount);
     }
 
-    function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to, uint256 balance)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         bool isNative = asset == nativeToken;
         // Fluid has rounding issues, so sometimes they report a balance that can't actually be withdrawn
-        int256 withdrawAmount = amount == _collateralBalance(positionId, asset) ? type(int256).min : -amount.toInt256();
+        int256 withdrawAmount = amount == balance ? type(int256).min : -amount.toInt256();
 
         (, int256 withdrawn,) = vault(positionId).operate(nftId(), withdrawAmount, 0, isNative ? address(this) : to);
         actualAmount = (-withdrawn).toUint256();

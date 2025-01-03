@@ -60,7 +60,7 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         return _vToken(asset).balanceOf(address(this));
     }
 
-    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer)
+    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256)
         internal
         virtual
         override
@@ -71,7 +71,12 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         if (isBitSet(positionId.getFlags(), ISOLATION_MODE)) pool().setUserUseReserveAsCollateral(address(asset), true);
     }
 
-    function _borrow(PositionId, IERC20 asset, uint256 amount, address to) internal virtual override returns (uint256 actualAmount) {
+    function _borrow(PositionId, IERC20 asset, uint256 amount, address to, uint256)
+        internal
+        virtual
+        override
+        returns (uint256 actualAmount)
+    {
         pool().borrow({
             asset: address(asset),
             amount: amount,
@@ -83,13 +88,13 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         actualAmount = asset.transferOut(address(this), to, amount);
     }
 
-    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer)
+    function _repay(PositionId, IERC20 asset, uint256 amount, address payer, uint256 debt)
         internal
         virtual
         override
         returns (uint256 actualAmount)
     {
-        actualAmount = Math.min(amount, _debtBalance(positionId, asset));
+        actualAmount = Math.min(amount, debt);
         if (actualAmount > 0) {
             asset.transferOut(payer, address(this), actualAmount);
             actualAmount = pool().repay({
@@ -101,7 +106,12 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
         }
     }
 
-    function _withdraw(PositionId, IERC20 asset, uint256 amount, address to) internal virtual override returns (uint256 actualAmount) {
+    function _withdraw(PositionId, IERC20 asset, uint256 amount, address to, uint256)
+        internal
+        virtual
+        override
+        returns (uint256 actualAmount)
+    {
         actualAmount = pool().withdraw({ asset: address(asset), amount: amount, to: to });
     }
 
@@ -127,16 +137,22 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
     bytes internal tmpResult;
 
     function flashBorrow(
+        PositionId positionId,
         IERC20 asset,
         uint256 amount,
         bytes calldata params,
         function(IERC20, uint256, bytes memory) external returns (bytes memory) callback
     ) public virtual override returns (bytes memory result) {
         require(flashBorrowEnabled, UnsupportedOperation());
-        return _flashBorrow(asset, amount, abi.encode(MetaParams({ params: params, callback: callback })));
+        return _flashBorrow(positionId, asset, amount, abi.encode(MetaParams({ params: params, callback: callback })));
     }
 
-    function _flashBorrow(IERC20 asset, uint256 amount, bytes memory metaParams) internal onlyContango returns (bytes memory result) {
+    function _flashBorrow(PositionId positionId, IERC20 asset, uint256 amount, bytes memory metaParams)
+        internal
+        onlyContango
+        returns (bytes memory result)
+    {
+        uint256 balanceBefore = _debtBalance(positionId, asset);
         pool().flashLoan({
             receiverAddress: address(this),
             assets: toArray(address(asset)),
@@ -146,6 +162,8 @@ contract AaveMoneyMarket is BaseMoneyMarket, IFlashLoanReceiver, IFlashBorrowPro
             params: metaParams,
             referralCode: 0
         });
+
+        emit Borrowed(positionId, asset, amount, balanceBefore);
 
         result = tmpResult;
         delete tmpResult;

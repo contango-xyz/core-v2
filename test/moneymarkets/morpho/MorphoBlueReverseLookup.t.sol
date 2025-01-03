@@ -25,34 +25,19 @@ contract MorphoBlueReverseLookupTest is MorphoBlueReverseLookupEvents, MorphoBlu
         vm.expectRevert(abi.encodeWithSelector(MarketNotFound.selector, expectedPayload));
         sut.marketId(expectedPayload);
 
-        expectAccessControl(address(this), OPERATOR_ROLE);
-        sut.setMarket(marketId);
-
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         vm.expectRevert(abi.encodeWithSelector(InvalidMarketId.selector, bytes32("hola")));
         sut.setMarket(MorphoMarketId.wrap("hola"));
 
-        vm.prank(CORE_TIMELOCK_ADDRESS);
-        vm.expectRevert(abi.encodeWithSelector(OracleNotFound.selector, 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48));
-        sut.setMarket(marketId);
-
-        vm.prank(CORE_TIMELOCK_ADDRESS);
-        sut.setOracle({
-            asset: IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48),
-            oracle: address(1),
-            oracleType: "SOME_TYPE",
-            oracleCcy: QuoteOracleCcy.USD
-        });
-
         vm.expectEmit(true, true, true, true);
         emit MarketSet(expectedPayload, marketId);
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setMarket(marketId);
 
         assertEq(MorphoMarketId.unwrap(sut.marketId(expectedPayload)), MorphoMarketId.unwrap(marketId));
 
         vm.expectRevert(abi.encodeWithSelector(MarketAlreadySet.selector, marketId, expectedPayload));
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setMarket(marketId);
     }
 

@@ -24,12 +24,11 @@ contract SiloMoneyMarketViewBugFixTest is Test, Addresses {
             _nativeToken: IWETH9(_loadAddress("NativeToken")),
             _nativeUsdOracle: IAggregatorV2V3(_loadAddress("ChainlinkNativeUsdOracle")),
             _lens: ISiloLens(_loadAddress(string.concat("SiloLens"))),
-            _incentivesController: ISiloIncentivesController(_loadAddress(string.concat("SiloIncentivesController"))),
             _wstEthSilo: ISilo(_loadAddressMaybe(string.concat("Silo_WSTETH_ETH"))),
             _stablecoin: IERC20(_loadAddressMaybe(string.concat("SiloStable")))
         });
 
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         contangoLens.setMoneyMarketView(moneyMarketView);
 
         contangoLens.irmRaw(positionId);

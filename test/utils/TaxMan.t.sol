@@ -14,7 +14,7 @@ contract TaxManTest is BaseTest {
     function setUp() public {
         token = new ERC20Mock();
 
-        sut = new TaxMan(CORE_TIMELOCK);
+        sut = new TaxMan(TIMELOCK);
     }
 
     function _testCalls(bool success) internal view returns (Call[] memory testCalls) {
@@ -40,7 +40,7 @@ contract TaxManTest is BaseTest {
     }
 
     function testExecute() public {
-        VM.prank(CORE_TIMELOCK_ADDRESS);
+        VM.prank(TIMELOCK_ADDRESS);
         sut.grantRole(BOT_ROLE, BOT);
 
         VM.startPrank(BOT);
@@ -72,7 +72,7 @@ contract TaxManTest is BaseTest {
     function testPause() public {
         Call[] memory testCalls = _testCalls(true);
 
-        VM.startPrank(CORE_TIMELOCK_ADDRESS);
+        VM.startPrank(TIMELOCK_ADDRESS);
         sut.grantRole(BOT_ROLE, BOT);
         sut.grantRole(EMERGENCY_BREAK_ROLE, address(this));
         sut.grantRole(RESTARTER_ROLE, address(this));

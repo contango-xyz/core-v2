@@ -23,7 +23,7 @@ contract EulerMoneyMarketViewTest is AbstractMarketViewTest {
 
         EulerMoneyMarketView mmv = EulerMoneyMarketView(address(sut));
 
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         // mmv.rewardOperator().addLiveReward(ethVault, rewardToken);
 
         ethId = mmv.reverseLookup().setVault(ethVault);
@@ -58,7 +58,7 @@ contract EulerMoneyMarketViewTest is AbstractMarketViewTest {
     }
 
     function testPrices_Escrow() public {
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         ethId = EulerMoneyMarketView(address(sut)).reverseLookup().setVault(IEulerVault(0xb3b36220fA7d12f7055dab5c9FD18E860e9a6bF8));
         vm.stopPrank();
 

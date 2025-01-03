@@ -20,16 +20,16 @@ contract VaultFunctional is BaseTest, IVaultEvents {
         env.init();
         weth = env.nativeToken();
         sut = new Vault(weth);
-        Vault(payable(address(sut))).initialize(CORE_TIMELOCK);
-        vm.prank(CORE_TIMELOCK_ADDRESS);
-        sut.grantRole(OPERATOR_ROLE, CORE_TIMELOCK_ADDRESS);
+        Vault(payable(address(sut))).initialize(TIMELOCK);
+        vm.prank(TIMELOCK_ADDRESS);
+        sut.grantRole(OPERATOR_ROLE, TIMELOCK_ADDRESS);
     }
 
     function testDepositWithdraw(uint8 tokenIdx, uint128 depositAmount, uint256 preTransferAmount, uint256 withdrawAmount) public {
         vm.assume(depositAmount > 0 && withdrawAmount > 0);
 
         IERC20 token = env.token(env.allTokens(bound(tokenIdx, 0, 3)));
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setTokenSupport(token, true);
 
         preTransferAmount = preTransferAmount > depositAmount ? depositAmount : preTransferAmount;
@@ -69,7 +69,7 @@ contract VaultFunctional is BaseTest, IVaultEvents {
         IERC20 token = env.token(env.allTokens(bound(tokenIdx, 0, 3)));
         vm.expectEmit(true, true, true, true);
         emit TokenSupportSet(token, true);
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setTokenSupport(token, true);
 
         preTransferAmount = preTransferAmount > depositAmount ? depositAmount : preTransferAmount;
@@ -129,8 +129,6 @@ contract VaultFunctional is BaseTest, IVaultEvents {
         sut.withdraw(token, address(0), 0, address(0));
         expectAccessControl(address(this), CONTANGO_ROLE);
         sut.withdrawNative(address(0), 0, address(0));
-        expectAccessControl(address(this), CONTANGO_ROLE);
-        sut.transfer(token, address(0), address(0), 0);
 
         vm.expectRevert(IVaultErrors.ZeroAmount.selector);
         vm.prank(depositor);
@@ -151,52 +149,6 @@ contract VaultFunctional is BaseTest, IVaultEvents {
         vm.expectRevert(abi.encodeWithSelector(IVaultErrors.UnsupportedToken.selector, token));
         vm.prank(depositor);
         sut.deposit(token, depositor, 1);
-
-        vm.expectRevert(IVaultErrors.ZeroAmount.selector);
-        vm.prank(depositor);
-        sut.transfer(token, depositor, address(0), 0);
-
-        vm.expectRevert(IVaultErrors.ZeroAddress.selector);
-        vm.prank(depositor);
-        sut.transfer(token, depositor, address(0), 1);
-
-        vm.expectRevert(abi.encodeWithSelector(IVaultErrors.NotEnoughBalance.selector, token, 0, 1));
-        vm.prank(depositor);
-        sut.transfer(token, depositor, address(1), 1);
-    }
-
-    function testDepositTransferWithdraw(uint8 tokenIdx, uint96 amount) public {
-        vm.assume(amount > 0);
-
-        IERC20 token = env.token(env.allTokens(bound(tokenIdx, 0, 3)));
-        vm.prank(CORE_TIMELOCK_ADDRESS);
-        sut.setTokenSupport(token, true);
-
-        uint256 depositAmount = amount;
-        env.dealAndApprove(token, depositor, depositAmount, address(sut));
-        vm.prank(depositor);
-        sut.deposit(token, depositor, depositAmount);
-
-        uint256 transferAmount = bound(depositAmount, depositAmount / 3, depositAmount);
-        address recipient = makeAddr("Recipient");
-
-        vm.expectEmit(true, true, true, true);
-        emit Transferred(token, depositor, recipient, transferAmount);
-
-        vm.prank(depositor);
-        uint256 transferred = sut.transfer(token, depositor, recipient, transferAmount);
-
-        assertEq(transferred, transferAmount, "transferred amount");
-        assertEq(sut.balanceOf(token, depositor), depositAmount - transferAmount, "depositor balance");
-        assertEq(sut.balanceOf(token, recipient), transferAmount, "recipient balance");
-
-        uint256 withdrawAmount = bound(transferAmount, transferAmount / 3, transferAmount);
-
-        vm.prank(recipient);
-        sut.withdraw(token, recipient, withdrawAmount, recipient);
-
-        assertEq(sut.balanceOf(token, recipient), transferAmount - withdrawAmount, "recipient balance after withdraw");
-        assertEq(token.balanceOf(recipient), withdrawAmount, "recipient token balance after withdraw");
     }
 
 }

@@ -20,7 +20,7 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
 
         comet = env.comet();
         reverseLookup = CometMoneyMarketView(address(sut)).reverseLookup();
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         Payload payload = reverseLookup.setComet(env.comet());
         vm.stopPrank();
         rewardsToken = 0x9e1028F5F1D5eDE59748FFceE5532509976840E0;
@@ -28,8 +28,27 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
     }
 
     function testPriceInNativeToken() public view {
-        assertEqDecimal(sut.priceInNativeToken(instrument.base), 1e18, 18, "Base price in native token");
-        assertEqDecimal(sut.priceInNativeToken(instrument.quote), 0.001e18, 18, "Quote price in native token");
+        assertEqDecimal(sut.priceInNativeToken(instrument.base), 0, 18, "Base price in native token");
+        assertEqDecimal(sut.priceInNativeToken(instrument.quote), 0, 18, "Quote price in native token");
+    }
+
+    function testBalancesUSD() public override {
+        (, positionId,) = env.positionActions().openPosition({
+            positionId: positionId,
+            quantity: _basePrecision(_baseTestQty()),
+            cashflow: int256(_quotePrecision(_quoteTestQty())),
+            cashflowCcy: Currency.Quote
+        });
+
+        Balances memory balances = sut.balancesUSD(positionId);
+
+        assertApproxEqRelDecimal(balances.collateral, 0, 0, 18, "Collateral balance");
+        assertApproxEqRelDecimal(balances.debt, 0, 0, 18, "Debt balance");
+    }
+
+    function testPriceInUSD() public view override {
+        assertApproxEqAbsDecimal(sut.priceInUSD(instrument.base), 0, 0, 18, "Base price in USD");
+        assertApproxEqAbsDecimal(sut.priceInUSD(instrument.quote), 0, 0, 18, "Quote price in USD");
     }
 
     function testBorrowingLiquidity() public {
@@ -82,67 +101,6 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
         assertEqDecimal(lendingRate, 0, 18, "Lending rate");
     }
 
-    function testRewards_WETHUSDC() public {
-        (Reward[] memory borrowing, Reward[] memory lending) = sut.rewards(positionId);
-
-        assertEq(borrowing.length, 1, "Borrow rewards length");
-        assertEq(lending.length, 0, "Lend rewards length");
-
-        assertEq(address(borrowing[0].token.token), rewardsToken, "Borrow reward[0] token");
-        assertEq(borrowing[0].token.name, "Compound", "Borrow reward[0] name");
-        assertEq(borrowing[0].token.symbol, "COMP", "Borrow reward[0] symbol");
-        assertEq(borrowing[0].token.decimals, 18, "Borrow reward[0] decimals");
-        assertEq(borrowing[0].token.unit, 1e18, "Borrow reward[0] unit");
-        assertEqDecimal(borrowing[0].rate, 0.02992851266985047e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
-        assertEqDecimal(borrowing[0].claimable, 0, borrowing[0].token.decimals, "Borrow reward[0] claimable");
-        assertEqDecimal(borrowing[0].usdPrice, 52.59511454e18, 18, "Borrow reward[0] usdPrice");
-    }
-
-    function testRewards_USDCWETH() public {
-        instrument = env.createInstrument(env.erc20(USDC), env.erc20(WETH));
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
-        Payload payload = reverseLookup.setComet(IComet(0x46e6b214b524310239732D51387075E0e70970bf));
-        vm.stopPrank();
-        positionId = encode(instrument.symbol, mm, PERP, 0, payload);
-
-        (Reward[] memory borrowing, Reward[] memory lending) = sut.rewards(positionId);
-
-        assertEq(borrowing.length, 0, "Borrow rewards length");
-        assertEq(lending.length, 0, "Lend rewards length");
-    }
-
-    function testRewards_ForPosition() public {
-        (, positionId,) = env.positionActions().openPosition({
-            positionId: positionId,
-            quantity: 10 ether,
-            cashflow: 4000e6,
-            cashflowCcy: Currency.Quote
-        });
-
-        skip(15 days);
-
-        (Reward[] memory borrowing, Reward[] memory lending) = sut.rewards(positionId);
-
-        assertEq(borrowing.length, 1, "Borrow rewards length");
-        assertEq(lending.length, 0, "Lend rewards length");
-
-        assertEq(address(borrowing[0].token.token), rewardsToken, "Borrow reward[0] token");
-        assertEq(borrowing[0].token.name, "Compound", "Borrow reward[0] name");
-        assertEq(borrowing[0].token.symbol, "COMP", "Borrow reward[0] symbol");
-        assertEq(borrowing[0].token.decimals, 18, "Borrow reward[0] decimals");
-        assertEq(borrowing[0].token.unit, 1e18, "Borrow reward[0] unit");
-        assertEqDecimal(borrowing[0].rate, 0.029824740831560825e18, borrowing[0].token.decimals, "Borrow reward[0] rate");
-        assertEqDecimal(borrowing[0].claimable, 0.140222e18, borrowing[0].token.decimals, "Borrow reward[0] claimable");
-        assertEqDecimal(borrowing[0].usdPrice, 52.59511454e18, 18, "Borrow reward[0] usdPrice");
-
-        address recipient = makeAddr("bank");
-        vm.prank(TRADER);
-        contango.claimRewards(positionId, recipient);
-        assertEqDecimal(
-            IERC20(rewardsToken).balanceOf(recipient), borrowing[0].claimable, IERC20(rewardsToken).decimals(), "Claimed rewards"
-        );
-    }
-
     function testAvailableActions_SupplyPaused() public {
         vm.prank(comet.pauseGuardian());
         comet.pause({ supplyPaused: true, transferPaused: false, withdrawPaused: false, absorbPaused: false, buyPaused: false });
@@ -187,7 +145,7 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
         assertEqDecimal(limits.minLendingForRewards, 0, instrument.baseDecimals, "Min lending for rewards");
 
         instrument = env.createInstrument(env.erc20(USDC), env.erc20(WETH));
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         Payload payload = reverseLookup.setComet(IComet(0x46e6b214b524310239732D51387075E0e70970bf));
         positionId = encode(instrument.symbol, mm, PERP, 0, payload);
 
@@ -201,8 +159,9 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
         assertEqDecimal(limits.minLendingForRewards, 0, instrument.baseDecimals, "Min lending for rewards");
     }
 
-    function testIrmRaw() public view override {
-        CometMoneyMarketView.IRMData memory irmData = abi.decode(sut.irmRaw(positionId), (CometMoneyMarketView.IRMData));
+    function testIrmRaw() public override {
+        CometMoneyMarketView.RawData memory rawData = abi.decode(sut.irmRaw(positionId), (CometMoneyMarketView.RawData));
+        CometMoneyMarketView.IRMData memory irmData = rawData.irmData;
 
         assertEq(irmData.totalSupply, comet.totalSupply(), "Total supply");
         assertEq(irmData.totalBorrow, comet.totalBorrow(), "Total borrow");
@@ -218,6 +177,15 @@ contract CometMoneyMarketViewBaseTest is AbstractMarketViewTest {
             "Borrow per second interest rate slope high"
         );
         assertEq(irmData.borrowPerSecondInterestRateBase, comet.borrowPerSecondInterestRateBase(), "Borrow per second interest rate base");
+
+        CometMoneyMarketView.RewardsData memory rewardsData = rawData.rewardsData;
+
+        assertEq(rewardsData.baseTrackingBorrowSpeed, comet.baseTrackingBorrowSpeed(), "Base tracking borrow speed");
+        assertEq(rewardsData.baseIndexScale, comet.baseIndexScale(), "Base index scale");
+        assertEq(rewardsData.baseAccrualScale, comet.baseAccrualScale(), "Base accrual scale");
+        assertEq(rewardsData.totalBorrow, comet.totalBorrow(), "Total borrow");
+        assertEq(rewardsData.claimable, 0, "Claimable");
+        assertEq(address(rewardsData.token.token), rewardsToken, "Token token");
     }
 
 }

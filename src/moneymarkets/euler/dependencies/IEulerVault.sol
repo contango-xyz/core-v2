@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import { IPriceOracle } from "./IPriceOracle.sol";
+import { IEulerPriceOracle } from "./IEulerPriceOracle.sol";
 
 type AmountCap is uint16;
 
@@ -93,7 +93,7 @@ interface IEulerVault is IERC4626 {
 
     /// @notice Retrieves the address of the oracle contract
     /// @return The address of the oracle
-    function oracle() external view returns (IPriceOracle);
+    function oracle() external view returns (IEulerPriceOracle);
 
     /// @notice Retrieves the current interest rate for an asset
     /// @return The interest rate in yield-per-second, scaled by 10**27

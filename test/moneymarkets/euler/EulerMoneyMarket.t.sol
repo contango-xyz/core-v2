@@ -44,7 +44,7 @@ contract EulerMoneyMarketTest is Test {
         env.dealAndApprove(rewardToken, address(this), 2000e18, address(rewards));
         rewards.registerReward(ethVault, rewardToken, 0, rewardAmounts);
 
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         rewardOperator.addLiveReward(ethVault, rewardToken);
 
         ethId = sut.reverseLookup().setVault(ethVault);

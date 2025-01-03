@@ -173,7 +173,7 @@ contract AbstractMarketViewTest is Test {
     }
 
     function testAvailableActions_ClosingOnly() public virtual {
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         contango.grantRole(OPERATOR_ROLE, address(this));
 
         contango.setClosingOnly(instrument.symbol, true);
@@ -187,7 +187,7 @@ contract AbstractMarketViewTest is Test {
     }
 
     function testAvailableActions_Paused() public virtual {
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         contango.grantRole(EMERGENCY_BREAK_ROLE, address(this));
 
         contango.pause();
