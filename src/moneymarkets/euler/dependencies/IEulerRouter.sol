@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import { IERC20Metadata as IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IPriceOracle } from "./IPriceOracle.sol";
+import { IEulerPriceOracle } from "./IEulerPriceOracle.sol";
 
 interface IEulerRouter {
 
@@ -20,7 +20,7 @@ interface IEulerRouter {
 
     function EVC() external view returns (address);
     function fallbackOracle() external view returns (address);
-    function getConfiguredOracle(IERC20 base, IERC20 quote) external view returns (IPriceOracle);
+    function getConfiguredOracle(IERC20 base, IERC20 quote) external view returns (IEulerPriceOracle);
     function getQuote(uint256 inAmount, IERC20 base, IERC20 quote) external view returns (uint256);
     function getQuotes(uint256 inAmount, IERC20 base, IERC20 quote) external view returns (uint256, uint256);
     function govSetConfig(IERC20 base, IERC20 quote, address oracle) external;

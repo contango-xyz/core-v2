@@ -6,3 +6,4 @@ erc7399/=lib/erc7399/src/
 erc7399-wrappers/=lib/erc7399-wrappers/src/
 @prb/math/=lib/prb-math/
 @contango/erc721Permit2/=lib/erc721-permit2/src/
+solady/=lib/solady/src/

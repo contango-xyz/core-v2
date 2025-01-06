@@ -23,13 +23,13 @@ contract CompoundReverseLookupTest is CompoundReverseLookupEvents, BaseTest {
 
         ICToken badCToken = ICToken(address(0xdeadbeef));
         vm.expectRevert(abi.encodeWithSelector(CompoundReverseLookup.CTokenNotListed.selector, badCToken));
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setCToken(badCToken);
 
         ICToken cToken = ICToken(address(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643));
         vm.expectEmit(true, true, true, true);
         emit CTokenSet(dai, cToken);
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setCToken(cToken);
     }
 
@@ -45,13 +45,13 @@ contract CompoundReverseLookupTest is CompoundReverseLookupEvents, BaseTest {
 
         ICToken badCToken = ICToken(address(0xdeadbeef));
         vm.expectRevert(abi.encodeWithSelector(CompoundReverseLookup.CTokenNotListed.selector, badCToken));
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setCToken(badCToken);
 
         ICToken cToken = ICToken(address(0x5569b83de187375d43FBd747598bfe64fC8f6436));
         vm.expectEmit(true, true, true, true);
         emit CTokenSet(dai, cToken);
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.setCToken(cToken);
     }
 

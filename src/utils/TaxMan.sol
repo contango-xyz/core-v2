@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "../libraries/DataTypes.sol";
 import "../libraries/Roles.sol";
@@ -26,9 +25,9 @@ contract TaxMan is AccessControl, Pausable {
     error CallFailed(uint256 index, bytes returnData);
     error NotEnoughBalance(IERC20 token, uint256 expected, uint256 actual);
 
-    constructor(CoreTimelock timelock) {
+    constructor(Timelock timelock) {
         // Grant the admin role to the timelock by default
-        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
     }
 
     function execute(Call[] calldata calls) public payable onlyRole(BOT_ROLE) whenNotPaused returns (Result[] memory returnData) {

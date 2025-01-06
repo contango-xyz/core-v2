@@ -6,15 +6,19 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import { PositionId, MoneyMarketId } from "../../libraries/DataTypes.sol";
 
-interface IMoneyMarket is IERC165 {
+interface IMoneyMarketEvents {
 
-    event Borrowed(PositionId indexed positionId, IERC20 indexed asset, uint256 amount);
-    event Lent(PositionId indexed positionId, IERC20 indexed asset, uint256 amount);
-    event Repaid(PositionId indexed positionId, IERC20 indexed asset, uint256 amount);
-    event Withdrawn(PositionId indexed positionId, IERC20 indexed asset, uint256 amount);
+    event Borrowed(PositionId indexed positionId, IERC20 indexed asset, uint256 amount, uint256 balanceBefore);
+    event Lent(PositionId indexed positionId, IERC20 indexed asset, uint256 amount, uint256 balanceBefore);
+    event Repaid(PositionId indexed positionId, IERC20 indexed asset, uint256 amount, uint256 balanceBefore);
+    event Withdrawn(PositionId indexed positionId, IERC20 indexed asset, uint256 amount, uint256 balanceBefore);
     event RewardsClaimed(PositionId indexed positionId, address to);
     event RewardsClaimed(PositionId indexed positionId, IERC20 indexed rewardsToken, address to, uint256 rewardsAmount);
     event Retrieved(PositionId indexed positionId, IERC20 indexed token, uint256 amount);
+
+}
+
+interface IMoneyMarket is IERC165, IMoneyMarketEvents {
 
     error InvalidMoneyMarketId();
     error InvalidPositionId(PositionId positionId);

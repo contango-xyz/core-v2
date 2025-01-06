@@ -58,10 +58,10 @@ contract ContangoLens is AccessControlUpgradeable, UUPSUpgradeable, IContangoOra
         positionNFT = _contango.positionNFT();
     }
 
-    function initialize(CoreTimelock timelock) public initializer {
+    function initialize(Timelock timelock) public initializer {
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
     }
 
     function setMoneyMarketView(IMoneyMarketView immv) public onlyRole(OPERATOR_ROLE) {
@@ -130,7 +130,7 @@ contract ContangoLens is AccessControlUpgradeable, UUPSUpgradeable, IContangoOra
         return moneyMarketView(positionId).rates(positionId);
     }
 
-    function irmRaw(PositionId positionId) external view returns (bytes memory data) {
+    function irmRaw(PositionId positionId) external returns (bytes memory data) {
         return moneyMarketView(positionId).irmRaw(positionId);
     }
 

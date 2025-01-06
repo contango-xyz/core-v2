@@ -67,13 +67,29 @@ contract FooMoneyMarket is BaseMoneyMarket {
 
     function _initialise(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal override { }
 
-    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) { }
+    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    { }
 
-    function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) { }
+    function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    { }
 
-    function _borrow(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) { }
+    function _borrow(PositionId positionId, IERC20 asset, uint256 amount, address to, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    { }
 
-    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) { }
+    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    { }
 
     function _collateralBalance(PositionId positionId, IERC20 asset) internal override returns (uint256 balance) { }
 

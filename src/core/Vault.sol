@@ -41,12 +41,12 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
         nativeToken = _nativeToken;
     }
 
-    function initialize(CoreTimelock timelock) public initializer {
+    function initialize(Timelock timelock) public initializer {
         __ReentrancyGuard_init_unchained();
         __AccessControl_init_unchained();
         __Pausable_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
         _setTokenSupport(nativeToken, true);
     }
 
@@ -101,26 +101,6 @@ contract Vault is IVault, ReentrancyGuardUpgradeable, AccessControlUpgradeable, 
 
         nativeToken.deposit{ value: amount }();
         return deposit(nativeToken, account, amount);
-    }
-
-    function transfer(IERC20 token, address sender, address recipient, uint256 amount)
-        public
-        override
-        authorised(sender)
-        returns (uint256)
-    {
-        _validAmount(amount);
-        if (recipient == address(0)) revert ZeroAddress();
-        TokenData storage tokenData = tokens[token];
-        uint256 balance = tokenData.accountBalances[sender];
-        if (balance < amount) revert NotEnoughBalance(token, balance, amount);
-
-        tokenData.accountBalances[sender] = balance - amount;
-        tokenData.accountBalances[recipient] += amount;
-
-        emit Transferred(token, sender, recipient, amount);
-
-        return amount;
     }
 
     function withdraw(IERC20 token, address account, uint256 amount, address to) public authorised(account) returns (uint256) {

@@ -28,12 +28,11 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
         IWETH9 _nativeToken,
         IAggregatorV2V3 _nativeUsdOracle,
         ISiloLens _lens,
-        ISiloIncentivesController _incentivesController,
         ISilo _wstEthSilo,
         IERC20 _stablecoin
     )
         BaseMoneyMarketView(_moneyMarketId, "Silo", _contango, _nativeToken, _nativeUsdOracle)
-        SiloBase(_lens, _incentivesController, _wstEthSilo, _nativeToken, _stablecoin)
+        SiloBase(_lens, _wstEthSilo, _nativeToken, _stablecoin)
     {
         priceProvidersRepository = repository.priceProvidersRepository();
     }
@@ -155,15 +154,16 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
 
     function rawData(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) public view returns (RawData memory data) {
         ISilo silo = getSilo(collateralAsset, debtAsset);
+        ISiloIncentivesController incentivesController = repository.getNotificationReceiver(silo);
         return RawData({
             paused: repository.isPaused(),
-            collateralData: _collectSiloData(positionId, silo, collateralAsset, true),
-            debtData: _collectSiloData(positionId, silo, debtAsset, false),
-            userUnclaimedRewards: _userUnclaimedRewards(positionId)
+            collateralData: _collectSiloData(positionId, silo, incentivesController, collateralAsset, true),
+            debtData: _collectSiloData(positionId, silo, incentivesController, debtAsset, false),
+            userUnclaimedRewards: _userUnclaimedRewards(positionId, incentivesController)
         });
     }
 
-    function _collectSiloData(PositionId positionId, ISilo silo, IERC20 asset, bool lending)
+    function _collectSiloData(PositionId positionId, ISilo silo, ISiloIncentivesController incentivesController, IERC20 asset, bool lending)
         internal
         view
         virtual
@@ -190,7 +190,11 @@ contract SiloMoneyMarketView is BaseMoneyMarketView, SiloBase {
         }
     }
 
-    function _userUnclaimedRewards(PositionId positionId) internal view returns (uint256 userUnclaimedRewards) {
+    function _userUnclaimedRewards(PositionId positionId, ISiloIncentivesController incentivesController)
+        internal
+        view
+        returns (uint256 userUnclaimedRewards)
+    {
         if (address(incentivesController) != address(0)) {
             userUnclaimedRewards = incentivesController.getUserUnclaimedRewards(_account(positionId));
         }

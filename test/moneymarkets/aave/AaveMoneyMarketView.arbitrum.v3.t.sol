@@ -29,7 +29,7 @@ contract AaveMoneyMarketViewV3Test is AbstractMarketViewTest {
             AaveMoneyMarketView.Version.V3
         );
 
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         env.contangoLens().setMoneyMarketView(sut);
         vm.stopPrank();
 

@@ -10,15 +10,13 @@ uint256 constant COLLATERAL_ONLY = 0;
 abstract contract SiloBase {
 
     ISiloLens public immutable lens;
-    ISiloIncentivesController public immutable incentivesController;
     ISilo public immutable wstEthSilo;
     IERC20 public immutable weth;
     IERC20 public immutable stablecoin;
     ISiloRepository public immutable repository;
 
-    constructor(ISiloLens _lens, ISiloIncentivesController _incentivesController, ISilo _wstEthSilo, IERC20 _weth, IERC20 _stablecoin) {
+    constructor(ISiloLens _lens, ISilo _wstEthSilo, IERC20 _weth, IERC20 _stablecoin) {
         lens = _lens;
-        incentivesController = _incentivesController;
         wstEthSilo = _wstEthSilo;
         weth = _weth;
         stablecoin = _stablecoin;

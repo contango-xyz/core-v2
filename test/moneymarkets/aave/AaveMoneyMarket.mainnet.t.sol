@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "../../Mock.sol";
 import "../../TestSetup.t.sol";
 
-contract AaveMoneyMarketMainnetTest is Test {
+contract AaveMoneyMarketMainnetTest is Test, IMoneyMarketEvents {
 
     using Address for *;
     using ERC20Lib for *;
@@ -43,7 +43,7 @@ contract AaveMoneyMarketMainnetTest is Test {
 
         vm.prank(hacker);
         vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, hacker));
-        sut.flashBorrow(borrowToken, 0, "", Contango(contango).completeOpenFromFlashBorrow);
+        sut.flashBorrow(positionId, borrowToken, 0, "", Contango(contango).completeOpenFromFlashBorrow);
     }
 
     function testInitialise_InvalidExpiry() public {
@@ -94,11 +94,15 @@ contract AaveMoneyMarketMainnetTest is Test {
 
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
+        vm.expectEmit(true, true, true, true);
+        emit Lent({ positionId: positionId, asset: lendToken, amount: lendAmount, balanceBefore: 0 });
         vm.prank(contango);
         uint256 lent = sut.lend(positionId, lendToken, lendAmount);
         assertEqDecimal(lent, lendAmount, lendToken.decimals(), "lent amount");
 
         // borrow
+        vm.expectEmit(true, true, true, true);
+        emit Borrowed({ positionId: positionId, asset: borrowToken, amount: borrowAmount, balanceBefore: 0 });
         vm.prank(contango);
         uint256 borrowed = sut.borrow(positionId, borrowToken, borrowAmount, address(this));
         assertEqDecimal(borrowed, borrowAmount, borrowToken.decimals(), "borrowed amount");
@@ -114,6 +118,8 @@ contract AaveMoneyMarketMainnetTest is Test {
         // repay
         uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
+        vm.expectEmit(true, true, true, true);
+        emit Repaid({ positionId: positionId, asset: borrowToken, amount: debt, balanceBefore: debt });
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
@@ -122,6 +128,8 @@ contract AaveMoneyMarketMainnetTest is Test {
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
+        vm.expectEmit(true, true, true, true);
+        emit Withdrawn({ positionId: positionId, asset: lendToken, amount: collateral, balanceBefore: collateral });
         vm.prank(contango);
         uint256 withdrew = sut.withdraw(positionId, lendToken, collateral, address(this));
 
@@ -206,6 +214,8 @@ contract AaveMoneyMarketMainnetTest is Test {
         // repay
         uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt / 4, address(sut));
+        vm.expectEmit(true, true, true, true);
+        emit Repaid({ positionId: positionId, asset: borrowToken, amount: debt / 4, balanceBefore: debt });
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt / 4);
 
@@ -234,13 +244,17 @@ contract AaveMoneyMarketMainnetTest is Test {
 
         // lend
         env.dealAndApprove(lendToken, contango, lendAmount, address(sut));
+        vm.expectEmit(true, true, true, true);
+        emit Lent({ positionId: positionId, asset: lendToken, amount: lendAmount, balanceBefore: 0 });
         vm.prank(contango);
         uint256 lent = sut.lend(positionId, lendToken, lendAmount);
         assertEqDecimal(lent, lendAmount, lendToken.decimals(), "lent amount");
 
         // borrow
+        vm.expectEmit(true, true, true, true);
+        emit Borrowed({ positionId: positionId, asset: borrowToken, amount: borrowAmount, balanceBefore: 0 });
         vm.prank(contango);
-        bytes memory result = sut.flashBorrow(borrowToken, borrowAmount, "", this.callback);
+        bytes memory result = sut.flashBorrow(positionId, borrowToken, borrowAmount, "", this.callback);
         assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
         assertEq(result, "Hello world!", "callback result");
 
@@ -254,6 +268,8 @@ contract AaveMoneyMarketMainnetTest is Test {
         // repay
         uint256 debt = sut.debtBalance(positionId, borrowToken);
         env.dealAndApprove(borrowToken, contango, debt, address(sut));
+        vm.expectEmit(true, true, true, true);
+        emit Repaid({ positionId: positionId, asset: borrowToken, amount: debt, balanceBefore: debt });
         vm.prank(contango);
         uint256 repaid = sut.repay(positionId, borrowToken, debt);
 
@@ -262,6 +278,8 @@ contract AaveMoneyMarketMainnetTest is Test {
 
         // withdraw
         uint256 collateral = sut.collateralBalance(positionId, lendToken);
+        vm.expectEmit(true, true, true, true);
+        emit Withdrawn({ positionId: positionId, asset: lendToken, amount: collateral, balanceBefore: collateral });
         vm.prank(contango);
         uint256 withdrew = sut.withdraw(positionId, lendToken, collateral, address(this));
 

@@ -52,6 +52,15 @@ interface IOrderManagerEvents {
 
     event OrderCancelled(OrderId indexed orderId);
     event OrderExecuted(OrderId indexed orderId, PositionId indexed positionId, uint256 keeperReward);
+    event FeeCollected(
+        OrderId indexed orderId,
+        PositionId indexed positionId,
+        address indexed trader,
+        address treasury,
+        IERC20 token,
+        uint256 amount,
+        uint8 basisPoints
+    );
 
     event GasMultiplierSet(uint256 gasMultiplier);
     event GasTipSet(uint256 gasTip);
@@ -85,6 +94,11 @@ interface IOrderManager is IOrderManagerEvents, IOrderManagerErrors, IContangoEr
     function cancel(OrderId orderId) external;
 
     function execute(OrderId orderId, ExecutionParams calldata execParams)
+        external
+        payable
+        returns (PositionId positionId_, Trade memory trade_, uint256 keeperReward_);
+
+    function executeWithFees(OrderId orderId, ExecutionParams calldata execParams, FeeParams memory feeParams)
         external
         payable
         returns (PositionId positionId_, Trade memory trade_, uint256 keeperReward_);

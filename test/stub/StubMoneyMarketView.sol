@@ -61,7 +61,7 @@ contract StubMoneyMarketView is IMoneyMarketView {
         return delegate.rates(positionId);
     }
 
-    function irmRaw(PositionId positionId) external view returns (bytes memory data) {
+    function irmRaw(PositionId positionId) external returns (bytes memory data) {
         return delegate.irmRaw(positionId);
     }
 

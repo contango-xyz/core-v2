@@ -43,7 +43,7 @@ contract AaveV2MoneyMarketMainnetTest is Test {
 
         vm.prank(hacker);
         vm.expectRevert(abi.encodeWithSelector(Unauthorised.selector, hacker));
-        sut.flashBorrow(borrowToken, 0, "", Contango(contango).completeOpenFromFlashBorrow);
+        sut.flashBorrow(positionId, borrowToken, 0, "", Contango(contango).completeOpenFromFlashBorrow);
     }
 
     function testInitialise_InvalidExpiry() public {
@@ -246,7 +246,7 @@ contract AaveV2MoneyMarketMainnetTest is Test {
 
         // borrow
         vm.prank(contango);
-        bytes memory result = sut.flashBorrow(borrowToken, borrowAmount, "", this.callback);
+        bytes memory result = sut.flashBorrow(positionId, borrowToken, borrowAmount, "", this.callback);
         assertEqDecimal(borrowToken.balanceOf(address(this)), borrowAmount, borrowToken.decimals(), "borrowed balance");
         assertEq(result, "Hello world!", "callback result");
 

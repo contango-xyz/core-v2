@@ -19,30 +19,18 @@ contract CometMoneyMarketView is BaseMoneyMarketView {
 
     error OracleNotFound(IERC20 asset);
 
-    struct IRMData {
-        uint256 totalSupply;
-        uint256 totalBorrow;
-        uint256 borrowKink;
-        uint256 borrowPerSecondInterestRateSlopeLow;
-        uint256 borrowPerSecondInterestRateSlopeHigh;
-        uint256 borrowPerSecondInterestRateBase;
-    }
-
     CometReverseLookup public immutable reverseLookup;
     ICometRewards public immutable cometRewards;
-    IAggregatorV2V3 public immutable compOracle;
 
     constructor(
         IContango _contango,
         IWETH9 _nativeToken,
         IAggregatorV2V3 _nativeUsdOracle,
         CometReverseLookup _reverseLookup,
-        ICometRewards _cometRewards,
-        IAggregatorV2V3 _compOracle
+        ICometRewards _cometRewards
     ) BaseMoneyMarketView(MM_COMET, "Comet", _contango, _nativeToken, _nativeUsdOracle) {
         reverseLookup = _reverseLookup;
         cometRewards = _cometRewards;
-        compOracle = _compOracle;
     }
 
     function _balances(PositionId positionId, IERC20 collateralAsset, IERC20) internal view override returns (Balances memory balances_) {
@@ -63,41 +51,6 @@ contract CometMoneyMarketView is BaseMoneyMarketView {
         prices_.collateral = comet.getPrice(comet.getAssetInfoByAddress(collateralAsset).priceFeed);
         prices_.debt = comet.getPrice(comet.baseTokenPriceFeed());
         prices_.unit = 1e8;
-    }
-
-    function priceInUSD(IERC20 asset) public view virtual override returns (uint256 price_) {
-        return _derivePriceInUSD(asset);
-    }
-
-    function _oraclePrice(IERC20 asset) internal view virtual override returns (uint256) {
-        if (asset == nativeToken) return uint256(nativeUsdOracle.latestAnswer());
-        IComet comet = reverseLookup.cometsByBaseAsset(asset);
-
-        if (comet != IComet(address(0))) {
-            return comet.getPrice(comet.baseTokenPriceFeed()) * _conversion(comet) / 1e8;
-        } else {
-            uint256 comets = reverseLookup.nextPayload();
-            for (uint40 i = 1; i < comets; i++) {
-                comet = reverseLookup.comet(Payload.wrap(bytes5(i)));
-
-                try comet.getAssetInfoByAddress(asset) returns (IComet.AssetInfo memory assetInfo) {
-                    return comet.getPrice(assetInfo.priceFeed) * _conversion(comet) / 1e8;
-                } catch {
-                    continue;
-                }
-            }
-        }
-
-        revert OracleNotFound(asset);
-    }
-
-    function _conversion(IComet comet) internal view returns (uint256) {
-        // Comet's oracle seem to be always on market ccy, so far we only have either USD or WETH
-        return comet.baseToken() == nativeToken ? uint256(nativeUsdOracle.latestAnswer()) : 1e8;
-    }
-
-    function _oracleUnit() internal view virtual override returns (uint256) {
-        return 1e8;
     }
 
     function _thresholds(PositionId positionId, IERC20 collateralAsset, IERC20)
@@ -135,33 +88,6 @@ contract CometMoneyMarketView is BaseMoneyMarketView {
         IComet comet = reverseLookup.comet(positionId.getPayload());
         borrowing = _apy({ rate: comet.getBorrowRate(comet.getUtilization()), perSeconds: 1 });
         lending = 0;
-    }
-
-    function _rewards(PositionId positionId, IERC20, IERC20 debtAsset)
-        internal
-        virtual
-        override
-        returns (Reward[] memory borrowing, Reward[] memory lending)
-    {
-        lending = new Reward[](0);
-        IComet comet = reverseLookup.comet(positionId.getPayload());
-
-        uint256 baseTrackingBorrowSpeed = comet.baseTrackingBorrowSpeed();
-        if (baseTrackingBorrowSpeed == 0) return (new Reward[](0), lending);
-
-        borrowing = new Reward[](1);
-        borrowing[0].token = _asTokenData(cometRewards.rewardConfig(comet).token);
-        borrowing[0].claimable = cometRewards.getRewardOwed(comet, _account(positionId)).owed;
-        borrowing[0].usdPrice = uint256(compOracle.latestAnswer()) * 1e10;
-
-        // Ref, albeit outdated: https://github.com/compound-developers/compound-3-developer-faq/blob/2e2bea0848c67af0400d76fe39e0fc859b53d28a/contracts/MyContract.sol#L181
-        uint256 unit = 10 ** debtAsset.decimals();
-        uint256 baseIndexScale = comet.baseIndexScale();
-        uint256 baseAccrualScale = comet.baseAccrualScale();
-        uint256 scaleFactor = unit > baseIndexScale ? baseIndexScale * baseAccrualScale : baseIndexScale / baseAccrualScale;
-        uint256 basePriceInUsd = _oraclePrice(debtAsset) * 1e10;
-        uint256 rewardToSuppliersPerDay = baseTrackingBorrowSpeed * 1 days * scaleFactor;
-        borrowing[0].rate = (borrowing[0].usdPrice * rewardToSuppliersPerDay / (comet.totalBorrow() * basePriceInUsd)) * 365;
     }
 
     function _availableActions(PositionId positionId, IERC20, IERC20)
@@ -203,18 +129,60 @@ contract CometMoneyMarketView is BaseMoneyMarketView {
         limits_.minBorrowingForRewards = comet.baseMinForRewards();
     }
 
-    function _irmRaw(PositionId positionId, IERC20, IERC20) internal view virtual override returns (bytes memory data) {
-        IComet comet = reverseLookup.comet(positionId.getPayload());
-        data = abi.encode(
-            IRMData({
-                totalSupply: comet.totalSupply(),
-                totalBorrow: comet.totalBorrow(),
-                borrowKink: comet.borrowKink(),
-                borrowPerSecondInterestRateSlopeLow: comet.borrowPerSecondInterestRateSlopeLow(),
-                borrowPerSecondInterestRateSlopeHigh: comet.borrowPerSecondInterestRateSlopeHigh(),
-                borrowPerSecondInterestRateBase: comet.borrowPerSecondInterestRateBase()
-            })
-        );
+    struct IRMData {
+        uint256 totalSupply;
+        uint256 totalBorrow;
+        uint256 borrowKink;
+        uint256 borrowPerSecondInterestRateSlopeLow;
+        uint256 borrowPerSecondInterestRateSlopeHigh;
+        uint256 borrowPerSecondInterestRateBase;
     }
+
+    struct RewardsData {
+        uint256 baseTrackingBorrowSpeed;
+        uint256 baseIndexScale;
+        uint256 baseAccrualScale;
+        uint256 totalBorrow;
+        uint256 claimable;
+        TokenData token;
+    }
+
+    struct RawData {
+        IRMData irmData;
+        RewardsData rewardsData;
+    }
+
+    // This function is here to make our life easier on the wagmi/viem side
+    function rawData(PositionId positionId) public returns (RawData memory data) {
+        IComet comet = reverseLookup.comet(positionId.getPayload());
+        data.irmData = IRMData({
+            totalSupply: comet.totalSupply(),
+            totalBorrow: comet.totalBorrow(),
+            borrowKink: comet.borrowKink(),
+            borrowPerSecondInterestRateSlopeLow: comet.borrowPerSecondInterestRateSlopeLow(),
+            borrowPerSecondInterestRateSlopeHigh: comet.borrowPerSecondInterestRateSlopeHigh(),
+            borrowPerSecondInterestRateBase: comet.borrowPerSecondInterestRateBase()
+        });
+
+        data.rewardsData = RewardsData({
+            baseTrackingBorrowSpeed: comet.baseTrackingBorrowSpeed(),
+            baseIndexScale: comet.baseIndexScale(),
+            baseAccrualScale: comet.baseAccrualScale(),
+            totalBorrow: comet.totalBorrow(),
+            claimable: cometRewards.getRewardOwed(comet, _account(positionId)).owed,
+            token: _asTokenData(cometRewards.rewardConfig(comet).token)
+        });
+    }
+
+    function _irmRaw(PositionId positionId, IERC20, IERC20) internal virtual override returns (bytes memory data) {
+        data = abi.encode(rawData(positionId));
+    }
+
+    // So these functions can't be implemented
+    // The reason why they are not made to revert is because Solidity would thrown an "Unreachable code" error
+    function _oraclePrice(IERC20 asset) internal view virtual override returns (uint256) { }
+    function _oracleUnit() internal view virtual override returns (uint256) { }
+    function priceInUSD(IERC20 asset) public view virtual override returns (uint256 price_) { }
+    function priceInNativeToken(IERC20 asset) public view virtual override returns (uint256 price_) { }
 
 }

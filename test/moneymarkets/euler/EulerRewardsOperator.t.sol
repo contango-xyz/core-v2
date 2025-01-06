@@ -24,7 +24,7 @@ contract EulerRewardsOperatorTest is BaseTest, Addresses {
     }
 
     function testCanAddUpToFiveRewards() public {
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         rewardOperator.addLiveReward(woethVault, OGN_TOKEN); // 1
         rewardOperator.addLiveReward(woethVault, LINK_TOKEN); // 2
         rewardOperator.addLiveReward(woethVault, DAI_TOKEN); // 3

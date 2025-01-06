@@ -49,7 +49,11 @@ contract DolomiteMoneyMarket is BaseMoneyMarket {
         return dolomite.getAccountWei(self, dolomite.getMarketIdByTokenAddress(asset)).value;
     }
 
-    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
+    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         actualAmount = asset.transferOut(payer, address(this), amount);
         if (_isIsolationMode()) {
             vault.depositIntoVaultForDolomiteMargin(0, actualAmount);
@@ -59,13 +63,21 @@ contract DolomiteMoneyMarket is BaseMoneyMarket {
         }
     }
 
-    function _borrow(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _borrow(PositionId positionId, IERC20 asset, uint256 amount, address to, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         if (_isIsolationMode()) vault.transferFromPositionWithOtherToken(_accountNumber(positionId), 0, 0, amount, BalanceCheck.None);
         __withdraw(asset, actualAmount = amount, to);
     }
 
-    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
-        actualAmount = Math.min(amount, _debtBalance(positionId, asset));
+    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256 debt)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
+        actualAmount = Math.min(amount, debt);
         if (actualAmount > 0) {
             __deposit(asset, asset.transferOut(payer, address(this), actualAmount));
             if (_isIsolationMode()) {
@@ -74,7 +86,11 @@ contract DolomiteMoneyMarket is BaseMoneyMarket {
         }
     }
 
-    function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         if (_isIsolationMode()) {
             vault.transferFromPositionWithUnderlyingToken(_accountNumber(positionId), 0, amount);
             vault.withdrawFromVaultForDolomiteMargin(0, amount);

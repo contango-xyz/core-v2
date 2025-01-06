@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-import { Payload, CoreTimelock, Operator } from "../../libraries/DataTypes.sol";
+import { Payload, Timelock, Operator } from "../../libraries/DataTypes.sol";
 import { OPERATOR_ROLE } from "../../libraries/Roles.sol";
 
 import "./dependencies/IComet.sol";
@@ -26,10 +26,10 @@ contract CometReverseLookup is CometReverseLookupEvents, CometReverseLookupError
     uint40 public nextPayload = 1;
     mapping(Payload payload => IComet comet) public comets;
     mapping(IComet comet => Payload payload) public payloads;
-    mapping(IERC20 baseAsset => IComet comet) public cometsByBaseAsset;
 
-    constructor(CoreTimelock timelock, Operator operator) {
-        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+    constructor(Timelock timelock, Operator operator) {
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
+        _grantRole(OPERATOR_ROLE, Timelock.unwrap(timelock));
         _grantRole(OPERATOR_ROLE, Operator.unwrap(operator));
     }
 
@@ -39,7 +39,6 @@ contract CometReverseLookup is CometReverseLookupEvents, CometReverseLookupError
         payload = Payload.wrap(bytes5(nextPayload++));
         comets[payload] = _comet;
         payloads[_comet] = payload;
-        cometsByBaseAsset[_comet.baseToken()] = _comet;
         emit CometSet(_comet, payload);
     }
 

@@ -71,7 +71,7 @@ interface ISiloRepository {
     function getLiquidationThreshold(ISilo _silo, IERC20 asset) external view returns (uint256);
     function getMaxSiloDepositsValue(ISilo _silo, IERC20 asset) external view returns (uint256);
     function getMaximumLTV(ISilo _silo, IERC20 asset) external view returns (uint256);
-    function getNotificationReceiver(address) external view returns (address);
+    function getNotificationReceiver(ISilo) external view returns (ISiloIncentivesController);
     function getRemovedBridgeAssets() external view returns (address[] memory);
     function getSilo(IERC20) external view returns (ISilo);
     function getVersionForAsset(address) external view returns (uint128);

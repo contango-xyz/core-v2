@@ -33,25 +33,41 @@ contract CometMoneyMarket is BaseMoneyMarket {
         debtAsset.forceApprove(address(comet), type(uint256).max);
     }
 
-    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
+    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         actualAmount = asset.transferOut(payer, address(this), amount);
         reverseLookup.comet(positionId.getPayload()).supply(asset, actualAmount);
     }
 
-    function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         IComet comet = reverseLookup.comet(positionId.getPayload());
         actualAmount = Math.min(amount, comet.userCollateral(address(this), asset).balance);
         comet.withdrawTo(to, asset, actualAmount);
     }
 
-    function _borrow(PositionId positionId, IERC20 asset, uint256 amount, address to) internal override returns (uint256 actualAmount) {
+    function _borrow(PositionId positionId, IERC20 asset, uint256 amount, address to, uint256)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         actualAmount = amount;
         reverseLookup.comet(positionId.getPayload()).withdrawTo(to, asset, actualAmount);
     }
 
-    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer) internal override returns (uint256 actualAmount) {
+    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256 debt)
+        internal
+        override
+        returns (uint256 actualAmount)
+    {
         IComet comet = reverseLookup.comet(positionId.getPayload());
-        actualAmount = asset.transferOut(payer, address(this), Math.min(amount, comet.borrowBalanceOf(address(this))));
+        actualAmount = asset.transferOut(payer, address(this), Math.min(amount, debt));
         comet.supply(asset, actualAmount);
     }
 

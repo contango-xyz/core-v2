@@ -95,7 +95,7 @@ abstract contract BaseMoneyMarketView is IMoneyMarketView {
         return _rates(positionId, collateralAsset, debtAsset);
     }
 
-    function irmRaw(PositionId positionId) external view override returns (bytes memory data) {
+    function irmRaw(PositionId positionId) external override returns (bytes memory data) {
         (IERC20 collateralAsset, IERC20 debtAsset) = _assets(positionId);
         return _irmRaw(positionId, collateralAsset, debtAsset);
     }
@@ -165,7 +165,7 @@ abstract contract BaseMoneyMarketView is IMoneyMarketView {
         virtual
         returns (uint256 borrowing, uint256 lending);
 
-    function _irmRaw(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal view virtual returns (bytes memory data) { }
+    function _irmRaw(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal virtual returns (bytes memory data) { }
 
     function _rewards(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset)
         internal

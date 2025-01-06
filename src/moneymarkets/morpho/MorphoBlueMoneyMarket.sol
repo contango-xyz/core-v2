@@ -51,7 +51,7 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
         balance = position.borrowShares.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
-    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer)
+    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256)
         internal
         virtual
         override
@@ -65,7 +65,12 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
         });
     }
 
-    function _borrow(PositionId positionId, IERC20, uint256 amount, address to) internal virtual override returns (uint256 actualAmount) {
+    function _borrow(PositionId positionId, IERC20, uint256 amount, address to, uint256)
+        internal
+        virtual
+        override
+        returns (uint256 actualAmount)
+    {
         (actualAmount,) = morpho.borrow({
             marketParams: morpho.idToMarketParams(reverseLookup.marketId(positionId.getPayload())),
             assets: amount,
@@ -75,18 +80,16 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
         });
     }
 
-    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer)
+    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256)
         internal
         virtual
         override
         returns (uint256 actualAmount)
     {
         MorphoMarketId marketId = reverseLookup.marketId(positionId.getPayload());
-        MarketParams memory marketParams = morpho.idToMarketParams(marketId);
-
-        morpho.accrueInterest(marketParams); // Accrue interest before loading the market state
         Market memory market = morpho.market(marketId);
 
+        // Parent called _debtBalance and thus interest is accrued
         uint256 borrowShares = morpho.position(marketId, address(this)).borrowShares;
         uint256 actualShares = Math.min(amount.toSharesDown(market.totalBorrowAssets, market.totalBorrowShares), borrowShares);
 
@@ -107,7 +110,7 @@ contract MorphoBlueMoneyMarket is BaseMoneyMarket {
         }
     }
 
-    function _withdraw(PositionId positionId, IERC20, uint256 amount, address to)
+    function _withdraw(PositionId positionId, IERC20, uint256 amount, address to, uint256)
         internal
         virtual
         override

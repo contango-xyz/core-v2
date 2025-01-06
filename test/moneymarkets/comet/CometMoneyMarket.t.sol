@@ -28,7 +28,7 @@ contract CometMoneyMarketTest is BaseTest {
         sut = env.deployer().deployCometMoneyMarket(env, env.contango());
         comet = address(env.comet());
 
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         Payload payload = sut.reverseLookup().setComet(env.comet());
         vm.stopPrank();
 
@@ -70,7 +70,7 @@ contract CometMoneyMarketTest is BaseTest {
         IERC20 borrowToken = env.token(USDC);
 
         CometMoneyMarket emm = env.deployer().deployCometMoneyMarket(env, IContango(contango));
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         Payload payload = emm.reverseLookup().setComet(env.comet());
         vm.stopPrank();
         positionId = encode(Symbol.wrap("WETHUSDC"), MM_COMET, PERP, 1, payload);

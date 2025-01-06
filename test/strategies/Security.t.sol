@@ -60,13 +60,13 @@ contract StrategiesSecurityTest is BaseTest, GasSnapshot {
             uniswapFee: 500
         });
 
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.grantRole(OPERATOR_ROLE, operator);
 
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.grantRole(EMERGENCY_BREAK_ROLE, operator);
 
-        vm.prank(CORE_TIMELOCK_ADDRESS);
+        vm.prank(TIMELOCK_ADDRESS);
         sut.grantRole(RESTARTER_ROLE, operator);
     }
 

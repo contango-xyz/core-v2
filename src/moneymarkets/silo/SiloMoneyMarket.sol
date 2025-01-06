@@ -18,15 +18,10 @@ contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
 
     ISilo public silo;
 
-    constructor(
-        MoneyMarketId _moneyMarketId,
-        IContango _contango,
-        ISiloLens _lens,
-        ISiloIncentivesController _incentivesController,
-        ISilo _wstEthSilo,
-        IERC20 _weth,
-        IERC20 _stablecoin
-    ) BaseMoneyMarket(_moneyMarketId, _contango) SiloBase(_lens, _incentivesController, _wstEthSilo, _weth, _stablecoin) { }
+    constructor(MoneyMarketId _moneyMarketId, IContango _contango, ISiloLens _lens, ISilo _wstEthSilo, IERC20 _weth, IERC20 _stablecoin)
+        BaseMoneyMarket(_moneyMarketId, _contango)
+        SiloBase(_lens, _wstEthSilo, _weth, _stablecoin)
+    { }
 
     function _initialise(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset) internal virtual override {
         if (!positionId.isPerp()) revert InvalidExpiry();
@@ -46,7 +41,7 @@ contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
         balance = lens.getBorrowAmount(silo, asset, address(this), block.timestamp);
     }
 
-    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer)
+    function _lend(PositionId positionId, IERC20 asset, uint256 amount, address payer, uint256)
         internal
         virtual
         override
@@ -55,40 +50,48 @@ contract SiloMoneyMarket is BaseMoneyMarket, SiloBase {
         (actualAmount,) = silo.deposit(asset, asset.transferOut(payer, address(this), amount), positionId.isCollateralOnly());
     }
 
-    function _borrow(PositionId, IERC20 asset, uint256 amount, address to) internal virtual override returns (uint256 actualAmount) {
+    function _borrow(PositionId, IERC20 asset, uint256 amount, address to, uint256)
+        internal
+        virtual
+        override
+        returns (uint256 actualAmount)
+    {
         (actualAmount,) = silo.borrow(asset, amount);
         asset.transferOut(address(this), to, actualAmount);
     }
 
-    function _repay(PositionId positionId, IERC20 asset, uint256 amount, address payer)
+    function _repay(PositionId, IERC20 asset, uint256 amount, address payer, uint256 debt)
         internal
         virtual
         override
         returns (uint256 actualAmount)
     {
-        actualAmount = Math.min(amount, _debtBalance(positionId, asset));
+        actualAmount = Math.min(amount, debt);
         if (actualAmount > 0) silo.repay(asset, asset.transferOut(payer, address(this), actualAmount));
     }
 
-    function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to)
+    function _withdraw(PositionId positionId, IERC20 asset, uint256 amount, address to, uint256 balance)
         internal
         virtual
         override
         returns (uint256 actualAmount)
     {
-        if (amount == _collateralBalance(positionId, asset)) amount = type(uint256).max;
+        if (amount == balance) amount = type(uint256).max;
         (actualAmount,) = silo.withdraw(asset, amount, positionId.isCollateralOnly());
         asset.transferOut(address(this), to, actualAmount);
     }
 
     function _claimRewards(PositionId positionId, IERC20 collateralAsset, IERC20 debtAsset, address to) internal virtual override {
+        ISilo _silo = silo;
+        ISiloIncentivesController incentivesController = repository.getNotificationReceiver(_silo);
+
         if (address(incentivesController) == address(0)) return;
 
         IERC20 collateralToken = positionId.isCollateralOnly()
-            ? silo.assetStorage(collateralAsset).collateralOnlyToken
-            : silo.assetStorage(collateralAsset).collateralToken;
+            ? _silo.assetStorage(collateralAsset).collateralOnlyToken
+            : _silo.assetStorage(collateralAsset).collateralToken;
         uint256 amount =
-            incentivesController.claimRewards(toArray(collateralToken, silo.assetStorage(debtAsset).debtToken), type(uint256).max, to);
+            incentivesController.claimRewards(toArray(collateralToken, _silo.assetStorage(debtAsset).debtToken), type(uint256).max, to);
 
         if (amount > 0) emit RewardsClaimed(positionId, incentivesController.REWARD_TOKEN(), to, amount);
     }

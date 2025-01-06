@@ -19,7 +19,7 @@ contract BaseMoneyMarketInstanceTest is Test {
         nft = contango.positionNFT();
         owner = 0xfc2af546358825b94A40aF442ac08F27facF0859;
 
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         CometMoneyMarket mm = new CometMoneyMarket({
             _moneyMarketId: MM_COMET,
             _contango: contango,

@@ -72,14 +72,14 @@ abstract contract StrategyBlocks is
         nativeToken = _maestro.nativeToken();
     }
 
-    function initialize(CoreTimelock timelock) public initializer {
+    function initialize(Timelock timelock) public initializer {
         __AccessControl_init_unchained();
         __UUPSUpgradeable_init_unchained();
         __Pausable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
-        _grantRole(EMERGENCY_BREAK_ROLE, CoreTimelock.unwrap(timelock));
-        _grantRole(RESTARTER_ROLE, CoreTimelock.unwrap(timelock));
-        _grantRole(OPERATOR_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
+        _grantRole(EMERGENCY_BREAK_ROLE, Timelock.unwrap(timelock));
+        _grantRole(RESTARTER_ROLE, Timelock.unwrap(timelock));
+        _grantRole(OPERATOR_ROLE, Timelock.unwrap(timelock));
     }
 
     // ======================== Public functions ========================

@@ -79,11 +79,11 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
         spotExecutor = spot;
     }
 
-    function initialize(CoreTimelock timelock) public initializer {
+    function initialize(Timelock timelock) public initializer {
         __AccessControl_init_unchained();
         __Pausable_init_unchained();
         __UUPSUpgradeable_init_unchained();
-        _grantRole(DEFAULT_ADMIN_ROLE, CoreTimelock.unwrap(timelock));
+        _grantRole(DEFAULT_ADMIN_ROLE, Timelock.unwrap(timelock));
     }
 
     // ============================= IContango =========================
@@ -174,6 +174,7 @@ contract Contango is IContango, AccessControlUpgradeable, PausableUpgradeable, U
             bytes memory result;
             if (moneyMarket.supportsInterface(type(IFlashBorrowProvider).interfaceId)) {
                 result = IFlashBorrowProvider(address(moneyMarket)).flashBorrow({
+                    positionId: cb.positionId,
                     asset: _instrument.quote,
                     amount: flashLoanAmount,
                     params: cb.encodeFlashLoanCallback(),

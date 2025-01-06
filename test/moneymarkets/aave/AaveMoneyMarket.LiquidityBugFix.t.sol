@@ -34,7 +34,7 @@ contract AaveMoneyMarketLiquidityBugFixTest is Test, Addresses {
             MM_AAVE, "AaveV3", contango, addressProvider, rewardsController, nativeToken, nativeUsdOracle, AaveMoneyMarketView.Version.V32
         );
 
-        vm.startPrank(CORE_TIMELOCK_ADDRESS);
+        vm.startPrank(TIMELOCK_ADDRESS);
         lens.setMoneyMarketView(mmv);
 
         vm.stopPrank();
